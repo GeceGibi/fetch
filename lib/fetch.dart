@@ -19,15 +19,13 @@ class Fetch<T extends Object?> {
   Fetch(
     this.endpoint, {
     this.mapper,
-    this.overrideConfig,
   });
 
   final FetchParams params = {};
   final String endpoint;
   final Mapper<T>? mapper;
-  final FetchConfig? overrideConfig;
 
-  static setConfig<C extends FetchConfig>(C config) {
+  static void setConfig<C extends FetchConfig>(C config) {
     _config = config;
   }
 
@@ -35,6 +33,8 @@ class Fetch<T extends Object?> {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
   }) async {
+    this.params.addAll(params);
+
     return _config.responseHandler(
       await http.get(
         _config.getRequestUri(endpoint, params),
@@ -49,6 +49,8 @@ class Fetch<T extends Object?> {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
   ]) async {
+    this.params.addAll(params);
+
     return _config.responseHandler(
       await http.post(
         _config.getRequestUri(endpoint, params),
