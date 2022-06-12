@@ -1,5 +1,7 @@
 part of fetch;
 
+typedef HttpResponse = http.Response;
+
 abstract class FetchResponse<T extends Object?> {
   FetchResponse(
     this.payload, {

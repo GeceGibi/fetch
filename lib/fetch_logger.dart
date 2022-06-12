@@ -1,6 +1,6 @@
 part of fetch;
 
-void _logger(http.Response response, [FetchParams? body]) {
+void _logger(HttpResponse response, [FetchParams? body]) {
   final date = DateTime.now();
 
   final requestHeaders = [];

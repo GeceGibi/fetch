@@ -5,7 +5,7 @@ class FetchConfig {
   final loggerEnabled = true;
   final dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
-  String? messageBuilder(http.Response response) {
+  String? messageBuilder(HttpResponse response) {
     if (!isOk(response)) {
       return 'Bir sorun oluştu..';
     }
@@ -15,12 +15,12 @@ class FetchConfig {
 
   FutureOr<T> mapper<T>(dynamic response) => response;
 
-  bool isOk(http.Response response) {
+  bool isOk(HttpResponse response) {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
   Future<FetchResponse<T>> responseHandler<T>(
-    http.Response response,
+    HttpResponse response,
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
