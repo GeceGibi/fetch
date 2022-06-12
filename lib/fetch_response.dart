@@ -9,7 +9,7 @@ class FetchResponse<T extends Object?> {
 
   FetchResponse.error([String? error])
       : isSuccess = false,
-        message = error ?? defaultMessage,
+        message = error,
         payload = null;
 
   static FetchResponse<K> fromJson<K>(dynamic json) {
@@ -33,8 +33,6 @@ class FetchResponse<T extends Object?> {
   final bool isSuccess;
   final String? message;
   final T? payload;
-
-  static const defaultMessage = 'Bir sorun oluştu.';
 
   FetchResponse copyWith({
     T? payload,

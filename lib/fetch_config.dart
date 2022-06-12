@@ -1,11 +1,17 @@
 part of fetch;
 
 class FetchConfig {
-  bool loggerEnabled = true;
+  final baseUri = Uri();
+  final loggerEnabled = true;
+  final dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
-  Uri get baseUri => Uri();
+  String? messageBuilder(http.Response response) {
+    if (!isOk(response)) {
+      return 'Bir sorun oluştu..';
+    }
 
-  RegExp dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
+    return null;
+  }
 
   FutureOr<T> mapper<T>(dynamic response) => response;
 
@@ -18,7 +24,9 @@ class FetchConfig {
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
-    var responseShink = FetchResponse<T>.error();
+    final message = messageBuilder(response);
+    var responseShink = FetchResponse<T>.error(message);
+    T payload;
 
     if (!const bool.fromEnvironment('dart.vm.product') && loggerEnabled) {
       _logger(response, body);
@@ -27,15 +35,18 @@ class FetchConfig {
     if (isOk(response)) {
       if (response.headers.containsKey('content-type') &&
           response.headers['content-type']!.contains('json')) {
-        final json = jsonDecode(_utf8Decoder.convert(response.bodyBytes));
-        responseShink = FetchResponse.fromJson<T>(mapper(json));
-      } else {
-        responseShink = FetchResponse(
-          response.body as T,
-          message: null,
-          isSuccess: true,
+        payload = await mapper(
+          jsonDecode(_utf8Decoder.convert(response.bodyBytes)),
         );
+      } else {
+        payload = await mapper(response.body);
       }
+
+      responseShink = FetchResponse(
+        payload,
+        isSuccess: true,
+        message: message,
+      );
     }
 
     _streamController.add(responseShink);
