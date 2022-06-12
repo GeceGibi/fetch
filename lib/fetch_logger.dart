@@ -30,15 +30,17 @@ void _logger(http.Response response, [FetchParams? body]) {
     'status: ${response.statusCode}',
     'headers:',
     '├──request:',
-    requestHeaders.join('\n'),
+    ...requestHeaders,
     '├──response:',
-    responseHeaders.join('\n'),
-    requestBody.join('\n'),
-    'raw-response-body:',
+    ...responseHeaders,
+    ...requestBody,
+    'raw:',
     response.body,
     '<<<<<<<<<<<<<<<<<<< LOG END',
     '',
   ];
 
-  print(lines.join('\n'));
+  for (final line in lines) {
+    print(line);
+  }
 }
