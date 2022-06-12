@@ -23,6 +23,11 @@ abstract class FetchResponse<T extends Object?> {
     bool? isSuccess,
     String? message,
   });
+
+  @override
+  String toString() {
+    return 'FetchResponse<${payload.runtimeType}>(payload: $payload, message: $message, isSuccess: $isSuccess)';
+  }
 }
 
 class DefaultFetchResponse<T> extends FetchResponse<T> {

@@ -1,17 +1,11 @@
 part of fetch;
 
+var _config = FetchConfig();
+
 class FetchConfig {
-  final baseUri = Uri();
+  final base = Uri();
   final loggerEnabled = true;
   final dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
-
-  String? messageBuilder(HttpResponse response) {
-    if (!isOk(response)) {
-      return 'Bir sorun oluştu..';
-    }
-
-    return null;
-  }
 
   FutureOr<T> mapper<T>(dynamic response) => response;
 
@@ -19,16 +13,16 @@ class FetchConfig {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
-  Future<FetchResponse<T>> responseHandler<T>(
+  Future<R> responseHandler<R extends FetchResponse<T>, T>(
     HttpResponse response,
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
-    final message = messageBuilder(response);
-    var responseShink = DefaultFetchResponse<T>.error(message);
-    T payload;
+    var responseShink = DefaultFetchResponse<T>.error(response.reasonPhrase);
 
     if (isOk(response)) {
+      T payload;
+
       if (response.headers.containsKey('content-type') &&
           response.headers['content-type']!.contains('application/json')) {
         payload = await mapper(
@@ -41,11 +35,11 @@ class FetchConfig {
       responseShink = DefaultFetchResponse<T>(
         payload,
         isSuccess: true,
-        message: message,
+        message: null,
       );
     }
 
-    return responseShink;
+    return responseShink as R;
   }
 
   Uri getRequestUri(String endpoint, FetchParams params) {
@@ -74,7 +68,7 @@ class FetchConfig {
         ? null
         : args.map((key, value) => MapEntry(key, value.toString()));
 
-    return Uri.https(baseUri.host, baseUri.path + dressed, query);
+    return Uri.https(base.host, base.path + dressed, query);
   }
 
   String get httpVersion {
@@ -87,11 +81,15 @@ class FetchConfig {
   FetchParams<String> headerBuilder(FetchParams<String> headers) {
     return {
       'content-type': "application/json",
-      'http-version': httpVersion,
+      'x-http-version': httpVersion,
       ...headers,
     };
   }
 
-  final _streamController = StreamController<FetchResponse>();
-  Stream<FetchResponse> get onFetch => _streamController.stream;
+  final _onFetchStreamController = StreamController<FetchResponse>();
+  Stream<FetchResponse> get onFetch => _onFetchStreamController.stream;
+
+  void apply() {
+    _config = this;
+  }
 }
