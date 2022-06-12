@@ -1,6 +1,6 @@
 part of fetch;
 
-class FetchResponse<T extends Object?> {
+abstract class FetchResponse<T extends Object?> {
   FetchResponse(
     this.payload, {
     required this.message,
@@ -12,24 +12,6 @@ class FetchResponse<T extends Object?> {
         message = error,
         payload = null;
 
-  static FetchResponse<K> fromJson<K>(dynamic json) {
-    switch (json.runtimeType) {
-      case Map:
-        return FetchResponse<K>(
-          json,
-          message: json['message'],
-          isSuccess: true,
-        );
-
-      default:
-        return FetchResponse<K>(
-          json,
-          message: null,
-          isSuccess: true,
-        );
-    }
-  }
-
   final bool isSuccess;
   final String? message;
   final T? payload;
@@ -38,8 +20,27 @@ class FetchResponse<T extends Object?> {
     T? payload,
     bool? isSuccess,
     String? message,
+  });
+}
+
+class DefaultFetchResponse<T> extends FetchResponse<T> {
+  DefaultFetchResponse(
+    super.payload, {
+    required super.message,
+    required super.isSuccess,
+  });
+
+  DefaultFetchResponse.error([String? error])
+      : super(null, isSuccess: false, message: error);
+
+  @override
+  FetchResponse<T> copyWith({
+    T? payload,
+    bool? isSuccess,
+    String? message,
+    int? responseCode,
   }) {
-    return FetchResponse(
+    return DefaultFetchResponse<T>(
       payload ?? this.payload,
       isSuccess: isSuccess ?? this.isSuccess,
       message: message ?? this.message,

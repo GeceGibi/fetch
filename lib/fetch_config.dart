@@ -25,7 +25,7 @@ class FetchConfig {
     FetchParams? body,
   ]) async {
     final message = messageBuilder(response);
-    var responseShink = FetchResponse<T>.error(message);
+    var responseShink = DefaultFetchResponse<T>.error(message);
     T payload;
 
     if (!const bool.fromEnvironment('dart.vm.product') && loggerEnabled) {
@@ -42,7 +42,7 @@ class FetchConfig {
         payload = await mapper(response.body);
       }
 
-      responseShink = FetchResponse(
+      responseShink = DefaultFetchResponse<T>(
         payload,
         isSuccess: true,
         message: message,
