@@ -72,9 +72,17 @@ class FetchConfig {
     return Uri.https(baseUri.host, baseUri.path + dressed, query);
   }
 
+  String get httpVersion {
+    var version = Platform.version;
+    final index = version.indexOf('.', version.indexOf('.') + 1);
+    version = version.substring(0, index);
+    return 'Dart/$version (dart:io)';
+  }
+
   FetchParams<String> headerBuilder(FetchParams<String> headers) {
     return {
       'content-type': "application/json",
+      'http-version': httpVersion,
       ...headers,
     };
   }
