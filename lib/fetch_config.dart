@@ -34,7 +34,7 @@ class FetchConfig {
 
     if (isOk(response)) {
       if (response.headers.containsKey('content-type') &&
-          response.headers['content-type']!.contains('json')) {
+          response.headers['content-type']!.contains('application/json')) {
         payload = await mapper(
           jsonDecode(_utf8Decoder.convert(response.bodyBytes)),
         );
