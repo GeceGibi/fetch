@@ -28,10 +28,6 @@ class FetchConfig {
     var responseShink = DefaultFetchResponse<T>.error(message);
     T payload;
 
-    if (!const bool.fromEnvironment('dart.vm.product') && loggerEnabled) {
-      _logger(response, body);
-    }
-
     if (isOk(response)) {
       if (response.headers.containsKey('content-type') &&
           response.headers['content-type']!.contains('application/json')) {
@@ -48,8 +44,6 @@ class FetchConfig {
         message: message,
       );
     }
-
-    _streamController.add(responseShink);
 
     return responseShink;
   }

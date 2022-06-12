@@ -35,13 +35,19 @@ class Fetch<T extends Object?> {
   }) async {
     this.params.addAll(params);
 
-    return _config.responseHandler(
-      await http.get(
-        _config.getRequestUri(endpoint, params),
-        headers: _config.headerBuilder(headers),
-      ),
+    final httpResponse = await http.get(
+      _config.getRequestUri(endpoint, params),
+      headers: _config.headerBuilder(headers),
+    );
+
+    final fetchResponse = await _config.responseHandler<T>(
+      httpResponse,
       mapper ?? _config.mapper,
     );
+
+    notifyListeners(fetchResponse, httpResponse);
+
+    return fetchResponse;
   }
 
   Future<FetchResponse<T>> post(
@@ -51,14 +57,34 @@ class Fetch<T extends Object?> {
   ]) async {
     this.params.addAll(params);
 
-    return _config.responseHandler(
-      await http.post(
-        _config.getRequestUri(endpoint, params),
-        body: jsonEncode(body),
-        headers: _config.headerBuilder(headers),
-      ),
+    final httpResponse = await http.post(
+      _config.getRequestUri(endpoint, params),
+      body: jsonEncode(body),
+      headers: _config.headerBuilder(headers),
+    );
+
+    final fetchResponse = await _config.responseHandler<T>(
+      httpResponse,
       mapper ?? _config.mapper,
       body,
     );
+
+    notifyListeners(fetchResponse, httpResponse);
+
+    return fetchResponse;
+  }
+
+  void notifyListeners(
+    FetchResponse<T> fetchResponse,
+    HttpResponse httpResponse,
+  ) {
+    if (_config._streamController.hasListener) {
+      _config._streamController.add(fetchResponse);
+    }
+
+    if (!const bool.fromEnvironment('dart.vm.product') &&
+        _config.loggerEnabled) {
+      _logger(httpResponse);
+    }
   }
 }
