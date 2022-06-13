@@ -9,8 +9,6 @@ part 'fetch_response.dart';
 part 'fetch_config.dart';
 part 'fetch_logger.dart';
 
-var _utf8Decoder = const Utf8Decoder();
-
 typedef FetchParams<T> = Map<String, T>;
 typedef Mapper<T> = FutureOr<T> Function(Object? response);
 

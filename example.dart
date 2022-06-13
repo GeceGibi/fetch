@@ -110,21 +110,14 @@ class PayloadFromJson {
 void main(List<String> args) async {
   // exampleConfig.onFetch.listen(print);
 
-  final custom =
-      await CustomFetch<Map<String, dynamic>>('/{type}/1').get(params: {
-    'type': 'products',
-  });
-
-  final example = await ExampleFetch(
-    '/products/{id}',
-    mapper: (json) {
-      if (json != null && json is Map) {
-        return PayloadFromJson.fromJson(Map<String, dynamic>.from(json));
-      }
+  final custom = await CustomFetch<Map<String, dynamic>>('/{type}/1').get(
+    params: {
+      'type': 'products',
     },
-  ).get(
-    params: {'id': 2},
   );
+
+  final example = await ExampleFetch('/products/{id}',
+      mapper: (json) => PayloadFromJson.fromJson(json)).get(params: {'id': 2});
 
   print(custom.payload);
   print(example.deneme);

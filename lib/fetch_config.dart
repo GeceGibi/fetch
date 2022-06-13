@@ -1,5 +1,7 @@
 part of fetch;
 
+const _utf8Decoder = Utf8Decoder();
+
 class FetchConfig {
   final base = Uri();
   final loggerEnabled = true;
