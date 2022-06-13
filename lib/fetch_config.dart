@@ -1,19 +1,17 @@
 part of fetch;
 
-var _config = FetchConfig();
-
 class FetchConfig {
   final base = Uri();
   final loggerEnabled = true;
   final dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
-  FutureOr<T> mapper<T>(dynamic response) => response;
+  FutureOr<T> mapper<T>(Object? response) => response as T;
 
   bool isOk(HttpResponse response) {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
-  Future<R> responseHandler<R extends FetchResponse<T>, T>(
+  Future<R> responseHandler<R extends FetchResponseBase<T?>, T>(
     HttpResponse response,
     Mapper<T> mapper, [
     FetchParams? body,
@@ -86,10 +84,6 @@ class FetchConfig {
     };
   }
 
-  final _onFetchStreamController = StreamController<FetchResponse>();
-  Stream<FetchResponse> get onFetch => _onFetchStreamController.stream;
-
-  void apply() {
-    _config = this;
-  }
+  final _onFetchStreamController = StreamController<FetchResponseBase>();
+  Stream<FetchResponseBase> get onFetch => _onFetchStreamController.stream;
 }

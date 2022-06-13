@@ -12,14 +12,15 @@ part 'fetch_logger.dart';
 var _utf8Decoder = const Utf8Decoder();
 
 typedef FetchParams<T> = Map<String, T>;
-typedef Mapper<T> = FutureOr<T> Function(dynamic response);
+typedef Mapper<T> = FutureOr<T> Function(Object? response);
 
-class Fetch<T extends Object?, R extends FetchResponse<T>> {
-  Fetch(this.endpoint, {this.mapper});
+abstract class FetchBase<T extends Object?, R extends FetchResponseBase<T>> {
+  FetchBase(this.endpoint, {required this.config, this.mapper});
 
   final String endpoint;
   final Mapper<T>? mapper;
   final FetchParams params = {};
+  final FetchConfig config;
 
   Future<R> get({
     FetchParams params = const {},
@@ -29,13 +30,13 @@ class Fetch<T extends Object?, R extends FetchResponse<T>> {
 
     try {
       final httpResponse = await http.get(
-        _config.getRequestUri(endpoint, params),
-        headers: _config.headerBuilder(headers),
+        config.getRequestUri(endpoint, params),
+        headers: config.headerBuilder(headers),
       );
 
-      final fetchResponse = await _config.responseHandler<R, T>(
+      final fetchResponse = await config.responseHandler<R, T>(
         httpResponse,
-        mapper ?? _config.mapper,
+        mapper ?? config.mapper,
       );
 
       _notifyListeners(fetchResponse, httpResponse);
@@ -56,14 +57,14 @@ class Fetch<T extends Object?, R extends FetchResponse<T>> {
 
     try {
       final httpResponse = await http.post(
-        _config.getRequestUri(endpoint, params),
+        config.getRequestUri(endpoint, params),
         body: jsonEncode(body),
-        headers: _config.headerBuilder(headers),
+        headers: config.headerBuilder(headers),
       );
 
-      final fetchResponse = await _config.responseHandler<R, T>(
+      final fetchResponse = await config.responseHandler<R, T>(
         httpResponse,
-        mapper ?? _config.mapper,
+        mapper ?? config.mapper,
         body,
       );
 
@@ -78,14 +79,14 @@ class Fetch<T extends Object?, R extends FetchResponse<T>> {
   }
 
   void _notifyListeners(
-    FetchResponse<T> fetchResponse, [
+    FetchResponseBase<T?> fetchResponse, [
     HttpResponse? httpResponse,
   ]) {
-    if (_config._onFetchStreamController.hasListener) {
-      _config._onFetchStreamController.add(fetchResponse);
+    if (config._onFetchStreamController.hasListener) {
+      config._onFetchStreamController.add(fetchResponse);
     }
 
-    if (_config.loggerEnabled &&
+    if (config.loggerEnabled &&
         httpResponse != null &&
         !const bool.fromEnvironment('dart.vm.product')) {
       _logger(httpResponse);
