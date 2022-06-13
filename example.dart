@@ -116,8 +116,10 @@ void main(List<String> args) async {
     },
   );
 
-  final example = await ExampleFetch('/products/{id}',
-      mapper: (json) => PayloadFromJson.fromJson(json)).get(params: {'id': 2});
+  final example = await ExampleFetch(
+    '/products/{id}',
+    mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
+  ).get(params: {'id': 2});
 
   print(custom.payload);
   print(example.deneme);
