@@ -70,7 +70,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
     try {
       final httpResponse = await http.post(
         currentConfig.uriBuilder(endpoint, params),
-        body: jsonEncode(body),
+        body: body,
         headers: await currentConfig.headerBuilder(headers),
       );
 
@@ -148,6 +148,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     final httpResponse = await http.post(
       currentConfig.uriBuilder(url, params),
       headers: await currentConfig.headerBuilder(headers),
+      body: body,
     );
 
     _fetchLogger(httpResponse, currentConfig);
