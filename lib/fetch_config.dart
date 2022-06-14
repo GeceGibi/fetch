@@ -54,6 +54,21 @@ class FetchConfig {
     }
   }
 
+  dynamic bodyBuilder(FetchParams<String> headers, FetchParams body) {
+    final type = (headers['content-type'] ?? '');
+    final splitted = type.split(';');
+    final content = splitted.first;
+
+    switch (content) {
+      case 'application/json':
+      case 'application/javascript':
+        return jsonEncode(body);
+
+      default:
+        return body;
+    }
+  }
+
   Uri uriBuilder(
     String endpoint,
     FetchParams params, {
