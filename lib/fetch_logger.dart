@@ -2,9 +2,9 @@ part of fetch;
 
 void _fetchLogger(
   HttpResponse response,
-  FetchConfig config, {
+  FetchConfig config, [
   FetchParams? body,
-}) {
+]) {
   if (!config.isLoggerEnabled) {
     return;
   }

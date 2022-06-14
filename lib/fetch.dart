@@ -74,7 +74,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
         headers: await currentConfig.headerBuilder(headers),
       );
 
-      _fetchLogger(httpResponse, currentConfig);
+      _fetchLogger(httpResponse, currentConfig, body);
 
       final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
