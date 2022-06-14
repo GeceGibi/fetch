@@ -23,7 +23,7 @@ class FetchConfig {
   ]) async {
     if (await isSuccess(response)) {
       return FetchResponse<T>(
-        await mapper(bodyBuilder(response)),
+        await mapper(payloadBuilder(response)),
         isSuccess: true,
         message: null,
       ) as R;
@@ -34,7 +34,7 @@ class FetchConfig {
     ) as R;
   }
 
-  dynamic bodyBuilder(HttpResponse response) {
+  dynamic payloadBuilder(HttpResponse response) {
     final type = (response.headers['content-type'] ?? '');
     final splitted = type.split(';');
     final content = splitted.first;

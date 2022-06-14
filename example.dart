@@ -12,7 +12,7 @@ class ExampleConfig extends FetchConfig {
   ]) async {
     if (await isSuccess(response)) {
       return ExampleResponse<T>(
-        await mapper(bodyBuilder(response)),
+        await mapper(payloadBuilder(response)),
         isSuccess: true,
         message: null,
         deneme: [
