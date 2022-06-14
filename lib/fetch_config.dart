@@ -21,30 +21,37 @@ class FetchConfig {
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
-    var responseShink = FetchResponse<T>.error(
-      '${response.statusCode} - ${response.reasonPhrase}',
-    );
-
     if (await isSuccess(response)) {
-      T payload;
-
-      if (response.headers.containsKey('content-type') &&
-          response.headers['content-type']!.contains('application/json')) {
-        payload = await mapper(
-          jsonDecode(_utf8Decoder.convert(response.bodyBytes)),
-        );
-      } else {
-        payload = await mapper(response.body);
-      }
-
-      responseShink = FetchResponse<T>(
-        payload,
+      return FetchResponse<T>(
+        await mapper(bodyBuilder(response)),
         isSuccess: true,
         message: null,
-      );
+      ) as R;
     }
 
-    return responseShink as R;
+    return FetchResponse<T>.error(
+      '${response.statusCode} - ${response.reasonPhrase}',
+    ) as R;
+  }
+
+  dynamic bodyBuilder(HttpResponse response) {
+    final type = (response.headers['content-type'] ?? '');
+    final splitted = type.split(';');
+    final content = splitted.first;
+    final charset = splitted.last.split('=').last.toLowerCase();
+
+    switch (content) {
+      case 'application/json':
+      case 'application/javascript':
+        if (charset == 'utf-8') {
+          return jsonDecode(_utf8Decoder.convert(response.bodyBytes));
+        } else {
+          return jsonDecode(response.body);
+        }
+
+      default:
+        return response.body;
+    }
   }
 
   Uri uriBuilder(

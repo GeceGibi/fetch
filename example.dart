@@ -1,8 +1,4 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:fetch/fetch.dart';
-
-const _utf8Decoder = Utf8Decoder();
 
 class ExampleConfig extends FetchConfig {
   @override
@@ -14,32 +10,20 @@ class ExampleConfig extends FetchConfig {
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
-    var responseShink = ExampleResponse<T>.error(
-      '${response.statusCode} - ${response.reasonPhrase}',
-    );
-
     if (await isSuccess(response)) {
-      T payload;
-
-      if (response.headers.containsKey('content-type') &&
-          response.headers['content-type']!.contains('application/json')) {
-        final json = jsonDecode(_utf8Decoder.convert(response.bodyBytes));
-        payload = await mapper(json);
-      } else {
-        payload = await mapper(response.body);
-      }
-
-      responseShink = ExampleResponse<T>(
-        payload,
+      return ExampleResponse<T>(
+        await mapper(bodyBuilder(response)),
         isSuccess: true,
         message: null,
         deneme: [
-          {'payload.hashCode': payload.hashCode}
+          {'response': response}
         ],
-      );
+      ) as R;
     }
 
-    return responseShink as R;
+    return ExampleResponse<T>.error(
+      '${response.statusCode} - ${response.reasonPhrase}',
+    ) as R;
   }
 }
 
@@ -65,15 +49,10 @@ class ExampleFetch<T> extends FetchBase<T, ExampleResponse<T>> {
 class PayloadFromJson {
   PayloadFromJson.fromJson(Map<String, dynamic> json)
       : id = json['id'],
-        title = json['title'];
+        todo = json['todo'];
 
   final int id;
-  final String title;
-}
-
-class CopyFromExamplate extends ExampleConfig {
-  @override
-  Uri get base => Uri.parse('https://www.google.com');
+  final String todo;
 }
 
 void main(List<String> args) async {
@@ -85,20 +64,25 @@ void main(List<String> args) async {
     print('LOGGER:::$event');
   });
 
-  Fetch.getURL('https://www.{host}.com/?deneme=query', params: {
-    'host': 'google',
-    'test': 'Fetch',
-  });
+  // Fetch.getURL('https://www.{host}.com/?deneme=query', params: {
+  //   'host': 'google',
+  //   'test': 'Fetch',
+  // });
 
-  // try {
-  //   final response = await ExampleFetch(
-  //     '/products/{id}?foo=bar',
-  //     mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
-  //     config: CopyFromExamplate(),
-  //   ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
+  try {
+    final response = await ExampleFetch(
+      '/todos/{id}',
+      mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
+    ).get(
+      params: {
+        'id': 2,
+        'deneme': 123,
+        'value': 1.0,
+      },
+    );
 
-  //   print(response);
-  // } on FetchResponse catch (e) {
-  //   print(e);
-  // }
+    print(response.payload?.todo);
+  } on FetchResponse catch (e) {
+    print(e);
+  }
 }
