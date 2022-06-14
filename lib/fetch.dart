@@ -115,7 +115,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     _fetchConfig = config;
   }
 
-  static Future<HttpResponse> getURL(
+  static Future<FetchResponse<T>> getURL<T>(
     String url, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
@@ -130,10 +130,13 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
 
     _fetchLogger(httpResponse, currentConfig);
 
-    return httpResponse;
+    return currentConfig.responseHandler<FetchResponse<T>, T>(
+      httpResponse,
+      (response) => response as T,
+    );
   }
 
-  static Future<HttpResponse> postURL(
+  static Future<FetchResponse<T>> postURL<T>(
     String url,
     FetchParams body, {
     FetchParams params = const {},
@@ -149,6 +152,10 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
 
     _fetchLogger(httpResponse, currentConfig);
 
-    return httpResponse;
+    return currentConfig.responseHandler<FetchResponse<T>, T>(
+      httpResponse,
+      (response) => response as T,
+      body,
+    );
   }
 }
