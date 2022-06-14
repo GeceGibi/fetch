@@ -61,10 +61,10 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }
 
   Future<R> post(
-    FetchParams body, [
+    FetchParams body, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
-  ]) async {
+  }) async {
     this.params.addAll(params);
 
     try {
