@@ -85,15 +85,20 @@ void main(List<String> args) async {
     print('LOGGER:::$event');
   });
 
-  try {
-    final response = await ExampleFetch(
-      '/products/{id}',
-      mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
-      config: CopyFromExamplate(),
-    ).get(params: {'id': 2});
+  Fetch.getURL('https://www.{host}.com/?deneme=query', params: {
+    'host': 'google',
+    'test': 'Fetch',
+  });
 
-    print(response);
-  } on FetchResponse catch (e) {
-    print(e);
-  }
+  // try {
+  //   final response = await ExampleFetch(
+  //     '/products/{id}?foo=bar',
+  //     mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
+  //     config: CopyFromExamplate(),
+  //   ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
+
+  //   print(response);
+  // } on FetchResponse catch (e) {
+  //   print(e);
+  // }
 }

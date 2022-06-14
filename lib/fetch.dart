@@ -114,4 +114,41 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
   static void setConfig(FetchConfig config) {
     _fetchConfig = config;
   }
+
+  static Future<HttpResponse> getURL(
+    String url, {
+    FetchParams params = const {},
+    FetchParams<String> headers = const {},
+    FetchConfig? config,
+  }) async {
+    final currentConfig = config ?? _fetchConfig;
+
+    final httpResponse = await http.get(
+      currentConfig.uriBuilder(url, params, overrided: true),
+      headers: await currentConfig.headerBuilder(headers),
+    );
+
+    _fetchLogger(httpResponse, currentConfig);
+
+    return httpResponse;
+  }
+
+  static Future<HttpResponse> postURL(
+    String url,
+    FetchParams body, {
+    FetchParams params = const {},
+    FetchParams<String> headers = const {},
+    FetchConfig? config,
+  }) async {
+    final currentConfig = config ?? _fetchConfig;
+
+    final httpResponse = await http.post(
+      currentConfig.uriBuilder(url, params),
+      headers: await currentConfig.headerBuilder(headers),
+    );
+
+    _fetchLogger(httpResponse, currentConfig);
+
+    return httpResponse;
+  }
 }
