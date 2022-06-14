@@ -12,13 +12,20 @@ part 'fetch_logger.dart';
 typedef FetchParams<T> = Map<String, T>;
 typedef Mapper<T> = FutureOr<T> Function(Object? response);
 
-abstract class FetchBase<T extends Object?, R extends FetchResponseBase<T>> {
-  FetchBase(this.endpoint, {required this.config, this.mapper});
+class Fetch<T extends Object?, R extends FetchResponse<T>> {
+  Fetch(this.endpoint, {this.mapper, this.config});
 
   final String endpoint;
   final Mapper<T>? mapper;
   final FetchParams params = {};
-  final FetchConfig config;
+  final FetchConfig? config;
+
+  static var _config = FetchConfig();
+  static void setConfig(FetchConfig fetchConfig) {
+    _config = fetchConfig;
+  }
+
+  FetchConfig get currentConfig => config ?? _config;
 
   Future<R> get({
     FetchParams params = const {},
@@ -28,21 +35,33 @@ abstract class FetchBase<T extends Object?, R extends FetchResponseBase<T>> {
 
     try {
       final httpResponse = await http.get(
-        config.getRequestUri(endpoint, params),
-        headers: config.headerBuilder(headers),
+        currentConfig.uriBuilder(endpoint, params),
+        headers: await currentConfig.headerBuilder(headers),
       );
 
-      final fetchResponse = await config.responseHandler<R, T>(
+      _fetchLogger(httpResponse, currentConfig);
+
+      final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
-        mapper ?? config.mapper,
+        mapper ?? currentConfig.mapper,
       );
 
-      _notifyListeners(fetchResponse, httpResponse);
-      return fetchResponse;
-    } on SocketException catch (e) {
-      final fetchResponse = DefaultFetchResponse<T>.error(e.message);
       _notifyListeners(fetchResponse);
-      return fetchResponse as R;
+
+      return fetchResponse;
+    }
+
+    // Knowns
+    on SocketException catch (e) {
+      final response = FetchResponse<T>.error(e.message);
+      _notifyListeners(response);
+      return Future.error(response);
+    }
+
+    // Others
+    catch (e) {
+      _notifyListeners(FetchResponse<T>.error(e.toString()));
+      rethrow;
     }
   }
 
@@ -55,39 +74,41 @@ abstract class FetchBase<T extends Object?, R extends FetchResponseBase<T>> {
 
     try {
       final httpResponse = await http.post(
-        config.getRequestUri(endpoint, params),
+        currentConfig.uriBuilder(endpoint, params),
         body: jsonEncode(body),
-        headers: config.headerBuilder(headers),
+        headers: await currentConfig.headerBuilder(headers),
       );
 
-      final fetchResponse = await config.responseHandler<R, T>(
+      _fetchLogger(httpResponse, currentConfig);
+
+      final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
-        mapper ?? config.mapper,
+        mapper ?? currentConfig.mapper,
         body,
       );
 
       _notifyListeners(fetchResponse);
 
       return fetchResponse;
-    } on SocketException catch (e) {
-      final fetchResponse = DefaultFetchResponse<T>.error(e.message);
-      _notifyListeners(fetchResponse);
-      return fetchResponse as R;
+    }
+
+    // Knowns
+    on SocketException catch (e) {
+      final response = FetchResponse<T>.error(e.message);
+      _notifyListeners(response);
+      return Future.error(response);
+    }
+
+    // Others
+    catch (e) {
+      _notifyListeners(FetchResponse<T>.error(e.toString()));
+      rethrow;
     }
   }
 
-  void _notifyListeners(
-    FetchResponseBase<T?> fetchResponse, [
-    HttpResponse? httpResponse,
-  ]) {
-    if (config._onFetchStreamController.hasListener) {
-      config._onFetchStreamController.add(fetchResponse);
-    }
-
-    if (config.loggerEnabled &&
-        httpResponse != null &&
-        !const bool.fromEnvironment('dart.vm.product')) {
-      _logger(httpResponse);
+  void _notifyListeners(FetchResponse<T?> fetchResponse) {
+    if (currentConfig._streamController.hasListener) {
+      currentConfig._streamController.add(fetchResponse);
     }
   }
 }

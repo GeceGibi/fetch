@@ -1,6 +1,14 @@
 part of fetch;
 
-void _logger(HttpResponse response, [FetchParams? body]) {
+void _fetchLogger(
+  HttpResponse response,
+  FetchConfig config, {
+  FetchParams? body,
+}) {
+  if (!config.isLoggerEnabled) {
+    return;
+  }
+
   final date = DateTime.now();
 
   final requestHeaders = [];

@@ -3,24 +3,26 @@ part of fetch;
 const _utf8Decoder = Utf8Decoder();
 
 class FetchConfig {
-  final base = Uri();
-  final loggerEnabled = true;
-  final dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
+  final Uri base = Uri();
+  final bool isLoggerEnabled = true;
+  final RegExp dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
   FutureOr<T> mapper<T>(Object? response) => response as T;
 
-  bool isOk(HttpResponse response) {
+  FutureOr<bool> isSuccess(HttpResponse response) {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
-  Future<R> responseHandler<R extends FetchResponseBase<T?>, T>(
+  Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
     Mapper<T> mapper, [
     FetchParams? body,
   ]) async {
-    var responseShink = DefaultFetchResponse<T>.error(response.reasonPhrase);
+    var responseShink = FetchResponse<T>.error(
+      '${response.statusCode} - ${response.reasonPhrase}',
+    );
 
-    if (isOk(response)) {
+    if (await isSuccess(response)) {
       T payload;
 
       if (response.headers.containsKey('content-type') &&
@@ -32,7 +34,7 @@ class FetchConfig {
         payload = await mapper(response.body);
       }
 
-      responseShink = DefaultFetchResponse<T>(
+      responseShink = FetchResponse<T>(
         payload,
         isSuccess: true,
         message: null,
@@ -42,7 +44,7 @@ class FetchConfig {
     return responseShink as R;
   }
 
-  Uri getRequestUri(String endpoint, FetchParams params) {
+  Uri uriBuilder(String endpoint, FetchParams params) {
     final args = Map.of(params);
     final dropFromQuery = [];
 
@@ -78,7 +80,9 @@ class FetchConfig {
     return 'Dart/$version (dart:io)';
   }
 
-  FetchParams<String> headerBuilder(FetchParams<String> headers) {
+  FutureOr<FetchParams<String>> headerBuilder(
+    FetchParams<String> headers,
+  ) {
     return {
       'content-type': "application/json",
       'x-http-version': httpVersion,
@@ -86,6 +90,6 @@ class FetchConfig {
     };
   }
 
-  final _onFetchStreamController = StreamController<FetchResponseBase>();
-  Stream<FetchResponseBase> get onFetch => _onFetchStreamController.stream;
+  final _streamController = StreamController<FetchResponse>();
+  Stream<FetchResponse> get onFetch => _streamController.stream;
 }

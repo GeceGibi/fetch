@@ -2,14 +2,14 @@ part of fetch;
 
 typedef HttpResponse = http.Response;
 
-abstract class FetchResponseBase<T extends Object?> {
-  FetchResponseBase(
+class FetchResponse<T extends Object?> {
+  FetchResponse(
     this.payload, {
     required this.message,
     required this.isSuccess,
   });
 
-  FetchResponseBase.error([this.message])
+  FetchResponse.error([this.message])
       : isSuccess = false,
         payload = null;
 
@@ -21,14 +21,4 @@ abstract class FetchResponseBase<T extends Object?> {
   String toString() {
     return 'FetchResponse<${payload.runtimeType}>(payload: $payload, message: $message, isSuccess: $isSuccess)';
   }
-}
-
-class DefaultFetchResponse<T> extends FetchResponseBase<T> {
-  DefaultFetchResponse(
-    super.payload, {
-    required super.message,
-    required super.isSuccess,
-  });
-
-  DefaultFetchResponse.error([String? error]) : super.error(error);
 }
