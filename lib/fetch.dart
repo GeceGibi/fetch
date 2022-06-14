@@ -12,20 +12,15 @@ part 'fetch_logger.dart';
 typedef FetchParams<T> = Map<String, T>;
 typedef Mapper<T> = FutureOr<T> Function(Object? response);
 
-class Fetch<T extends Object?, R extends FetchResponse<T>> {
-  Fetch(this.endpoint, {this.mapper, this.config});
+class FetchBase<T extends Object?, R extends FetchResponse<T>> {
+  FetchBase(this.endpoint, {this.mapper, this.config});
 
   final String endpoint;
   final Mapper<T>? mapper;
   final FetchParams params = {};
   final FetchConfig? config;
 
-  static var _config = FetchConfig();
-  static void setConfig(FetchConfig fetchConfig) {
-    _config = fetchConfig;
-  }
-
-  FetchConfig get currentConfig => config ?? _config;
+  FetchConfig get currentConfig => config ?? _fetchConfig;
 
   Future<R> get({
     FetchParams params = const {},
@@ -110,5 +105,13 @@ class Fetch<T extends Object?, R extends FetchResponse<T>> {
     if (currentConfig._streamController.hasListener) {
       currentConfig._streamController.add(fetchResponse);
     }
+  }
+}
+
+class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
+  Fetch(super.endpoint, {super.config, super.mapper});
+
+  static void setConfig(FetchConfig config) {
+    _fetchConfig = config;
   }
 }

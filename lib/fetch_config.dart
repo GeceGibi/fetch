@@ -1,6 +1,7 @@
 part of fetch;
 
 const _utf8Decoder = Utf8Decoder();
+var _fetchConfig = FetchConfig();
 
 class FetchConfig {
   final Uri base = Uri();

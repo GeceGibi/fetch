@@ -58,7 +58,7 @@ class ExampleResponse<T> extends FetchResponse<T> {
   final List<Map<String, dynamic>> deneme;
 }
 
-class ExampleFetch<T> extends Fetch<T, ExampleResponse<T>> {
+class ExampleFetch<T> extends FetchBase<T, ExampleResponse<T>> {
   ExampleFetch(super.endpoint, {super.mapper, super.config});
 }
 
