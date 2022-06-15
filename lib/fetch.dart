@@ -151,7 +151,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
       body: currentConfig.bodyBuilder(headers, body),
     );
 
-    _fetchLogger(httpResponse, currentConfig);
+    _fetchLogger(httpResponse, currentConfig, body);
 
     return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
