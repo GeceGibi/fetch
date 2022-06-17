@@ -68,10 +68,12 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
     this.params.addAll(params);
 
     try {
+      final buildedHeaders = await currentConfig.headerBuilder(headers);
+
       final httpResponse = await http.post(
         currentConfig.uriBuilder(endpoint, params),
-        body: currentConfig.bodyBuilder(headers, body),
-        headers: await currentConfig.headerBuilder(headers),
+        body: currentConfig.bodyBuilder(buildedHeaders, body),
+        headers: buildedHeaders,
       );
 
       _fetchLogger(httpResponse, currentConfig, body);
@@ -144,11 +146,12 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     FetchConfig? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
+    final buildedHeaders = await currentConfig.headerBuilder(headers);
 
     final httpResponse = await http.post(
       currentConfig.uriBuilder(url, params),
-      headers: await currentConfig.headerBuilder(headers),
-      body: currentConfig.bodyBuilder(headers, body),
+      body: currentConfig.bodyBuilder(buildedHeaders, body),
+      headers: buildedHeaders,
     );
 
     _fetchLogger(httpResponse, currentConfig, body);
