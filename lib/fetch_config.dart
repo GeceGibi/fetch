@@ -7,7 +7,6 @@ var _fetchConfig = FetchConfig();
 
 class FetchConfig {
   final Uri base = Uri();
-  final bool isLoggerEnabled = true;
   final RegExp dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
   FutureOr<T> mapper<T>(Object? response) => response as T;
@@ -148,8 +147,8 @@ class FetchConfig {
     };
   }
 
-  final _streamController = StreamController<FetchResponse>();
-  Stream<FetchResponse> get onFetch => _streamController.stream;
+  final _streamController = StreamController<FetchLog>();
+  Stream<FetchLog> get onFetch => _streamController.stream;
 }
 
 class TemplateParserResult {

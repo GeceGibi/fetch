@@ -82,7 +82,7 @@ void main(List<String> args) async {
     );
 
     print(response.payload?.todo);
-  } on FetchResponse catch (e) {
+  } on FetchLog catch (e) {
     print(e);
   }
 }

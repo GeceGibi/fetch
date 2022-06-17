@@ -1,54 +1,74 @@
 part of fetch;
 
-void _fetchLogger(
-  HttpResponse response,
-  FetchConfig config, [
-  FetchParams? body,
-]) {
-  if (!config.isLoggerEnabled) {
-    return;
-  }
-
-  final date = DateTime.now();
-
-  final requestHeaders = [];
-  response.request!.headers.forEach((key, value) {
-    requestHeaders.add('│    ├─$key: $value');
+class FetchLog {
+  FetchLog({
+    required this.date,
+    required this.method,
+    required this.requestHeaders,
+    required this.response,
+    required this.responseHeaders,
+    required this.status,
+    required this.url,
+    this.postBody,
   });
 
-  final responseHeaders = [];
-  response.headers.forEach((key, value) {
-    responseHeaders.add('│    ├─$key: $value');
-  });
+  FetchLog.error({
+    required this.url,
+    required this.method,
+    required this.requestHeaders,
+    this.postBody,
+    Object? error,
+  })  : status = -1,
+        date = DateTime.now(),
+        responseHeaders = {},
+        response = error;
 
-  final requestBody = [];
-  if (body != null) {
-    requestBody.add('post body:');
-    body.forEach((key, value) {
-      requestBody.add('├─$key: $value');
-    });
-  }
+  FetchLog.fromHttpResponse(HttpResponse httpResponse, [this.postBody])
+      : status = httpResponse.statusCode,
+        method = httpResponse.request?.method ?? 'UNKNOWN',
+        url = httpResponse.request?.url.toString() ?? 'UNKNOWN',
+        date = DateTime.now(),
+        requestHeaders = httpResponse.request?.headers ?? const {},
+        responseHeaders = httpResponse.headers,
+        response = httpResponse.body;
 
-  final lines = [
-    '',
-    'LOG BEGIN >>>>>>>>>>>>>>>>',
-    'url: ${response.request!.url}',
-    'date: $date',
-    'method: ${response.request!.method}',
-    'status: ${response.statusCode}',
-    'headers:',
-    '├──request:',
-    ...requestHeaders,
-    '├──response:',
-    ...responseHeaders,
-    ...requestBody,
-    'raw:',
-    response.body,
-    '<<<<<<<<<<<<<<<<<<< LOG END',
-    '',
-  ];
+  final int status;
+  final String method;
+  final String url;
+  final DateTime date;
+  final FetchParams? postBody;
+  final FetchParams<String> requestHeaders;
+  final FetchParams<String> responseHeaders;
+  final dynamic response;
 
-  for (final line in lines) {
-    print(line);
+  @override
+  String toString() {
+    return [
+      '',
+      'LOG BEGIN >>>>>>>>>>>>>>>>',
+      'url: $url',
+      'date: $date',
+      'method: $method',
+      'status: $status',
+      'headers:',
+      '├──request:',
+      ...[
+        for (final header in requestHeaders.entries)
+          '│    ├─${header.key}: ${header.value}'
+      ],
+      '├──response:',
+      ...[
+        for (final header in responseHeaders.entries)
+          '│    ├─${header.key}: ${header.value}'
+      ],
+      if (postBody != null) ...[
+        'post body:',
+        for (final body in postBody!.entries) '├─${body.key}: ${body.value}'
+      ],
+      'raw:',
+      response,
+      '<<<<<<<<<<<<<<<<<<< LOG END',
+      '',
+    ].join('\n');
   }
 }

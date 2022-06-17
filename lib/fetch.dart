@@ -9,6 +9,12 @@ part 'fetch_response.dart';
 part 'fetch_config.dart';
 part 'fetch_logger.dart';
 
+void _notifyListeners(FetchLog fetchResponse, FetchConfig config) {
+  if (config._streamController.hasListener) {
+    config._streamController.add(fetchResponse);
+  }
+}
+
 typedef FetchParams<T> = Map<String, T>;
 typedef Mapper<T> = FutureOr<T> Function(Object? response);
 
@@ -28,34 +34,51 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }) async {
     this.params.addAll(params);
 
-    try {
-      final httpResponse = await http.get(
-        currentConfig.uriBuilder(endpoint, params),
-        headers: await currentConfig.headerBuilder(headers),
-      );
+    final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final uri = currentConfig.uriBuilder(endpoint, params);
 
-      _fetchLogger(httpResponse, currentConfig);
+    try {
+      final httpResponse = await http.get(uri, headers: buildedHeaders);
+
+      _notifyListeners(
+        FetchLog.fromHttpResponse(httpResponse),
+        currentConfig,
+      );
 
       final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
         mapper ?? currentConfig.mapper,
       );
 
-      _notifyListeners(fetchResponse);
-
       return fetchResponse;
     }
 
     // Knowns
     on SocketException catch (e) {
-      final response = FetchResponse<T>.error(e.message);
-      _notifyListeners(response);
-      return Future.error(response);
+      _notifyListeners(
+        FetchLog.error(
+          method: 'GET',
+          requestHeaders: buildedHeaders,
+          url: uri.toString(),
+          error: e.message,
+        ),
+        currentConfig,
+      );
+
+      rethrow;
     }
 
     // Others
     catch (e) {
-      _notifyListeners(FetchResponse<T>.error(e.toString()));
+      _notifyListeners(
+        FetchLog.error(
+          method: 'GET',
+          requestHeaders: buildedHeaders,
+          url: uri.toString(),
+          error: e,
+        ),
+        currentConfig,
+      );
       rethrow;
     }
   }
@@ -67,16 +90,21 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }) async {
     this.params.addAll(params);
 
-    try {
-      final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final postBody = currentConfig.bodyBuilder(buildedHeaders, body);
+    final uri = currentConfig.uriBuilder(endpoint, params);
 
+    try {
       final httpResponse = await http.post(
-        currentConfig.uriBuilder(endpoint, params),
-        body: currentConfig.bodyBuilder(buildedHeaders, body),
+        uri,
+        body: postBody,
         headers: buildedHeaders,
       );
 
-      _fetchLogger(httpResponse, currentConfig, body);
+      _notifyListeners(
+        FetchLog.fromHttpResponse(httpResponse, body),
+        currentConfig,
+      );
 
       final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
@@ -84,28 +112,35 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
         body,
       );
 
-      _notifyListeners(fetchResponse);
-
       return fetchResponse;
     }
 
     // Knowns
     on SocketException catch (e) {
-      final response = FetchResponse<T>.error(e.message);
-      _notifyListeners(response);
-      return Future.error(response);
+      _notifyListeners(
+        FetchLog.error(
+          method: 'POST',
+          requestHeaders: buildedHeaders,
+          url: uri.toString(),
+          error: e.message,
+        ),
+        currentConfig,
+      );
+      rethrow;
     }
 
     // Others
     catch (e) {
-      _notifyListeners(FetchResponse<T>.error(e.toString()));
+      _notifyListeners(
+        FetchLog.error(
+          method: 'POST',
+          requestHeaders: buildedHeaders,
+          url: uri.toString(),
+          error: e,
+        ),
+        currentConfig,
+      );
       rethrow;
-    }
-  }
-
-  void _notifyListeners(FetchResponse<T?> fetchResponse) {
-    if (currentConfig._streamController.hasListener) {
-      currentConfig._streamController.add(fetchResponse);
     }
   }
 }
@@ -124,13 +159,14 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     FetchConfig? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
+    final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final uri = currentConfig.uriBuilder(url, params, overrided: true);
+    final httpResponse = await http.get(uri, headers: buildedHeaders);
 
-    final httpResponse = await http.get(
-      currentConfig.uriBuilder(url, params, overrided: true),
-      headers: await currentConfig.headerBuilder(headers),
+    _notifyListeners(
+      FetchLog.fromHttpResponse(httpResponse),
+      currentConfig,
     );
-
-    _fetchLogger(httpResponse, currentConfig);
 
     return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
@@ -147,14 +183,19 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final postBody = currentConfig.bodyBuilder(buildedHeaders, body);
+    final uri = currentConfig.uriBuilder(url, params, overrided: true);
 
     final httpResponse = await http.post(
-      currentConfig.uriBuilder(url, params),
-      body: currentConfig.bodyBuilder(buildedHeaders, body),
+      uri,
+      body: postBody,
       headers: buildedHeaders,
     );
 
-    _fetchLogger(httpResponse, currentConfig, body);
+    _notifyListeners(
+      FetchLog.fromHttpResponse(httpResponse, postBody),
+      currentConfig,
+    );
 
     return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
