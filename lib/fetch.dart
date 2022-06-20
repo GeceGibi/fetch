@@ -48,6 +48,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
       final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
         mapper ?? currentConfig.mapper,
+        params,
       );
 
       return fetchResponse;
@@ -109,6 +110,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
       final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
         mapper ?? currentConfig.mapper,
+        params,
         body,
       );
 
@@ -171,6 +173,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
       (response) => response as T,
+      params,
     );
   }
 
@@ -200,6 +203,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
       (response) => response as T,
+      params,
       body,
     );
   }

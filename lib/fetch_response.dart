@@ -7,12 +7,15 @@ class FetchResponse<T extends Object?> {
     this.payload, {
     required this.message,
     required this.isSuccess,
+    required this.params,
   });
 
   FetchResponse.error([this.message])
       : isSuccess = false,
-        payload = null;
+        payload = null,
+        params = const {};
 
+  final FetchParams params;
   final bool isSuccess;
   final String? message;
   final T? payload;

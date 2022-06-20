@@ -17,7 +17,8 @@ class FetchConfig {
 
   Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
-    Mapper<T> mapper, [
+    Mapper<T> mapper,
+    FetchParams params, [
     FetchParams? body,
   ]) async {
     if (await isSuccess(response)) {
@@ -25,6 +26,7 @@ class FetchConfig {
         await mapper(payloadBuilder(response)),
         isSuccess: true,
         message: null,
+        params: params,
       ) as R;
     }
 
