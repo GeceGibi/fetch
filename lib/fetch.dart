@@ -16,7 +16,7 @@ void _notifyListeners(FetchLog fetchResponse, FetchConfig config) {
 }
 
 typedef FetchParams<T> = Map<String, T>;
-typedef Mapper<T> = FutureOr<T> Function(Object? response);
+typedef Mapper<T> = FutureOr<T?> Function(Object? response);
 
 class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   FetchBase(this.endpoint, {this.mapper, this.config});
