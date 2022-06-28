@@ -19,7 +19,7 @@ class FetchConfig {
     HttpResponse response,
     Mapper<T> mapper,
     FetchParams params, [
-    FetchParams? body,
+    Object? body,
   ]) async {
     if (await isSuccess(response)) {
       return FetchResponse<T>(
@@ -55,7 +55,7 @@ class FetchConfig {
     }
   }
 
-  dynamic bodyBuilder(FetchParams<String> headers, FetchParams body) {
+  dynamic bodyBuilder(FetchParams<String> headers, Object? body) {
     final type = (headers['content-type'] ?? '');
     final splitted = type.split(';');
     final content = splitted.first;

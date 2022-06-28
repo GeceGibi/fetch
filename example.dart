@@ -7,8 +7,9 @@ class ExampleConfig extends FetchConfig {
   @override
   Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
-    Mapper<T> mapper, [
-    FetchParams? body,
+    Mapper<T> mapper,
+    FetchParams params, [
+    Object? body,
   ]) async {
     if (await isSuccess(response)) {
       return ExampleResponse<T>(
@@ -18,6 +19,7 @@ class ExampleConfig extends FetchConfig {
         deneme: [
           {'response': response}
         ],
+        params: params,
       ) as R;
     }
 
@@ -33,6 +35,7 @@ class ExampleResponse<T> extends FetchResponse<T> {
     required super.message,
     required super.isSuccess,
     required this.deneme,
+    required super.params,
   });
 
   ExampleResponse.error([super.error])

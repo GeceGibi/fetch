@@ -85,7 +85,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }
 
   Future<R> post(
-    FetchParams body, {
+    Object? body, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
   }) async {
@@ -179,7 +179,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
 
   static Future<FetchResponse<T>> postURL<T>(
     String url,
-    FetchParams body, {
+    Object? body, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
     FetchConfig? config,

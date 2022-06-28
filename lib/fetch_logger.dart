@@ -36,7 +36,7 @@ class FetchLog {
   final String method;
   final String url;
   final DateTime date;
-  final FetchParams? postBody;
+  final Object? postBody;
   final FetchParams<String> requestHeaders;
   final FetchParams<String> responseHeaders;
   final dynamic response;
@@ -63,7 +63,11 @@ class FetchLog {
       ],
       if (postBody != null) ...[
         'post body:',
-        for (final body in postBody!.entries) '├─${body.key}: ${body.value}'
+        if (postBody is Map)
+          for (final body in (postBody as Map).entries)
+            '├─${body.key}: ${body.value}'
+        else
+          '├─$postBody'
       ],
       'raw:',
       response,
