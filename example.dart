@@ -11,9 +11,9 @@ class ExampleConfig extends FetchConfig {
     FetchParams params, [
     Object? body,
   ]) async {
-    if (await isSuccess(response)) {
+    if (isSuccess(response)) {
       return ExampleResponse<T>(
-        await mapper(payloadBuilder(response)),
+        mapper(responseBodyBuilder(response)),
         isSuccess: true,
         message: null,
         deneme: [
@@ -34,8 +34,8 @@ class ExampleResponse<T> extends FetchResponse<T> {
     super.payload, {
     required super.message,
     required super.isSuccess,
-    required this.deneme,
     required super.params,
+    required this.deneme,
   });
 
   ExampleResponse.error([super.error])
@@ -64,25 +64,19 @@ void main(List<String> args) async {
   Fetch.setConfig(config);
 
   config.onFetch.listen((event) {
-    print('LOGGER:::$event');
+    print('LOGGER:$event');
   });
 
-  // Fetch.getURL('https://www.{host}.com/?deneme=query', params: {
-  //   'host': 'google',
-  //   'test': 'Fetch',
-  // });
+  Fetch.getURL('https://www.{host}.com/?deneme=query', params: {
+    'host': 'google',
+    'test': 'Fetch',
+  });
 
   try {
     final response = await ExampleFetch(
       '/todos/{id}',
       mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
-    ).get(
-      params: {
-        'id': 2,
-        'deneme': 123,
-        'value': 1.0,
-      },
-    );
+    ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
 
     print(response.payload?.todo);
   } on FetchLog catch (e) {

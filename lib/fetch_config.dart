@@ -2,16 +2,16 @@
 
 part of fetch;
 
-const _utf8Decoder = Utf8Decoder();
+const _utf8 = Utf8Codec();
 var _fetchConfig = FetchConfig();
 
 class FetchConfig {
   final Uri base = Uri();
   final RegExp dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
 
-  FutureOr<T> mapper<T>(Object? response) => response as T;
+  T mapper<T>(Object? response) => response as T;
 
-  FutureOr<bool> isSuccess(HttpResponse response) {
+  bool isSuccess(HttpResponse response) {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
@@ -21,9 +21,9 @@ class FetchConfig {
     FetchParams params, [
     Object? body,
   ]) async {
-    if (await isSuccess(response)) {
+    if (isSuccess(response)) {
       return FetchResponse<T>(
-        await mapper(payloadBuilder(response)),
+        mapper(responseBodyBuilder(response)),
         isSuccess: true,
         message: null,
         params: params,
@@ -35,28 +35,34 @@ class FetchConfig {
     ) as R;
   }
 
-  dynamic payloadBuilder(HttpResponse response) {
+  // String decodeForCharset(String? charset, List<int> bytes) {
+  //   if (charset == null) {
+  //     return _utf8.decode(bytes);
+  //   }
+
+  //   return Encoding.getByName(charset)!.decode(bytes);
+  // }
+
+  dynamic responseBodyBuilder(HttpResponse response) {
     final type = (response.headers['content-type'] ?? '');
     final splitted = type.split(';');
     final content = splitted.first;
-    final charset = splitted.last.split('=').last.toLowerCase();
+
+    // final charset = splitted.last.split('=').last.toLowerCase();
+    // final decodedBody = decodeForCharset(charset, response.bodyBytes);
 
     switch (content) {
       case 'application/json':
       case 'application/javascript':
-        if (charset == 'utf-8') {
-          return jsonDecode(_utf8Decoder.convert(response.bodyBytes));
-        } else {
-          return jsonDecode(response.body);
-        }
+        return jsonDecode(response.body);
 
       default:
         return response.body;
     }
   }
 
-  dynamic bodyBuilder(FetchParams<String> headers, Object? body) {
-    final type = (headers['content-type'] ?? '');
+  dynamic postBodyEncoder(FetchParams<String> headers, Object? body) {
+    final type = (headers['content-type'] ?? '').trim();
     final splitted = type.split(';');
     final content = splitted.first;
 

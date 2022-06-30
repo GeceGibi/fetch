@@ -22,6 +22,6 @@ class FetchResponse<T extends Object?> {
 
   @override
   String toString() {
-    return 'FetchResponse<${payload.runtimeType}>(payload: $payload, message: $message, isSuccess: $isSuccess)';
+    return 'FetchResponse<$T>(payload: $payload, message: $message, isSuccess: $isSuccess)';
   }
 }

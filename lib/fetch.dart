@@ -16,7 +16,7 @@ void _notifyListeners(FetchLog fetchResponse, FetchConfig config) {
 }
 
 typedef FetchParams<T> = Map<String, T>;
-typedef Mapper<T> = FutureOr<T?> Function(Object? response);
+typedef Mapper<T> = T? Function(Object? response);
 
 class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   FetchBase(this.endpoint, {this.mapper, this.config});
@@ -92,7 +92,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
     this.params.addAll(params);
 
     final buildedHeaders = await currentConfig.headerBuilder(headers);
-    final postBody = currentConfig.bodyBuilder(buildedHeaders, body);
+    final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
     final uri = currentConfig.uriBuilder(endpoint, params);
 
     try {
@@ -186,7 +186,7 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = await currentConfig.headerBuilder(headers);
-    final postBody = currentConfig.bodyBuilder(buildedHeaders, body);
+    final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
     final uri = currentConfig.uriBuilder(url, params, overrided: true);
 
     final httpResponse = await http.post(
