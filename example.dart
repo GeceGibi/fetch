@@ -2,7 +2,7 @@ import 'package:fetch/fetch.dart';
 
 class ExampleConfig extends FetchConfig {
   @override
-  Uri get base => Uri.parse('https://dummyjson.com');
+  String get base => 'https://dummyjson.com';
 
   @override
   Future<R> responseHandler<R extends FetchResponse<T?>, T>(
@@ -78,7 +78,7 @@ void main(List<String> args) async {
       mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
     ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
 
-    print(response.payload?.todo);
+    print(response.body?.todo);
   } on FetchLog catch (e) {
     print(e);
   }

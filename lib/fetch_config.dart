@@ -2,19 +2,30 @@
 
 part of fetch;
 
-const _utf8 = Utf8Codec();
 var _fetchConfig = FetchConfig();
 
 class FetchConfig {
-  final Uri base = Uri();
-  final RegExp dynamicQueryPattern = RegExp(r'{\s*(\w+?)\s*}');
+  /// Request base url
+  /// It's mean this base will add every request on fetch and concat with ednpoint (base + endpoint)
+  ///
+  /// Ex.
+  /// https://www.domain.com
+  /// https://www.domain.com/api/v2
+  final String base = '';
 
+  /// Fetch response manipulation before the result has come to end.
   T mapper<T>(Object? response) => response as T;
 
+  /// Response is success or not checking at here.
+  ///
+  /// Maybe will be need custom conditional check for response.
   bool isSuccess(HttpResponse response) {
     return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
+  /// Response Handler
+  ///
+  /// Creating `FetchResponse` or extended class in here.
   Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
     Mapper<T> mapper,
@@ -35,14 +46,10 @@ class FetchConfig {
     ) as R;
   }
 
-  // String decodeForCharset(String? charset, List<int> bytes) {
-  //   if (charset == null) {
-  //     return _utf8.decode(bytes);
-  //   }
-
-  //   return Encoding.getByName(charset)!.decode(bytes);
-  // }
-
+  /// Response body building here
+  ///
+  /// Default behaivor is check `content-type` header and doing whats are need for this.
+  /// It's not sensitive for `charset`, it's handled with `http` library.
   dynamic responseBodyBuilder(HttpResponse response) {
     final type = (response.headers['content-type'] ?? '');
     final splitted = type.split(';');
@@ -61,6 +68,10 @@ class FetchConfig {
     }
   }
 
+  /// Create post body here
+  ///
+  /// Default behaivor is check `content-type` header and doing whats are need for this.
+  /// If need to modify this please create new one and extend it with `FetchConfig` class
   dynamic postBodyEncoder(FetchParams<String> headers, Object? body) {
     final type = (headers['content-type'] ?? '').trim();
     final splitted = type.split(';');
@@ -76,97 +87,22 @@ class FetchConfig {
     }
   }
 
-  Uri uriBuilder(
-    String endpoint,
-    FetchParams params, {
-    bool overrided = false,
-  }) {
-    final template = _templateParser(endpoint, params);
-    final arguments = {
-      ...template.replacedQuery,
-      for (final entry in params.entries)
-        if (!template.foundedKeys.contains(entry.key))
-          entry.key: '${entry.value}',
-    };
-
-    final query = arguments.isEmpty
-        ? null
-        : arguments.entries.map((e) => '${e.key}=${e.value}').join('&');
-
-    if (overrided) {
-      return Uri.parse(template.replaced).replace(query: query);
-    }
-
-    return base.replace(path: base.path + template.replaced, query: query);
-  }
-
-  TemplateParserResult _templateParser(String template, FetchParams params) {
-    final founded = <String>[];
-
-    var replaced = template.replaceAllMapped(
-      dynamicQueryPattern,
-      (match) {
-        final key = match.group(1);
-
-        if (params.containsKey(key)) {
-          founded.add(key!);
-          return '${params[key]}';
-        }
-
-        return '';
-      },
-    );
-
-    final hasQuery = replaced.contains('?');
-    final query = <String, String>{};
-
-    if (hasQuery) {
-      final splitAtQuery = replaced.split('?');
-
-      for (var entry in splitAtQuery.last.split('&')) {
-        final value = entry.split('=');
-        query[value.first] = value.last;
-      }
-
-      replaced = splitAtQuery.first;
-    }
-
-    return TemplateParserResult(
-      replaced: replaced,
-      replacedQuery: query,
-      foundedKeys: founded,
-    );
-  }
-
-  String get httpVersion {
-    var version = Platform.version;
-    final index = version.indexOf('.', version.indexOf('.') + 1);
-    version = version.substring(0, index);
-    return 'Dart/$version (dart:io)';
-  }
-
-  FutureOr<FetchParams<String>> headerBuilder(
-    FetchParams<String> headers,
-  ) {
+  /// Http request headers building here
+  ///
+  /// It's seperated function because some headers need dynamicly add or remove from headers.
+  /// Ex. User auth status change. Check user status and add or remove here.
+  FetchParams<String> headerBuilder(FetchParams<String> headers) {
     return {
       'content-type': "application/json",
-      'x-http-version': httpVersion,
+      'x-http-version': FetchHelper.httpVersion,
       ...headers,
     };
   }
 
   final _streamController = StreamController<FetchLog>();
+
+  /// Stream for every fetch action.
+  ///
+  /// Included `Fetch.getURL` and `Fetch.postURL` both
   Stream<FetchLog> get onFetch => _streamController.stream;
-}
-
-class TemplateParserResult {
-  const TemplateParserResult({
-    required this.replaced,
-    required this.foundedKeys,
-    required this.replacedQuery,
-  });
-
-  final String replaced;
-  final Map<String, String> replacedQuery;
-  final List<String> foundedKeys;
 }

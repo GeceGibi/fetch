@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 part 'fetch_response.dart';
 part 'fetch_config.dart';
 part 'fetch_logger.dart';
+part 'fetch_helper.dart';
 
 void _notifyListeners(FetchLog fetchResponse, FetchConfig config) {
   if (config._streamController.hasListener) {
@@ -26,6 +27,8 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   final FetchParams params = {};
   final FetchConfig? config;
 
+  /// Get global fetch config or overrided config
+  /// Checking first overrided one and ofter global one.
   FetchConfig get currentConfig => config ?? _fetchConfig;
 
   Future<R> get({
@@ -33,9 +36,8 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
     FetchParams<String> headers = const {},
   }) async {
     this.params.addAll(params);
-
-    final buildedHeaders = await currentConfig.headerBuilder(headers);
-    final uri = currentConfig.uriBuilder(endpoint, params);
+    final buildedHeaders = currentConfig.headerBuilder(headers);
+    final uri = FetchHelper.uriBuilder(currentConfig.base + endpoint, params);
 
     try {
       final httpResponse = await http.get(uri, headers: buildedHeaders);
@@ -91,9 +93,9 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }) async {
     this.params.addAll(params);
 
-    final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final buildedHeaders = currentConfig.headerBuilder(headers);
     final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
-    final uri = currentConfig.uriBuilder(endpoint, params);
+    final uri = FetchHelper.uriBuilder(currentConfig.base + endpoint, params);
 
     try {
       final httpResponse = await http.post(
@@ -161,8 +163,8 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     FetchConfig? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
-    final buildedHeaders = await currentConfig.headerBuilder(headers);
-    final uri = currentConfig.uriBuilder(url, params, overrided: true);
+    final buildedHeaders = currentConfig.headerBuilder(headers);
+    final uri = FetchHelper.uriBuilder(url, params, overrided: true);
     final httpResponse = await http.get(uri, headers: buildedHeaders);
 
     _notifyListeners(
@@ -185,9 +187,9 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
     FetchConfig? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
-    final buildedHeaders = await currentConfig.headerBuilder(headers);
+    final buildedHeaders = currentConfig.headerBuilder(headers);
     final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
-    final uri = currentConfig.uriBuilder(url, params, overrided: true);
+    final uri = FetchHelper.uriBuilder(url, params, overrided: true);
 
     final httpResponse = await http.post(
       uri,
