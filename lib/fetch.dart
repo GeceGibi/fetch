@@ -10,26 +10,45 @@ part 'fetch_config.dart';
 part 'fetch_logger.dart';
 part 'fetch_helper.dart';
 
-void _notifyListeners(FetchLog fetchResponse, FetchConfig config) {
+/// Global config
+FetchConfigBase _fetchConfig = UnimplementedFetchConfig();
+
+/// Default empty config
+class UnimplementedFetchConfig extends FetchConfigBase {
+  @override
+  String get base => throw UnimplementedError();
+}
+
+void _notifyListeners<C extends FetchConfigBase>(
+    FetchLog fetchResponse, C config) {
   if (config._streamController.hasListener) {
     config._streamController.add(fetchResponse);
   }
 }
 
 typedef FetchParams<T> = Map<String, T>;
-typedef Mapper<T> = T? Function(Object? response);
+typedef Mapper<T, R extends Object?> = T? Function(R response);
 
-class FetchBase<T extends Object?, R extends FetchResponse<T>> {
+/// `R`: main response class must be extends from FetchResponse
+///
+/// `T`: return value of mapper and FetchResponse main payload Type;
+///
+/// `M`: income value of mapper, valus pass as M to mapper
+///
+/// If response allways be json can be use as Map<String,dynamic>.
+/// Added for shorhands(lamdas) writing `mapper: ResposeClass.new`
+class FetchBase<T extends Object?, R extends FetchResponse<T>,
+    M extends Object?> {
   FetchBase(this.endpoint, {this.mapper, this.config});
 
   final String endpoint;
-  final Mapper<T>? mapper;
+  final Mapper<T, M>? mapper;
   final FetchParams params = {};
-  final FetchConfig? config;
+  final FetchConfigBase? config;
 
   /// Get global fetch config or overrided config
   /// Checking first overrided one and ofter global one.
-  FetchConfig get currentConfig => config ?? _fetchConfig;
+  FetchConfigBase get currentConfig => config ?? _fetchConfig;
 
   Future<R> get({
     FetchParams params = const {},
@@ -47,9 +66,9 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
         currentConfig,
       );
 
-      final fetchResponse = await currentConfig.responseHandler<R, T>(
+      final fetchResponse = await currentConfig.responseHandler<R, T, M>(
         httpResponse,
-        mapper ?? currentConfig.mapper,
+        mapper,
         params,
       );
 
@@ -109,9 +128,9 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
         currentConfig,
       );
 
-      final fetchResponse = await currentConfig.responseHandler<R, T>(
+      final fetchResponse = await currentConfig.responseHandler<R, T, M>(
         httpResponse,
-        mapper ?? currentConfig.mapper,
+        mapper,
         params,
         body,
       );
@@ -149,18 +168,18 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>> {
   }
 }
 
-class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
+class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
   Fetch(super.endpoint, {super.config, super.mapper});
 
-  static void setConfig(FetchConfig config) {
+  static void setConfig<C extends FetchConfigBase>(C config) {
     _fetchConfig = config;
   }
 
-  static Future<FetchResponse<T>> getURL<T>(
+  static Future<FetchResponse<T>> getURL<T, C extends FetchConfigBase>(
     String url, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
-    FetchConfig? config,
+    C? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = currentConfig.headerBuilder(headers);
@@ -172,19 +191,19 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
       currentConfig,
     );
 
-    return currentConfig.responseHandler<FetchResponse<T>, T>(
+    return currentConfig.responseHandler<FetchResponse<T>, T, Object?>(
       httpResponse,
       (response) => response as T,
       params,
     );
   }
 
-  static Future<FetchResponse<T>> postURL<T>(
+  static Future<FetchResponse<T>> postURL<T, C extends FetchConfigBase>(
     String url,
     Object? body, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
-    FetchConfig? config,
+    C? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = currentConfig.headerBuilder(headers);
@@ -202,9 +221,9 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
       currentConfig,
     );
 
-    return currentConfig.responseHandler<FetchResponse<T>, T>(
+    return currentConfig.responseHandler<FetchResponse<T>, T, Object?>(
       httpResponse,
-      (response) => response as T,
+      <Object>(response) => response as T,
       params,
       body,
     );

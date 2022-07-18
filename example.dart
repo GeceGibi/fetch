@@ -1,19 +1,19 @@
 import 'package:fetch/fetch.dart';
 
-class ExampleConfig extends FetchConfig {
+class ExampleConfig extends FetchConfigBase {
   @override
   String get base => 'https://dummyjson.com';
 
   @override
-  Future<R> responseHandler<R extends FetchResponse<T?>, T>(
+  Future<R> responseHandler<R extends FetchResponse<T?>, T, M extends Object?>(
     HttpResponse response,
-    Mapper<T> mapper,
+    Mapper<T, M>? mapper,
     FetchParams params, [
     Object? body,
   ]) async {
     if (isSuccess(response)) {
       return ExampleResponse<T>(
-        mapper(responseBodyBuilder(response)),
+        mapper?.call(responseBodyBuilder(response)),
         isSuccess: true,
         message: null,
         deneme: [
@@ -45,7 +45,8 @@ class ExampleResponse<T> extends FetchResponse<T> {
   final List<Map<String, dynamic>> deneme;
 }
 
-class ExampleFetch<T> extends FetchBase<T, ExampleResponse<T>> {
+class ExampleFetch<T>
+    extends FetchBase<T, ExampleResponse<T>, Map<String, dynamic>> {
   ExampleFetch(super.endpoint, {super.mapper, super.config});
 }
 
@@ -75,7 +76,7 @@ void main(List<String> args) async {
   try {
     final response = await ExampleFetch(
       '/todos/{id}',
-      mapper: (json) => PayloadFromJson.fromJson(json as Map<String, dynamic>),
+      mapper: PayloadFromJson.fromJson,
     ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
 
     print(response.body?.todo);

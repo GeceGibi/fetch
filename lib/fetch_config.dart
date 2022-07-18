@@ -2,21 +2,16 @@
 
 part of fetch;
 
-var _fetchConfig = FetchConfig();
-
-class FetchConfig {
+abstract class FetchConfigBase {
   /// Request base url
   /// It's mean this base will add every request on fetch and concat with ednpoint (base + endpoint)
   ///
   /// Ex.
   /// https://www.domain.com
   /// https://www.domain.com/api/v2
-  final String base = '';
+  String get base;
 
-  /// Fetch response manipulation before the result has come to end.
-  T mapper<T>(Object? response) => response as T;
-
-  /// Response is success or not checking at here.
+  /// Check response is success or not.
   ///
   /// Maybe will be need custom conditional check for response.
   bool isSuccess(HttpResponse response) {
@@ -26,15 +21,15 @@ class FetchConfig {
   /// Response Handler
   ///
   /// Creating `FetchResponse` or extended class in here.
-  Future<R> responseHandler<R extends FetchResponse<T?>, T>(
+  Future<R> responseHandler<R extends FetchResponse<T?>, T, M>(
     HttpResponse response,
-    Mapper<T> mapper,
+    Mapper<T, M>? mapper,
     FetchParams params, [
     Object? body,
   ]) async {
     if (isSuccess(response)) {
       return FetchResponse<T>(
-        mapper(responseBodyBuilder(response)),
+        mapper?.call(responseBodyBuilder(response)),
         isSuccess: true,
         message: null,
         params: params,
@@ -46,7 +41,7 @@ class FetchConfig {
     ) as R;
   }
 
-  /// Response body building here
+  /// Response body building
   ///
   /// Default behaivor is check `content-type` header and doing whats are need for this.
   /// It's not sensitive for `charset`, it's handled with `http` library.
@@ -54,9 +49,6 @@ class FetchConfig {
     final type = (response.headers['content-type'] ?? '');
     final splitted = type.split(';');
     final content = splitted.first;
-
-    // final charset = splitted.last.split('=').last.toLowerCase();
-    // final decodedBody = decodeForCharset(charset, response.bodyBytes);
 
     switch (content) {
       case 'application/json':
@@ -68,7 +60,7 @@ class FetchConfig {
     }
   }
 
-  /// Create post body here
+  /// Create post body
   ///
   /// Default behaivor is check `content-type` header and doing whats are need for this.
   /// If need to modify this please create new one and extend it with `FetchConfig` class
@@ -87,7 +79,7 @@ class FetchConfig {
     }
   }
 
-  /// Http request headers building here
+  /// Http request headers building
   ///
   /// It's seperated function because some headers need dynamicly add or remove from headers.
   /// Ex. User auth status change. Check user status and add or remove here.
