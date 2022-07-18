@@ -175,11 +175,11 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
     _fetchConfig = config;
   }
 
-  static Future<FetchResponse<T>> getURL<T, C extends FetchConfigBase>(
+  static Future<FetchResponse<T>> getURL<T>(
     String url, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
-    C? config,
+    FetchConfigBase? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = currentConfig.headerBuilder(headers);
@@ -198,12 +198,12 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
     );
   }
 
-  static Future<FetchResponse<T>> postURL<T, C extends FetchConfigBase>(
+  static Future<FetchResponse<T>> postURL<T>(
     String url,
     Object? body, {
     FetchParams params = const {},
     FetchParams<String> headers = const {},
-    C? config,
+    FetchConfigBase? config,
   }) async {
     final currentConfig = config ?? _fetchConfig;
     final buildedHeaders = currentConfig.headerBuilder(headers);
