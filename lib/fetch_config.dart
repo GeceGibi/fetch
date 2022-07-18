@@ -28,8 +28,10 @@ abstract class FetchConfigBase {
     Object? body,
   ]) async {
     if (isSuccess(response)) {
+      final responseBody = responseBodyBuilder(response);
+
       return FetchResponse<T>(
-        mapper?.call(responseBodyBuilder(response)),
+        mapper != null ? mapper(responseBody) : responseBody,
         isSuccess: true,
         message: null,
         params: params,
