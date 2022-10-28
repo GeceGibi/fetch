@@ -5,15 +5,14 @@ class ExampleConfig extends FetchConfigBase {
   String get base => 'https://dummyjson.com';
 
   @override
-  Future<R> responseHandler<R extends FetchResponse<T?>, T, M extends Object?>(
+  Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
-    Mapper<T, M>? mapper,
     FetchParams params, [
     Object? body,
   ]) async {
     if (isSuccess(response)) {
       return ExampleResponse<T>(
-        mapper?.call(responseBodyBuilder(response)),
+        responseBodyBuilder(response),
         isSuccess: true,
         message: null,
         deneme: [
@@ -45,9 +44,8 @@ class ExampleResponse<T> extends FetchResponse<T> {
   final List<Map<String, dynamic>> deneme;
 }
 
-class ExampleFetch<T>
-    extends FetchBase<T, ExampleResponse<T>, Map<String, dynamic>> {
-  ExampleFetch(super.endpoint, {super.mapper, super.config});
+class ExampleFetch<T> extends FetchBase<T, ExampleResponse<T>> {
+  ExampleFetch(super.endpoint, {super.config});
 }
 
 class PayloadFromJson {
@@ -76,7 +74,6 @@ void main(List<String> args) async {
   try {
     final response = await ExampleFetch(
       '/todos/{id}',
-      mapper: PayloadFromJson.fromJson,
     ).get(params: {'id': 2, 'deneme': 123, 'value': 1.0});
 
     print(response.body?.todo);

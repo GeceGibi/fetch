@@ -21,9 +21,8 @@ abstract class FetchConfigBase {
   /// Response Handler
   ///
   /// Creating `FetchResponse` or extended class in here.
-  Future<R> responseHandler<R extends FetchResponse<T?>, T, M>(
+  Future<R> responseHandler<R extends FetchResponse<T?>, T>(
     HttpResponse response,
-    Mapper<T, M>? mapper,
     FetchParams params, [
     Object? body,
   ]) async {
@@ -31,7 +30,7 @@ abstract class FetchConfigBase {
       final responseBody = responseBodyBuilder(response);
 
       return FetchResponse<T>(
-        mapper != null ? mapper(responseBody) : responseBody,
+        responseBody,
         isSuccess: true,
         message: null,
         params: params,
@@ -97,6 +96,6 @@ abstract class FetchConfigBase {
 
   /// Stream for every fetch action.
   ///
-  /// Included `Fetch.getURL` and `Fetch.postURL` both
+  /// Included `Fetch.getURL` and `Fetch.postURL`
   Stream<FetchLog> get onFetch => _streamController.stream;
 }

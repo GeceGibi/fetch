@@ -37,12 +37,10 @@ typedef Mapper<T, R extends Object?> = T? Function(R response);
 ///
 /// If response allways be json can be use as Map<String,dynamic>.
 /// Added for shorhands(lamdas) writing `mapper: ResposeClass.new`
-class FetchBase<T extends Object?, R extends FetchResponse<T>,
-    M extends Object?> {
-  FetchBase(this.endpoint, {this.mapper, this.config});
+class FetchBase<T extends Object?, R extends FetchResponse<T>> {
+  FetchBase(this.endpoint, {this.config});
 
   final String endpoint;
-  final Mapper<T, M>? mapper;
   final FetchParams params = {};
   final FetchConfigBase? config;
 
@@ -55,6 +53,7 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>,
     FetchParams<String> headers = const {},
   }) async {
     this.params.addAll(params);
+
     final buildedHeaders = currentConfig.headerBuilder(headers);
     final uri = FetchHelper.uriBuilder(currentConfig.base + endpoint, params);
 
@@ -66,9 +65,8 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>,
         currentConfig,
       );
 
-      final fetchResponse = await currentConfig.responseHandler<R, T, M>(
+      final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
-        mapper,
         params,
       );
 
@@ -128,9 +126,8 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>,
         currentConfig,
       );
 
-      final fetchResponse = await currentConfig.responseHandler<R, T, M>(
+      final fetchResponse = await currentConfig.responseHandler<R, T>(
         httpResponse,
-        mapper,
         params,
         body,
       );
@@ -168,8 +165,8 @@ class FetchBase<T extends Object?, R extends FetchResponse<T>,
   }
 }
 
-class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
-  Fetch(super.endpoint, {super.config, super.mapper});
+class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
+  Fetch(super.endpoint, {super.config});
 
   static void setConfig<C extends FetchConfigBase>(C config) {
     _fetchConfig = config;
@@ -191,9 +188,8 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
       currentConfig,
     );
 
-    return currentConfig.responseHandler<FetchResponse<T>, T, Object?>(
+    return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
-      (response) => response as T,
       params,
     );
   }
@@ -221,9 +217,8 @@ class Fetch<T> extends FetchBase<T, FetchResponse<T>, Object?> {
       currentConfig,
     );
 
-    return currentConfig.responseHandler<FetchResponse<T>, T, Object?>(
+    return currentConfig.responseHandler<FetchResponse<T>, T>(
       httpResponse,
-      <Object>(response) => response as T,
       params,
       body,
     );
