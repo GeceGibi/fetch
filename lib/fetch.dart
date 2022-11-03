@@ -11,7 +11,6 @@ part 'fetch_logger.dart';
 part 'fetch_helper.dart';
 
 typedef JSONMap<T extends dynamic> = Map<String, T>;
-typedef JSONList<T extends dynamic> = List<T>;
 
 /// Global config
 FetchConfigBase _fetchConfig = UnimplementedFetchConfig();
