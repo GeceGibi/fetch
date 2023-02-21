@@ -13,4 +13,26 @@ abstract class FetchHelpers {
 
     return response.body as T;
   }
+
+  static Map<String, String> mergeHeaders(List<Map> headers) {
+    var output = <String, String>{};
+
+    for (final head in headers) {
+      output.addAll(
+        head.map<String, String>((key, value) => MapEntry(key, '$value')),
+      );
+    }
+
+    return output;
+  }
+
+  static Map<String, String>? mapStringy(Map? map) {
+    if (map == null) {
+      return null;
+    }
+
+    return map.map<String, String>(
+      (key, value) => MapEntry(key, '$value'),
+    );
+  }
 }

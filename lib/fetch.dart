@@ -9,12 +9,21 @@ part 'helpers.dart';
 part 'response.dart';
 
 class Fetch extends FetchLogger {
-  Fetch({required String from}) : _base = from;
+  Fetch({
+    required String from,
+    this.headers = const {},
+    this.handler,
+  }) : _base = from;
 
   ///
   final String _base;
-  final Map<String, dynamic> baseHeaders = {};
+  final Map<String, dynamic> headers;
+  final FetchResponse<T> Function<T>(HttpResponse? response, Object? error)?
+      handler;
+
+  /// Streams
   late final Stream<FetchLog> onFetch = _onFetchController.stream;
+  late final Stream<FetchLog> onError = _onErrorController.stream;
 
   Future<FetchResponse<T>> get<T>(
     String endpoint, {
@@ -33,17 +42,15 @@ class Fetch extends FetchLogger {
       stopwatch.start();
 
       final response = await http.get(
-        uri.replace(queryParameters: queryParams),
-        headers: {...baseHeaders, ...headers},
+        uri.replace(queryParameters: FetchHelpers.mapStringy(queryParams)),
+        headers: FetchHelpers.mergeHeaders([this.headers, headers]),
       );
 
       stopwatch.stop();
 
-      _log(response, stopwatch.elapsed);
-      return _responseHandler(response);
-    } catch (e, trace) {
-      _logError(e, trace);
-      return _responseHandler(null, e);
+      return _responseHandler(response, stopwatch: stopwatch);
+    } catch (error, stackTrace) {
+      return _responseHandler(null, error: error, stackTrace: stackTrace);
     }
   }
 
@@ -60,32 +67,47 @@ class Fetch extends FetchLogger {
       endpoint.startsWith('http') ? endpoint : _base + endpoint,
     );
 
-    /// Make request
+    /// Make
     try {
       stopwatch.start();
 
       final response = await http.post(
-        uri.replace(queryParameters: queryParams),
+        uri.replace(queryParameters: FetchHelpers.mapStringy(queryParams)),
         body: body,
-        headers: {...baseHeaders, ...headers},
+        headers: FetchHelpers.mergeHeaders([this.headers, headers]),
       );
 
       stopwatch.stop();
 
-      _log(response, stopwatch.elapsed);
-      return _responseHandler(response);
-    } catch (e, trace) {
-      _logError(e, trace);
-      return _responseHandler(null, e);
+      return _responseHandler(response, stopwatch: stopwatch, postBody: body);
+    } catch (error, stackTrace) {
+      return _responseHandler(null, error: error, stackTrace: stackTrace);
     }
   }
 
   FetchResponse<T> _responseHandler<T>(
-    HttpResponse? response, [
+    HttpResponse? response, {
+    StackTrace? stackTrace,
+    Stopwatch? stopwatch,
     Object? error,
-  ]) {
+    Object? postBody,
+  }) {
     if (response == null) {
-      return FetchResponse<T>.error('$error');
+      _logError(error, stackTrace);
+    } else {
+      _log(response, stopwatch!.elapsed, postBody: postBody);
+    }
+
+    if (response == null) {
+      if (handler != null) {
+        return handler!(null, error);
+      } else {
+        return FetchResponse<T>.error('$error');
+      }
+    }
+
+    if (handler != null) {
+      return handler!(response, error);
     }
 
     return FetchResponse<T>.success(

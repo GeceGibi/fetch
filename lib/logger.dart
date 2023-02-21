@@ -2,15 +2,17 @@ part of fetch;
 
 abstract class FetchLogger {
   final _onFetchController = StreamController<FetchLog>.broadcast();
+  final _onErrorController = StreamController<FetchLog>.broadcast();
   final fetchLogs = <FetchLog>[];
 
   var enableLogger = true;
 
   ///
-  void _log(HttpResponse response, Duration elapsedTime) {
+  void _log(HttpResponse response, Duration elapsedTime, {Object? postBody}) {
     final fetchLog = FetchLog.fromHttpResponse(
       response,
       elapsed: elapsedTime,
+      postBody: postBody,
     );
 
     _onFetchController.add(fetchLog);
@@ -18,23 +20,28 @@ abstract class FetchLogger {
     fetchLogs.add(fetchLog);
 
     if (enableLogger) {
-      print(fetchLog);
+      printer(fetchLog);
       return;
     }
   }
 
-  void _logError(Object? event, StackTrace stackTrace) {
+  void _logError(Object? event, StackTrace? stackTrace) {
     final fetchLog = FetchLog.error(event, stackTrace);
 
-    _onFetchController.add(fetchLog);
+    _onErrorController.add(fetchLog);
 
     fetchLogs.add(fetchLog);
 
     if (enableLogger) {
-      print(fetchLog);
+      printer(fetchLog);
       return;
     }
   }
+}
+
+void printer(Object? data) {
+  final pattern = RegExp('.{1,800}'); // 800 is the size of each chunk
+  pattern.allMatches('$data').forEach((match) => print(match.group(0)));
 }
 
 class FetchLog {
@@ -83,11 +90,13 @@ class FetchLog {
 
     if (error != null) {
       return [
+        '\n',
         prefix,
         'error: $error',
         'stack trace: ',
         '$stackTrace',
         suffix,
+        '\n',
       ].join('\n');
     }
 
@@ -95,7 +104,7 @@ class FetchLog {
     final resHeaders = responseHeaders?.entries ?? [];
 
     return [
-      '',
+      '\n',
       prefix,
       'url: $url',
       'date: $date',
@@ -111,18 +120,11 @@ class FetchLog {
       ...[
         for (final header in resHeaders) '│    ├─${header.key}: ${header.value}'
       ],
-      if (postBody != null) ...[
-        'post body:',
-        if (postBody is Map)
-          for (final body in (postBody as Map).entries)
-            '├─${body.key}: ${body.value}'
-        else
-          '├─$postBody'
-      ],
+      if (postBody != null) ...['post body:', '$postBody'],
       'raw:',
       response,
       suffix,
-      '',
+      '\n',
     ].join('\n');
   }
 }
