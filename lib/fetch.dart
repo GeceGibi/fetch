@@ -2,227 +2,96 @@ library fetch;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 
-part 'fetch_response.dart';
-part 'fetch_config.dart';
-part 'fetch_logger.dart';
-part 'fetch_helper.dart';
+part 'logger.dart';
+part 'helpers.dart';
+part 'response.dart';
 
-typedef JSONMap<T extends dynamic> = Map<String, T>;
+class Fetch extends FetchLogger {
+  Fetch({required String from}) : _base = from;
 
-/// Global config
-FetchConfigBase _fetchConfig = UnimplementedFetchConfig();
+  ///
+  final String _base;
+  final Map<String, dynamic> baseHeaders = {};
+  late final Stream<FetchLog> onFetch = _onFetchController.stream;
 
-/// Default empty config
-class UnimplementedFetchConfig extends FetchConfigBase {
-  @override
-  String get base => throw UnimplementedError();
-}
-
-void _notifyListeners<C extends FetchConfigBase>(
-    FetchLog fetchResponse, C config) {
-  if (config._streamController.hasListener) {
-    config._streamController.add(fetchResponse);
-  }
-}
-
-typedef FetchParams<T> = Map<String, T>;
-typedef Mapper<T, R extends Object?> = T? Function(R response);
-
-/// `R`: main response class must be extends from FetchResponse
-///
-/// `T`: return value of mapper and FetchResponse main payload Type;
-///
-/// `M`: income value of mapper, valus pass as M to mapper
-///
-/// If response allways be json can be use as Map<String,dynamic>.
-/// Added for shorhands(lamdas) writing `mapper: ResposeClass.new`
-class FetchBase<T extends Object?, R extends FetchResponse<T>> {
-  FetchBase(this.endpoint, {this.config});
-
-  final String endpoint;
-  final FetchParams params = {};
-  final FetchConfigBase? config;
-
-  /// Get global fetch config or overrided config
-  /// Checking first overrided one and ofter global one.
-  FetchConfigBase get currentConfig => config ?? _fetchConfig;
-
-  Future<R> get({
-    FetchParams params = const {},
-    FetchParams<String> headers = const {},
+  Future<FetchResponse<T>> get<T>(
+    String endpoint, {
+    Map<String, dynamic>? queryParams,
+    Map<String, String> headers = const {},
   }) async {
-    this.params.addAll(params);
+    final stopwatch = Stopwatch();
 
-    final buildedHeaders = currentConfig.headerBuilder(headers);
-    final uri = FetchHelper.uriBuilder(currentConfig.base + endpoint, params);
+    /// Create uri
+    final uri = Uri.parse(
+      endpoint.startsWith('http') ? endpoint : _base + endpoint,
+    );
 
+    /// Make request
     try {
-      final httpResponse = await http.get(uri, headers: buildedHeaders);
+      stopwatch.start();
 
-      _notifyListeners(
-        FetchLog.fromHttpResponse(httpResponse),
-        currentConfig,
+      final response = await http.get(
+        uri.replace(queryParameters: queryParams),
+        headers: {...baseHeaders, ...headers},
       );
 
-      final fetchResponse = await currentConfig.responseHandler<R, T>(
-        httpResponse,
-        params,
-      );
+      stopwatch.stop();
 
-      return fetchResponse;
-    }
-
-    // Knowns
-    on SocketException catch (e) {
-      _notifyListeners(
-        FetchLog.error(
-          method: 'GET',
-          requestHeaders: buildedHeaders,
-          url: uri.toString(),
-          error: e.message,
-        ),
-        currentConfig,
-      );
-
-      rethrow;
-    }
-
-    // Others
-    catch (e) {
-      _notifyListeners(
-        FetchLog.error(
-          method: 'GET',
-          requestHeaders: buildedHeaders,
-          url: uri.toString(),
-          error: e,
-        ),
-        currentConfig,
-      );
-      rethrow;
+      _log(response, stopwatch.elapsed);
+      return _responseHandler(response);
+    } catch (e, trace) {
+      _logError(e, trace);
+      return _responseHandler(null, e);
     }
   }
 
-  Future<R> post(
+  Future<FetchResponse<T>> post<T>(
+    String endpoint,
     Object? body, {
-    FetchParams params = const {},
-    FetchParams<String> headers = const {},
+    Map<String, dynamic>? queryParams,
+    Map<String, String> headers = const {},
   }) async {
-    this.params.addAll(params);
+    final stopwatch = Stopwatch();
 
-    final buildedHeaders = currentConfig.headerBuilder(headers);
-    final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
-    final uri = FetchHelper.uriBuilder(currentConfig.base + endpoint, params);
+    /// Create uri
+    final uri = Uri.parse(
+      endpoint.startsWith('http') ? endpoint : _base + endpoint,
+    );
 
+    /// Make request
     try {
-      final httpResponse = await http.post(
-        uri,
-        body: postBody,
-        headers: buildedHeaders,
+      stopwatch.start();
+
+      final response = await http.post(
+        uri.replace(queryParameters: queryParams),
+        body: body,
+        headers: {...baseHeaders, ...headers},
       );
 
-      _notifyListeners(
-        FetchLog.fromHttpResponse(httpResponse, body),
-        currentConfig,
-      );
+      stopwatch.stop();
 
-      final fetchResponse = await currentConfig.responseHandler<R, T>(
-        httpResponse,
-        params,
-        body,
-      );
-
-      return fetchResponse;
-    }
-
-    // Knowns
-    on SocketException catch (e) {
-      _notifyListeners(
-        FetchLog.error(
-          method: 'POST',
-          requestHeaders: buildedHeaders,
-          url: uri.toString(),
-          error: e.message,
-        ),
-        currentConfig,
-      );
-      rethrow;
-    }
-
-    // Others
-    catch (e) {
-      _notifyListeners(
-        FetchLog.error(
-          method: 'POST',
-          requestHeaders: buildedHeaders,
-          url: uri.toString(),
-          error: e,
-        ),
-        currentConfig,
-      );
-      rethrow;
+      _log(response, stopwatch.elapsed);
+      return _responseHandler(response);
+    } catch (e, trace) {
+      _logError(e, trace);
+      return _responseHandler(null, e);
     }
   }
-}
 
-class Fetch<T> extends FetchBase<T, FetchResponse<T>> {
-  Fetch(super.endpoint, {super.config});
+  FetchResponse<T> _responseHandler<T>(
+    HttpResponse? response, [
+    Object? error,
+  ]) {
+    if (response == null) {
+      return FetchResponse<T>.error('$error');
+    }
 
-  static void setConfig<C extends FetchConfigBase>(C config) {
-    _fetchConfig = config;
-  }
-
-  static Future<FetchResponse<T>> getURL<T>(
-    String url, {
-    FetchParams params = const {},
-    FetchParams<String> headers = const {},
-    FetchConfigBase? config,
-  }) async {
-    final currentConfig = config ?? _fetchConfig;
-    final buildedHeaders = currentConfig.headerBuilder(headers);
-    final uri = FetchHelper.uriBuilder(url, params, overrided: true);
-    final httpResponse = await http.get(uri, headers: buildedHeaders);
-
-    _notifyListeners(
-      FetchLog.fromHttpResponse(httpResponse),
-      currentConfig,
-    );
-
-    return currentConfig.responseHandler<FetchResponse<T>, T>(
-      httpResponse,
-      params,
-    );
-  }
-
-  static Future<FetchResponse<T>> postURL<T>(
-    String url,
-    Object? body, {
-    FetchParams params = const {},
-    FetchParams<String> headers = const {},
-    FetchConfigBase? config,
-  }) async {
-    final currentConfig = config ?? _fetchConfig;
-    final buildedHeaders = currentConfig.headerBuilder(headers);
-    final postBody = currentConfig.postBodyEncoder(buildedHeaders, body);
-    final uri = FetchHelper.uriBuilder(url, params, overrided: true);
-
-    final httpResponse = await http.post(
-      uri,
-      body: postBody,
-      headers: buildedHeaders,
-    );
-
-    _notifyListeners(
-      FetchLog.fromHttpResponse(httpResponse, postBody),
-      currentConfig,
-    );
-
-    return currentConfig.responseHandler<FetchResponse<T>, T>(
-      httpResponse,
-      params,
-      body,
+    return FetchResponse<T>.success(
+      data: FetchHelpers.handleResponseBody(response),
+      isSuccess: response.statusCode >= 200 && response.statusCode <= 299,
+      message: response.reasonPhrase ?? error.toString(),
     );
   }
 }
