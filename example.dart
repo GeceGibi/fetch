@@ -4,25 +4,37 @@ void main(List<String> args) async {
   final fetch = Fetch(
     from: 'https://api.gece.deV',
     headers: {'content-type': 'application/json'},
-    // shouldRequest: (uri, headers) {
-    //   throw 'Throw example';
-    // },
+    beforeRequest: (uri) {
+      print('Before Request');
+    },
+    afterRequest: (_, __) {
+      print('After Request');
+    },
+    shouldRequest: (uri, headers) {
+      if (uri.queryParameters.containsKey('foo')) {
+        throw 'test query params founded.';
+      }
+
+      return true;
+    },
     handler: <T>(response, error) {
-      if (error != null) {
+      if (error != null || response == null) {
         return FetchResponse.error('$error');
       }
 
       return FetchResponse<T>.success(
-        data: response!.bodyBytes as T,
+        data: FetchHelpers.handleResponseBody(response),
+        isSuccess: FetchHelpers.isSuccess(response.statusCode),
+        message: response.reasonPhrase ?? error.toString(),
       );
     },
   );
 
   fetch.enableLogger = true;
 
-  final response = await fetch.get('/info', queryParams: {'deneme': 1});
+  final response = await fetch.get<Map>('/info', queryParams: {'bar': 1});
 
-  print(response.message);
+  // print(response.data);
   // print(response.data);
   // fetch.post('/posts', jsonEncode({'foo': 1}));
 }

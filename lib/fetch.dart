@@ -43,6 +43,7 @@ class Fetch extends FetchLogger {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
   }) async {
+    final completer = Completer<FetchResponse<T>>();
     final stopwatch = Stopwatch();
 
     /// Make request
@@ -66,10 +67,27 @@ class Fetch extends FetchLogger {
 
       stopwatch.stop();
 
-      return _responseHandler(response, stopwatch: stopwatch);
+      completer.complete(
+        _responseHandler(
+          response,
+          stopwatch: stopwatch,
+        ),
+      );
+
+      afterRequest?.call(response, null);
     } catch (error, stackTrace) {
-      return _responseHandler(null, error: error, stackTrace: stackTrace);
+      completer.complete(
+        _responseHandler(
+          null,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+
+      afterRequest?.call(null, error);
     }
+
+    return completer.future;
   }
 
   Future<FetchResponse<T>> post<T>(
@@ -78,6 +96,7 @@ class Fetch extends FetchLogger {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
   }) async {
+    final completer = Completer<FetchResponse<T>>();
     final stopwatch = Stopwatch();
 
     /// Make
@@ -102,10 +121,28 @@ class Fetch extends FetchLogger {
 
       stopwatch.stop();
 
-      return _responseHandler(response, stopwatch: stopwatch, postBody: body);
+      completer.complete(
+        _responseHandler(
+          response,
+          stopwatch: stopwatch,
+          postBody: body,
+        ),
+      );
+
+      afterRequest?.call(response, null);
     } catch (error, stackTrace) {
-      return _responseHandler(null, error: error, stackTrace: stackTrace);
+      completer.complete(
+        _responseHandler(
+          null,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+
+      afterRequest?.call(null, error);
     }
+
+    return completer.future;
   }
 
   FetchResponse<T> _responseHandler<T>(
@@ -115,8 +152,6 @@ class Fetch extends FetchLogger {
     Object? error,
     Object? postBody,
   }) {
-    afterRequest?.call(response, error);
-
     if (response == null) {
       _logError(error, stackTrace);
     } else {
