@@ -3,12 +3,10 @@ import 'package:fetch/fetch.dart';
 void main(List<String> args) async {
   final fetch = Fetch(
     from: 'https://api.gece.deV',
-    headers: {
-      'content-type': 'application/json',
-    },
-    shouldRequest: (uri, headers) {
-      throw 'Throw example';
-    },
+    headers: {'content-type': 'application/json'},
+    // shouldRequest: (uri, headers) {
+    //   throw 'Throw example';
+    // },
     handler: <T>(response, error) {
       if (error != null) {
         return FetchResponse.error('$error');

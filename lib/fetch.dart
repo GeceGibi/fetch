@@ -48,11 +48,9 @@ class Fetch extends FetchLogger {
     /// Make request
     try {
       /// Create uri
-      final uri =
-          Uri.parse(endpoint.startsWith('http') ? endpoint : _base + endpoint)
-              .replace(
-        queryParameters: FetchHelpers.mapStringy(queryParams),
-      );
+      final uri = Uri.parse(
+        endpoint.startsWith('http') ? endpoint : _base + endpoint,
+      ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
 
@@ -85,11 +83,9 @@ class Fetch extends FetchLogger {
     /// Make
     try {
       /// Create uri
-      final uri =
-          Uri.parse(endpoint.startsWith('http') ? endpoint : _base + endpoint)
-              .replace(
-        queryParameters: FetchHelpers.mapStringy(queryParams),
-      );
+      final uri = Uri.parse(
+        endpoint.startsWith('http') ? endpoint : _base + endpoint,
+      ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
 
