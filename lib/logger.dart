@@ -40,8 +40,14 @@ abstract class FetchLogger {
 }
 
 void printer(Object? data) {
-  final pattern = RegExp('.{1,800}'); // 800 is the size of each chunk
-  pattern.allMatches('$data').forEach((match) => print(match.group(0)));
+  // for (final line in '$data'.split('\n')) {
+  //   print(line);
+  // }
+
+  final pattern = RegExp('.{1,800}');
+  pattern.allMatches('$data').forEach(
+        (match) => print(match.group(0)),
+      );
 }
 
 class FetchLog {
@@ -121,7 +127,7 @@ class FetchLog {
         for (final header in resHeaders) '│    ├─${header.key}: ${header.value}'
       ],
       if (postBody != null) ...['post body:', '$postBody'],
-      'raw:',
+      'response-body:',
       response,
       suffix,
       '\n',

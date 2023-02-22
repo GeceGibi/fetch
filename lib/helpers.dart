@@ -3,9 +3,9 @@ part of fetch;
 abstract class FetchHelpers {
   static T handleResponseBody<T>(HttpResponse response) {
     final contentType = (response.headers['content-type'] ?? '');
-    final jsonTypes = ['application/json', 'application/javascript'];
+    final jsonDecodeTypes = ['application/json', 'application/javascript'];
 
-    for (final type in jsonTypes) {
+    for (final type in jsonDecodeTypes) {
       if (contentType.contains(type)) {
         return jsonDecode(response.body);
       }
@@ -19,7 +19,9 @@ abstract class FetchHelpers {
 
     for (final head in headers) {
       output.addAll(
-        head.map<String, String>((key, value) => MapEntry(key, '$value')),
+        head.map<String, String>(
+          (key, value) => MapEntry('$key', '$value'),
+        ),
       );
     }
 
@@ -27,12 +29,16 @@ abstract class FetchHelpers {
   }
 
   static Map<String, String>? mapStringy(Map? map) {
-    if (map == null) {
+    if (map == null || map.isEmpty) {
       return null;
     }
 
     return map.map<String, String>(
-      (key, value) => MapEntry(key, '$value'),
+      (key, value) => MapEntry('$key', '$value'),
     );
+  }
+
+  static bool isSuccess(int statusCode) {
+    return statusCode >= 200 && statusCode <= 299;
   }
 }

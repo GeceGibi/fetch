@@ -8,22 +8,35 @@ part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
+bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
+
 class Fetch extends FetchLogger {
   Fetch({
     required String from,
     this.headers = const {},
     this.handler,
+    this.timeout = const Duration(seconds: 30),
+    this.afterRequest,
+    this.beforeRequest,
+    this.shouldRequest = _shouldRequest,
   }) : _base = from;
 
   ///
   final String _base;
+  final Duration timeout;
   final Map<String, dynamic> headers;
   final FetchResponse<T> Function<T>(HttpResponse? response, Object? error)?
       handler;
 
   /// Streams
-  late final Stream<FetchLog> onFetch = _onFetchController.stream;
-  late final Stream<FetchLog> onError = _onErrorController.stream;
+  late final Stream<FetchLog> onFetchSuccess = _onFetchController.stream;
+  late final Stream<FetchLog> onFetchError = _onErrorController.stream;
+
+  /// Lifecycle
+  final void Function(Uri uri)? beforeRequest;
+  final void Function(HttpResponse? response, Object? error)? afterRequest;
+  final FutureOr<bool> Function(Uri uri, Map<String, String> headers)
+      shouldRequest;
 
   Future<FetchResponse<T>> get<T>(
     String endpoint, {
@@ -32,19 +45,26 @@ class Fetch extends FetchLogger {
   }) async {
     final stopwatch = Stopwatch();
 
-    /// Create uri
-    final uri = Uri.parse(
-      endpoint.startsWith('http') ? endpoint : _base + endpoint,
-    );
-
     /// Make request
     try {
+      /// Create uri
+      final uri =
+          Uri.parse(endpoint.startsWith('http') ? endpoint : _base + endpoint)
+              .replace(
+        queryParameters: FetchHelpers.mapStringy(queryParams),
+      );
+
+      final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
+
+      if (!(await shouldRequest(uri, mergedHeaders))) {
+        throw 'Request aborted from "shouldRequest"';
+      }
+
+      beforeRequest?.call(uri);
       stopwatch.start();
 
-      final response = await http.get(
-        uri.replace(queryParameters: FetchHelpers.mapStringy(queryParams)),
-        headers: FetchHelpers.mergeHeaders([this.headers, headers]),
-      );
+      final response =
+          await http.get(uri, headers: mergedHeaders).timeout(timeout);
 
       stopwatch.stop();
 
@@ -62,20 +82,27 @@ class Fetch extends FetchLogger {
   }) async {
     final stopwatch = Stopwatch();
 
-    /// Create uri
-    final uri = Uri.parse(
-      endpoint.startsWith('http') ? endpoint : _base + endpoint,
-    );
-
     /// Make
     try {
+      /// Create uri
+      final uri =
+          Uri.parse(endpoint.startsWith('http') ? endpoint : _base + endpoint)
+              .replace(
+        queryParameters: FetchHelpers.mapStringy(queryParams),
+      );
+
+      final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
+
+      if (!(await shouldRequest(uri, mergedHeaders))) {
+        throw 'Request aborted from "shouldRequest"';
+      }
+
+      beforeRequest?.call(uri);
       stopwatch.start();
 
-      final response = await http.post(
-        uri.replace(queryParameters: FetchHelpers.mapStringy(queryParams)),
-        body: body,
-        headers: FetchHelpers.mergeHeaders([this.headers, headers]),
-      );
+      final response = await http
+          .post(uri, body: body, headers: mergedHeaders)
+          .timeout(timeout);
 
       stopwatch.stop();
 
@@ -92,6 +119,8 @@ class Fetch extends FetchLogger {
     Object? error,
     Object? postBody,
   }) {
+    afterRequest?.call(response, error);
+
     if (response == null) {
       _logError(error, stackTrace);
     } else {
@@ -112,7 +141,7 @@ class Fetch extends FetchLogger {
 
     return FetchResponse<T>.success(
       data: FetchHelpers.handleResponseBody(response),
-      isSuccess: response.statusCode >= 200 && response.statusCode <= 299,
+      isSuccess: FetchHelpers.isSuccess(response.statusCode),
       message: response.reasonPhrase ?? error.toString(),
     );
   }
