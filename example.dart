@@ -2,7 +2,7 @@ import 'package:fetch/fetch.dart';
 
 void main(List<String> args) async {
   final fetch = Fetch(
-    from: 'https://api.gece.deV',
+    base: 'https://api.gece.dev',
     headers: {'content-type': 'application/json'},
     beforeRequest: (uri) {
       print('Before Request');

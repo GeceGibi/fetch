@@ -12,17 +12,17 @@ bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
 
 class Fetch extends FetchLogger {
   Fetch({
-    required String from,
+    required this.base,
     this.headers = const {},
     this.handler,
     this.timeout = const Duration(seconds: 30),
     this.afterRequest,
     this.beforeRequest,
     this.shouldRequest = _shouldRequest,
-  }) : _base = from;
+  });
 
   ///
-  final String _base;
+  final String base;
   final Duration timeout;
   final Map<String, dynamic> headers;
   final FetchResponse<T> Function<T>(HttpResponse? response, Object? error)?
@@ -50,7 +50,7 @@ class Fetch extends FetchLogger {
     try {
       /// Create uri
       final uri = Uri.parse(
-        endpoint.startsWith('http') ? endpoint : _base + endpoint,
+        endpoint.startsWith('http') ? endpoint : base + endpoint,
       ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
@@ -103,7 +103,7 @@ class Fetch extends FetchLogger {
     try {
       /// Create uri
       final uri = Uri.parse(
-        endpoint.startsWith('http') ? endpoint : _base + endpoint,
+        endpoint.startsWith('http') ? endpoint : base + endpoint,
       ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
