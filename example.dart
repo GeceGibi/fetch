@@ -17,7 +17,7 @@ void main(List<String> args) async {
 
       return true;
     },
-    handler: <T>(response, error) {
+    handler: <T>(response, error, uri) {
       if (error != null || response == null) {
         return FetchResponse.error('$error');
       }

@@ -25,8 +25,11 @@ class Fetch extends FetchLogger {
   final String base;
   final Duration timeout;
   final Map<String, dynamic> headers;
-  final FetchResponse<T> Function<T>(HttpResponse? response, Object? error)?
-      handler;
+  final FetchResponse<T> Function<T>(
+    HttpResponse? response,
+    Object? error,
+    Uri? uri,
+  )? handler;
 
   /// Streams
   late final Stream<FetchLog> onFetchSuccess = _onFetchController.stream;
@@ -71,6 +74,7 @@ class Fetch extends FetchLogger {
         _responseHandler(
           response,
           stopwatch: stopwatch,
+          uri: uri,
         ),
       );
 
@@ -126,6 +130,7 @@ class Fetch extends FetchLogger {
           response,
           stopwatch: stopwatch,
           postBody: body,
+          uri: uri,
         ),
       );
 
@@ -151,6 +156,7 @@ class Fetch extends FetchLogger {
     Stopwatch? stopwatch,
     Object? error,
     Object? postBody,
+    Uri? uri,
   }) {
     if (response == null) {
       _logError(error, stackTrace);
@@ -160,14 +166,14 @@ class Fetch extends FetchLogger {
 
     if (response == null) {
       if (handler != null) {
-        return handler!(null, error);
+        return handler!(null, error, uri);
       } else {
         return FetchResponse<T>.error('$error');
       }
     }
 
     if (handler != null) {
-      return handler!(response, error);
+      return handler!(response, error, uri);
     }
 
     return FetchResponse<T>.success(
