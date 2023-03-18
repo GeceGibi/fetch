@@ -1,16 +1,19 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 library fetch;
 
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+part 'cache.dart';
 part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
 
-class Fetch extends FetchLogger {
+class Fetch {
   Fetch({
     required this.base,
     this.headers = const {},
@@ -19,21 +22,31 @@ class Fetch extends FetchLogger {
     this.afterRequest,
     this.beforeRequest,
     this.shouldRequest = _shouldRequest,
+    this.enableLogs = true,
+    this.cacheOptions = const FetchCacheOptions(),
   });
 
   ///
-  final String base;
+  String base;
+
+  final bool enableLogs;
+  final FetchCacheOptions cacheOptions;
+
   final Duration timeout;
   final Map<String, dynamic> headers;
+
   final FetchResponse<T> Function<T>(
     HttpResponse? response,
     Object? error,
     Uri? uri,
   )? handler;
 
+  final logger = FetchLogger();
+  final cacheFactory = FetchCacheFactory();
+
   /// Streams
-  late final Stream<FetchLog> onFetchSuccess = _onFetchController.stream;
-  late final Stream<FetchLog> onFetchError = _onErrorController.stream;
+  late final Stream<FetchLog> onFetchSuccess = logger._onFetchController.stream;
+  late final Stream<FetchLog> onFetchError = logger._onErrorController.stream;
 
   /// Lifecycle
   final void Function(Uri uri)? beforeRequest;
@@ -45,6 +58,7 @@ class Fetch extends FetchLogger {
     String endpoint, {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
+    FetchCacheOptions? cacheOptions,
   }) async {
     final completer = Completer<FetchResponse<T>>();
     final stopwatch = Stopwatch();
@@ -59,20 +73,32 @@ class Fetch extends FetchLogger {
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
 
       if (!(await shouldRequest(uri, mergedHeaders))) {
-        throw 'Request aborted from "shouldRequest"';
+        return const FetchResponse.error(null);
       }
 
       beforeRequest?.call(uri);
       stopwatch.start();
 
-      final response =
-          await http.get(uri, headers: mergedHeaders).timeout(timeout);
+      final http.Response response;
+      final _cacheOptions = cacheOptions ?? this.cacheOptions;
+      final isCached = cacheFactory.isCached(uri, _cacheOptions);
+
+      if (isCached) {
+        response = cacheFactory.resolve(uri, _cacheOptions)!.response;
+      } else {
+        response = await http.get(uri, headers: mergedHeaders).timeout(
+              timeout,
+            );
+
+        cacheFactory.cache(response, uri, _cacheOptions);
+      }
 
       stopwatch.stop();
 
       completer.complete(
         _responseHandler(
           response,
+          isCached: isCached,
           stopwatch: stopwatch,
           uri: uri,
         ),
@@ -99,6 +125,7 @@ class Fetch extends FetchLogger {
     Object? body, {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
+    FetchCacheOptions? cacheOptions,
   }) async {
     final completer = Completer<FetchResponse<T>>();
     final stopwatch = Stopwatch();
@@ -113,21 +140,32 @@ class Fetch extends FetchLogger {
       final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
 
       if (!(await shouldRequest(uri, mergedHeaders))) {
-        throw 'Request aborted from "shouldRequest"';
+        return const FetchResponse.error(null);
       }
 
       beforeRequest?.call(uri);
       stopwatch.start();
 
-      final response = await http
-          .post(uri, body: body, headers: mergedHeaders)
-          .timeout(timeout);
+      final http.Response response;
+      final _cacheOptions = cacheOptions ?? this.cacheOptions;
+      final isCached = cacheFactory.isCached(uri, _cacheOptions);
+
+      if (isCached) {
+        response = cacheFactory.resolve(uri, _cacheOptions)!.response;
+      } else {
+        response = await http
+            .post(uri, body: body, headers: mergedHeaders)
+            .timeout(timeout);
+
+        cacheFactory.cache(response, uri, _cacheOptions);
+      }
 
       stopwatch.stop();
 
       completer.complete(
         _responseHandler(
           response,
+          isCached: isCached,
           stopwatch: stopwatch,
           postBody: body,
           uri: uri,
@@ -157,11 +195,19 @@ class Fetch extends FetchLogger {
     Object? error,
     Object? postBody,
     Uri? uri,
+    bool isCached = false,
   }) {
-    if (response == null) {
-      _logError(error, stackTrace);
-    } else {
-      _log(response, stopwatch!.elapsed, postBody: postBody);
+    if (enableLogs) {
+      if (response == null) {
+        logger._logError(error, stackTrace);
+      } else {
+        logger._log(
+          response,
+          stopwatch!.elapsed,
+          postBody: postBody,
+          isCached: isCached,
+        );
+      }
     }
 
     if (response == null) {

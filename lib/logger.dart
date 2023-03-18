@@ -1,41 +1,34 @@
 part of fetch;
 
-abstract class FetchLogger {
+class FetchLogger {
   final _onFetchController = StreamController<FetchLog>.broadcast();
   final _onErrorController = StreamController<FetchLog>.broadcast();
   final fetchLogs = <FetchLog>[];
 
-  var enableLogger = true;
-
   ///
-  void _log(HttpResponse response, Duration elapsedTime, {Object? postBody}) {
+  void _log(
+    HttpResponse response,
+    Duration elapsedTime, {
+    Object? postBody,
+    bool isCached = false,
+  }) {
     final fetchLog = FetchLog.fromHttpResponse(
       response,
       elapsed: elapsedTime,
       postBody: postBody,
+      isCached: isCached,
     );
 
     _onFetchController.add(fetchLog);
-
     fetchLogs.add(fetchLog);
-
-    if (enableLogger) {
-      printer(fetchLog);
-      return;
-    }
+    printer(fetchLog);
   }
 
   void _logError(Object? event, StackTrace? stackTrace) {
     final fetchLog = FetchLog.error(event, stackTrace);
-
     _onErrorController.add(fetchLog);
-
     fetchLogs.add(fetchLog);
-
-    if (enableLogger) {
-      printer(fetchLog);
-      return;
-    }
+    printer(fetchLog);
   }
 }
 
@@ -61,12 +54,14 @@ class FetchLog {
         response = null,
         postBody = null,
         error = event.toString(),
-        elapsed = null;
+        elapsed = null,
+        isCached = false;
 
   FetchLog.fromHttpResponse(
     HttpResponse response, {
     this.postBody,
     this.elapsed,
+    this.isCached = false,
   })  : status = response.statusCode,
         method = response.request?.method ?? '-',
         url = response.request?.url.toString() ?? '-',
@@ -88,6 +83,7 @@ class FetchLog {
   final dynamic error;
   final StackTrace? stackTrace;
   final Duration? elapsed;
+  final bool isCached;
 
   @override
   String toString() {
@@ -109,6 +105,14 @@ class FetchLog {
     final reqHeaders = requestHeaders?.entries ?? [];
     final resHeaders = responseHeaders?.entries ?? [];
 
+    final String cacheNote;
+
+    if (isCached) {
+      cacheNote = ' (cached)';
+    } else {
+      cacheNote = '';
+    }
+
     return [
       '\n',
       prefix,
@@ -116,7 +120,7 @@ class FetchLog {
       'date: $date',
       'method: $method',
       'status: $status',
-      'elapsed: ${elapsed?.inMilliseconds}ms',
+      'elapsed: ${elapsed?.inMilliseconds}ms$cacheNote',
       'headers:',
       '├──request:',
       ...[

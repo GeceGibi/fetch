@@ -4,6 +4,7 @@ void main(List<String> args) async {
   final fetch = Fetch(
     base: 'https://api.gece.dev',
     headers: {'content-type': 'application/json'},
+    enableLogs: true,
     beforeRequest: (uri) {
       print('Before Request');
     },
@@ -30,9 +31,8 @@ void main(List<String> args) async {
     },
   );
 
-  fetch.enableLogger = true;
-
-  final response = await fetch.get<Map>('/info', queryParams: {'bar': 1});
+  await fetch.get<Map>('/info', queryParams: {'bar': 1});
+  await fetch.get<Map>('/info', queryParams: {'bar': 1});
 
   // print(response.data);
   // print(response.data);
