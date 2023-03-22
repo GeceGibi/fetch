@@ -17,13 +17,13 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    enableLogs: true,
+    enableLogs: false,
     beforeRequest: (uri) async {
-      await Future.delayed(const Duration(seconds: 10));
-      print('Before Request');
+      await Future.delayed(const Duration(seconds: 1));
+      //print('Before Request');
     },
     afterRequest: (_, __) {
-      print('After Request');
+      //print('After Request');
     },
     shouldRequest: (uri, headers) {
       if (uri.queryParameters.containsKey('foo')) {
@@ -32,7 +32,7 @@ void main(List<String> args) async {
 
       return true;
     },
-    handler: <T>(response, error, uri) {
+    handler: (response, error, uri) {
       if (error != null || response == null) {
         return FetchResponse(
           null,
@@ -43,7 +43,7 @@ void main(List<String> args) async {
       }
 
       return FetchResponse(
-        FetchHelpers.handleResponseBody<T>(response),
+        FetchHelpers.handleResponseBody(response),
         isOk: FetchHelpers.isOk(response),
         message: response.reasonPhrase ?? error.toString(),
         httpResponse: response,

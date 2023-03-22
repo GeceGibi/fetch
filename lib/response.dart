@@ -11,6 +11,15 @@ abstract class FetchResponseBase {
   });
 
   final dynamic data;
+
+  T as<T>() {
+    if (data is T) {
+      return data;
+    }
+
+    throw 'data is not $T';
+  }
+
   final bool isOk;
   final String? message;
   final HttpResponse? httpResponse;

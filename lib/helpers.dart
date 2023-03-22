@@ -1,7 +1,7 @@
 part of fetch;
 
 abstract class FetchHelpers {
-  static T handleResponseBody<T>(HttpResponse response) {
+  static dynamic handleResponseBody(HttpResponse response) {
     final contentType = (response.headers['content-type'] ?? '');
     final jsonDecodeTypes = ['application/json', 'application/javascript'];
 
@@ -11,7 +11,7 @@ abstract class FetchHelpers {
       }
     }
 
-    return response.body as T;
+    return response.body;
   }
 
   static Map<String, String> mergeHeaders(List<Map> headers) {
