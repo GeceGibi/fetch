@@ -35,7 +35,7 @@ class Fetch<R extends FetchResponseBase> {
 
   final Duration timeout;
   final FutureOr<Map<String, dynamic>> Function() headerBuilder;
-  final R Function<T>(HttpResponse? response, Object? error, Uri? uri) handler;
+  final R Function(HttpResponse? response, Object? error, Uri? uri) handler;
 
   late final logger = FetchLogger(enableLogs);
   final cacheFactory = CacheFactory();
@@ -51,7 +51,7 @@ class Fetch<R extends FetchResponseBase> {
   final FutureOr<bool> Function(Uri uri, Map<String, String> headers)
       shouldRequest;
 
-  Future<R> get<T>(
+  Future<R> get(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
@@ -94,7 +94,7 @@ class Fetch<R extends FetchResponseBase> {
       logger._log(response, stopwatch.elapsed, isCached: isCached);
 
       /// Complete
-      completer.complete(handler<T>(response, null, uri));
+      completer.complete(handler(response, null, uri));
 
       /// Callbacks
       await afterRequest?.call(response, null);
