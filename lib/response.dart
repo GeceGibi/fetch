@@ -2,23 +2,21 @@ part of fetch;
 
 typedef HttpResponse = http.Response;
 
-class FetchResponse<T> {
-  const FetchResponse.success({
-    this.data,
+abstract class FetchResponseBase {
+  const FetchResponseBase(
+    this.data, {
     this.message,
-    this.isSuccess = false,
+    this.isOk = false,
+    this.httpResponse,
   });
-  const FetchResponse.error(this.message)
-      : isSuccess = false,
-        data = null;
 
-  final T? data;
-  final bool isSuccess;
+  final dynamic data;
+  final bool isOk;
   final String? message;
-  T get requireData => data!;
+  final HttpResponse? httpResponse;
 
   @override
   String toString() {
-    return 'FetchResponse(data: $data, isSuccess: $isSuccess, message: $message)';
+    return 'FetchResponse(data: $data, isOk: $isOk, message: $message, httpResponse: $httpResponse)';
   }
 }

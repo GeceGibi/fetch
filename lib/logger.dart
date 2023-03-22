@@ -1,6 +1,9 @@
 part of fetch;
 
 class FetchLogger {
+  FetchLogger(this.isEnabled);
+  final bool isEnabled;
+
   final _onFetchController = StreamController<FetchLog>.broadcast();
   final _onErrorController = StreamController<FetchLog>.broadcast();
   final fetchLogs = <FetchLog>[];
@@ -21,14 +24,20 @@ class FetchLogger {
 
     _onFetchController.add(fetchLog);
     fetchLogs.add(fetchLog);
-    printer(fetchLog);
+
+    if (isEnabled) {
+      printer(fetchLog);
+    }
   }
 
   void _logError(Object? event, StackTrace? stackTrace) {
     final fetchLog = FetchLog.error(event, stackTrace);
     _onErrorController.add(fetchLog);
     fetchLogs.add(fetchLog);
-    printer(fetchLog);
+
+    if (isEnabled) {
+      printer(fetchLog);
+    }
   }
 }
 

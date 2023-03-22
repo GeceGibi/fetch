@@ -3,15 +3,15 @@
 part of fetch;
 
 enum CacheStrategy {
-  URL,
-  URL_WITHOUT_QUERY_PARAMS,
+  URL_WITHOUT_QUERY,
+  FULL_URL,
 }
 
 //! ----------------------------------------------------------------------------
-class FetchCacheOptions {
-  const FetchCacheOptions({
+class CacheOptions {
+  const CacheOptions({
     this.duration = Duration.zero,
-    this.strategy = CacheStrategy.URL,
+    this.strategy = CacheStrategy.FULL_URL,
   });
 
   final Duration duration;
@@ -19,38 +19,43 @@ class FetchCacheOptions {
 }
 
 //! ----------------------------------------------------------------------------
-class FetchCache {
-  const FetchCache(this.response, this.duration, this.date);
-  final http.Response response;
+class Cache {
+  const Cache(
+    this.response,
+    this.duration,
+    this.date,
+  );
+
+  final HttpResponse response;
   final Duration duration;
   final DateTime date;
 }
 
 //! ----------------------------------------------------------------------------
-class FetchCacheFactory {
-  FetchCacheFactory();
-  final _caches = <Uri, FetchCache>{};
+class CacheFactory {
+  CacheFactory();
+  final _caches = <Uri, Cache>{};
 
-  FetchCache? resolve(Uri uri, FetchCacheOptions options) {
+  Cache? resolve(Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
     switch (options.strategy) {
-      case CacheStrategy.URL:
+      case CacheStrategy.FULL_URL:
         return _caches[uri];
 
-      case CacheStrategy.URL_WITHOUT_QUERY_PARAMS:
+      case CacheStrategy.URL_WITHOUT_QUERY:
         return _caches[uri.replace(query: '')];
     }
   }
 
-  bool isCached(Uri uri, FetchCacheOptions options) {
+  bool isCached(Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
     if (options.duration == Duration.zero) {
       return false;
     }
 
-    if (CacheStrategy.URL_WITHOUT_QUERY_PARAMS == options.strategy) {
+    if (CacheStrategy.URL_WITHOUT_QUERY == options.strategy) {
       uri = uri.replace(query: '');
     }
 
@@ -72,7 +77,7 @@ class FetchCacheFactory {
     return false;
   }
 
-  void cache(http.Response response, Uri uri, FetchCacheOptions options) {
+  void cache(HttpResponse response, Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
     if (options.duration == Duration.zero) {
@@ -80,16 +85,16 @@ class FetchCacheFactory {
     }
 
     switch (options.strategy) {
-      case CacheStrategy.URL:
-        _caches[uri] = FetchCache(
+      case CacheStrategy.FULL_URL:
+        _caches[uri] = Cache(
           response,
           options.duration,
           DateTime.now(),
         );
         break;
 
-      case CacheStrategy.URL_WITHOUT_QUERY_PARAMS:
-        _caches[uri.replace(query: '')] = FetchCache(
+      case CacheStrategy.URL_WITHOUT_QUERY:
+        _caches[uri.replace(query: '')] = Cache(
           response,
           options.duration,
           DateTime.now(),
@@ -105,6 +110,7 @@ class FetchCacheFactory {
 
   void remove(Uri uri) {
     uri.removeFragment();
+
     _caches.remove(uri);
   }
 }

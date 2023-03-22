@@ -38,7 +38,7 @@ abstract class FetchHelpers {
     );
   }
 
-  static bool isSuccess(int statusCode) {
-    return statusCode >= 200 && statusCode <= 299;
+  static bool isOk(HttpResponse response) {
+    return response.statusCode >= 200 && response.statusCode <= 299;
   }
 }

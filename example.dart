@@ -1,11 +1,25 @@
 import 'package:fetch/fetch.dart';
 
+class FetchResponse extends FetchResponseBase {
+  FetchResponse(
+    super.data, {
+    super.message,
+    super.isOk,
+    super.httpResponse,
+  });
+}
+
 void main(List<String> args) async {
   final fetch = Fetch(
     base: 'https://api.gece.dev',
-    headers: {'content-type': 'application/json'},
+    headerBuilder: () {
+      return {
+        'content-type': 'application/json',
+      };
+    },
     enableLogs: true,
-    beforeRequest: (uri) {
+    beforeRequest: (uri) async {
+      await Future.delayed(const Duration(seconds: 10));
       print('Before Request');
     },
     afterRequest: (_, __) {
@@ -20,19 +34,26 @@ void main(List<String> args) async {
     },
     handler: <T>(response, error, uri) {
       if (error != null || response == null) {
-        return FetchResponse.error('$error');
+        return FetchResponse(
+          null,
+          message: '$error',
+          httpResponse: response,
+          isOk: false,
+        );
       }
 
-      return FetchResponse<T>.success(
-        data: FetchHelpers.handleResponseBody(response),
-        isSuccess: FetchHelpers.isSuccess(response.statusCode),
+      return FetchResponse(
+        FetchHelpers.handleResponseBody<T>(response),
+        isOk: FetchHelpers.isOk(response),
         message: response.reasonPhrase ?? error.toString(),
+        httpResponse: response,
       );
     },
   );
 
-  await fetch.get<Map>('/info', queryParams: {'bar': 1});
-  await fetch.get<Map>('/info', queryParams: {'bar': 1});
+  final response = await fetch.get('/info', queryParams: {'bar': 1});
+
+  await fetch.get('/info', queryParams: {'bar': 1});
 
   // print(response.data);
   // print(response.data);

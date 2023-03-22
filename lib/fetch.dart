@@ -12,141 +12,134 @@ part 'helpers.dart';
 part 'response.dart';
 
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
+Map<String, dynamic> _defaultHeaderBuilder() => {};
 
-class Fetch {
+class Fetch<R extends FetchResponseBase> {
   Fetch({
     required this.base,
-    this.headers = const {},
-    this.handler,
+    required this.handler,
+    this.headerBuilder = _defaultHeaderBuilder,
     this.timeout = const Duration(seconds: 30),
     this.afterRequest,
     this.beforeRequest,
     this.shouldRequest = _shouldRequest,
     this.enableLogs = true,
-    this.cacheOptions = const FetchCacheOptions(),
+    this.cacheOptions = const CacheOptions(),
   });
 
   ///
   String base;
 
   final bool enableLogs;
-  final FetchCacheOptions cacheOptions;
+  final CacheOptions cacheOptions;
 
   final Duration timeout;
-  final Map<String, dynamic> headers;
+  final FutureOr<Map<String, dynamic>> Function() headerBuilder;
+  final R Function<T>(HttpResponse? response, Object? error, Uri? uri) handler;
 
-  final FetchResponse<T> Function<T>(
-    HttpResponse? response,
-    Object? error,
-    Uri? uri,
-  )? handler;
-
-  final logger = FetchLogger();
-  final cacheFactory = FetchCacheFactory();
+  late final logger = FetchLogger(enableLogs);
+  final cacheFactory = CacheFactory();
 
   /// Streams
   late final Stream<FetchLog> onFetchSuccess = logger._onFetchController.stream;
   late final Stream<FetchLog> onFetchError = logger._onErrorController.stream;
 
   /// Lifecycle
-  final void Function(Uri uri)? beforeRequest;
-  final void Function(HttpResponse? response, Object? error)? afterRequest;
+  final FutureOr<void> Function(Uri uri)? beforeRequest;
+  final FutureOr<void> Function(HttpResponse? response, Object? error)?
+      afterRequest;
   final FutureOr<bool> Function(Uri uri, Map<String, String> headers)
       shouldRequest;
 
-  Future<FetchResponse<T>> get<T>(
+  Future<R> get<T>(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
-    FetchCacheOptions? cacheOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    final completer = Completer<FetchResponse<T>>();
-    final stopwatch = Stopwatch();
+    final completer = Completer<R>();
+    final stopwatch = Stopwatch()..start();
+
+    /// Create uri
+    final uri = Uri.parse(
+      endpoint.startsWith('http') ? endpoint : base + endpoint,
+    ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
     /// Make request
     try {
-      /// Create uri
-      final uri = Uri.parse(
-        endpoint.startsWith('http') ? endpoint : base + endpoint,
-      ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
-
-      final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
+      final mergedHeaders = FetchHelpers.mergeHeaders(
+        [await headerBuilder(), headers],
+      );
 
       if (!(await shouldRequest(uri, mergedHeaders))) {
-        return const FetchResponse.error(null);
+        return handler(null, 'shouldRequest() not passed', uri);
       }
 
-      beforeRequest?.call(uri);
-      stopwatch.start();
+      await beforeRequest?.call(uri);
 
-      final http.Response response;
+      final HttpResponse response;
       final _cacheOptions = cacheOptions ?? this.cacheOptions;
       final isCached = cacheFactory.isCached(uri, _cacheOptions);
 
       if (isCached) {
         response = cacheFactory.resolve(uri, _cacheOptions)!.response;
       } else {
-        response = await http.get(uri, headers: mergedHeaders).timeout(
-              timeout,
-            );
-
+        response = await http.get(uri, headers: mergedHeaders).timeout(timeout);
         cacheFactory.cache(response, uri, _cacheOptions);
       }
 
       stopwatch.stop();
 
-      completer.complete(
-        _responseHandler(
-          response,
-          isCached: isCached,
-          stopwatch: stopwatch,
-          uri: uri,
-        ),
-      );
+      /// Log
+      logger._log(response, stopwatch.elapsed, isCached: isCached);
 
-      afterRequest?.call(response, null);
-    } catch (error, stackTrace) {
-      completer.complete(
-        _responseHandler(
-          null,
-          error: error,
-          stackTrace: stackTrace,
-        ),
-      );
+      /// Complete
+      completer.complete(handler<T>(response, null, uri));
 
-      afterRequest?.call(null, error);
+      /// Callbacks
+      await afterRequest?.call(response, null);
+    } catch (error, trace) {
+      /// Log
+      logger._logError(error, trace);
+
+      /// Complete
+      completer.complete(handler(null, error, uri));
+
+      /// Callback
+      await afterRequest?.call(null, error);
     }
 
     return completer.future;
   }
 
-  Future<FetchResponse<T>> post<T>(
+  Future<R> post(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
     Map<String, String> headers = const {},
-    FetchCacheOptions? cacheOptions,
+    CacheOptions? cacheOptions,
   }) async {
-    final completer = Completer<FetchResponse<T>>();
-    final stopwatch = Stopwatch();
+    final completer = Completer<R>();
+    final stopwatch = Stopwatch()..start();
+
+    /// Create uri
+    final uri = Uri.parse(
+      endpoint.startsWith('http') ? endpoint : base + endpoint,
+    ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
 
     /// Make
     try {
-      /// Create uri
-      final uri = Uri.parse(
-        endpoint.startsWith('http') ? endpoint : base + endpoint,
-      ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
-
-      final mergedHeaders = FetchHelpers.mergeHeaders([this.headers, headers]);
+      final mergedHeaders = FetchHelpers.mergeHeaders(
+        [await headerBuilder(), headers],
+      );
 
       if (!(await shouldRequest(uri, mergedHeaders))) {
-        return const FetchResponse.error(null);
+        return handler(null, 'shouldRequest() not passed', uri);
       }
 
-      beforeRequest?.call(uri);
-      stopwatch.start();
+      await beforeRequest?.call(uri);
 
-      final http.Response response;
+      final HttpResponse response;
       final _cacheOptions = cacheOptions ?? this.cacheOptions;
       final isCached = cacheFactory.isCached(uri, _cacheOptions);
 
@@ -162,70 +155,30 @@ class Fetch {
 
       stopwatch.stop();
 
-      completer.complete(
-        _responseHandler(
-          response,
-          isCached: isCached,
-          stopwatch: stopwatch,
-          postBody: body,
-          uri: uri,
-        ),
+      /// Log
+      logger._log(
+        response,
+        stopwatch.elapsed,
+        postBody: body,
+        isCached: isCached,
       );
 
-      afterRequest?.call(response, null);
-    } catch (error, stackTrace) {
-      completer.complete(
-        _responseHandler(
-          null,
-          error: error,
-          stackTrace: stackTrace,
-        ),
-      );
+      /// Complete
+      completer.complete(handler(response, null, uri));
 
-      afterRequest?.call(null, error);
+      /// Callbacks
+      await afterRequest?.call(response, null);
+    } catch (error, trace) {
+      /// Log
+      logger._logError(error, trace);
+
+      /// Complete
+      completer.complete(handler(null, error, uri));
+
+      /// Callback
+      await afterRequest?.call(null, error);
     }
 
     return completer.future;
-  }
-
-  FetchResponse<T> _responseHandler<T>(
-    HttpResponse? response, {
-    StackTrace? stackTrace,
-    Stopwatch? stopwatch,
-    Object? error,
-    Object? postBody,
-    Uri? uri,
-    bool isCached = false,
-  }) {
-    if (enableLogs) {
-      if (response == null) {
-        logger._logError(error, stackTrace);
-      } else {
-        logger._log(
-          response,
-          stopwatch!.elapsed,
-          postBody: postBody,
-          isCached: isCached,
-        );
-      }
-    }
-
-    if (response == null) {
-      if (handler != null) {
-        return handler!(null, error, uri);
-      } else {
-        return FetchResponse<T>.error('$error');
-      }
-    }
-
-    if (handler != null) {
-      return handler!(response, error, uri);
-    }
-
-    return FetchResponse<T>.success(
-      data: FetchHelpers.handleResponseBody(response),
-      isSuccess: FetchHelpers.isSuccess(response.statusCode),
-      message: response.reasonPhrase ?? error.toString(),
-    );
   }
 }
