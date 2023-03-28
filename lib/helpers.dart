@@ -1,7 +1,10 @@
 part of fetch;
 
 abstract class FetchHelpers {
-  static dynamic handleResponseBody(HttpResponse response) {
+  static dynamic handleResponseBody(
+    HttpResponse response, {
+    Encoding encoding = utf8,
+  }) {
     final contentType = (response.headers['content-type'] ?? '');
     final jsonDecodeTypes = ['application/json', 'application/javascript'];
 

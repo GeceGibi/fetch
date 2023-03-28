@@ -1,8 +1,13 @@
 part of fetch;
 
 class FetchLogger {
-  FetchLogger(this.isEnabled);
+  FetchLogger(
+    this.isEnabled, {
+    this.encoding = utf8,
+  });
+
   final bool isEnabled;
+  final Encoding encoding;
 
   final _onFetchController = StreamController<FetchLog>.broadcast();
   final _onErrorController = StreamController<FetchLog>.broadcast();
@@ -77,7 +82,7 @@ class FetchLog {
         date = DateTime.now(),
         requestHeaders = response.request?.headers ?? const {},
         responseHeaders = response.headers,
-        response = response.body,
+        response = utf8.decode(response.bodyBytes),
         error = null,
         stackTrace = null;
 

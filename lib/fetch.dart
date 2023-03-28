@@ -11,10 +11,16 @@ part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
+typedef Handler<R extends FetchResponse> = R Function(
+  HttpResponse? response,
+  Object? error,
+  Uri? uri,
+);
+
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
 Map<String, dynamic> _defaultHeaderBuilder() => {};
 
-class Fetch<R extends FetchResponseBase> {
+class Fetch<R extends FetchResponse> {
   Fetch({
     required this.base,
     required this.handler,
@@ -25,19 +31,21 @@ class Fetch<R extends FetchResponseBase> {
     this.shouldRequest = _shouldRequest,
     this.enableLogs = true,
     this.cacheOptions = const CacheOptions(),
+    this.encoding = utf8,
   });
 
   ///
   String base;
 
+  final Encoding encoding;
   final bool enableLogs;
   final CacheOptions cacheOptions;
 
   final Duration timeout;
   final FutureOr<Map<String, dynamic>> Function() headerBuilder;
-  final R Function(HttpResponse? response, Object? error, Uri? uri) handler;
+  final Handler<R> handler;
 
-  late final logger = FetchLogger(enableLogs);
+  late final logger = FetchLogger(enableLogs, encoding: encoding);
   final cacheFactory = CacheFactory();
 
   /// Streams

@@ -1,7 +1,7 @@
 import 'package:fetch/fetch.dart';
 
-class FetchResponse extends FetchResponseBase {
-  FetchResponse(
+class CustomResponse extends FetchResponse {
+  CustomResponse(
     super.data, {
     super.message,
     super.isOk,
@@ -32,23 +32,7 @@ void main(List<String> args) async {
 
       return true;
     },
-    handler: (response, error, uri) {
-      if (error != null || response == null) {
-        return FetchResponse(
-          null,
-          message: '$error',
-          httpResponse: response,
-          isOk: false,
-        );
-      }
-
-      return FetchResponse(
-        FetchHelpers.handleResponseBody(response),
-        isOk: FetchHelpers.isOk(response),
-        message: response.reasonPhrase ?? error.toString(),
-        httpResponse: response,
-      );
-    },
+    handler: FetchResponse.fromHandler,
   );
 
   final response = await fetch.get('/info', queryParams: {'bar': 1});

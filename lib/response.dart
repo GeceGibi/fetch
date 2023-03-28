@@ -2,13 +2,35 @@ part of fetch;
 
 typedef HttpResponse = http.Response;
 
-abstract class FetchResponseBase {
-  const FetchResponseBase(
+class FetchResponse {
+  const FetchResponse(
     this.data, {
     this.message,
     this.isOk = false,
     this.httpResponse,
   });
+
+  factory FetchResponse.fromHandler(
+    HttpResponse? response,
+    Object? error,
+    Uri? uri,
+  ) {
+    if (error != null || response == null) {
+      return FetchResponse(
+        null,
+        message: '$error',
+        httpResponse: response,
+        isOk: false,
+      );
+    }
+
+    return FetchResponse(
+      FetchHelpers.handleResponseBody(response),
+      isOk: FetchHelpers.isOk(response),
+      message: response.reasonPhrase ?? error.toString(),
+      httpResponse: response,
+    );
+  }
 
   final dynamic data;
 
@@ -17,7 +39,7 @@ abstract class FetchResponseBase {
       return data;
     }
 
-    throw 'data is not $T';
+    throw 'data is not type of $T';
   }
 
   final bool isOk;
