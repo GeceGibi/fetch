@@ -51,15 +51,19 @@ class CacheFactory {
   bool isCached(Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
-    if (options.duration == Duration.zero) {
-      return false;
-    }
-
     if (CacheStrategy.URL_WITHOUT_QUERY == options.strategy) {
       uri = uri.replace(query: '');
     }
 
     final contains = _caches.containsKey(uri);
+
+    if (options.duration == Duration.zero) {
+      if (contains) {
+        _caches.remove(uri);
+      }
+
+      return false;
+    }
 
     if (contains) {
       final entry = _caches[uri]!;
