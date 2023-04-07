@@ -10,7 +10,7 @@ abstract class FetchHelpers {
 
     for (final type in jsonDecodeTypes) {
       if (contentType.contains(type)) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonDecode(encoding.decode(response.bodyBytes));
       }
     }
 

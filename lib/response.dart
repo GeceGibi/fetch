@@ -8,6 +8,7 @@ class FetchResponse {
     this.message,
     this.isOk = false,
     this.httpResponse,
+    this.uri,
   });
 
   factory FetchResponse.fromHandler(
@@ -21,6 +22,7 @@ class FetchResponse {
         message: '$error',
         httpResponse: response,
         isOk: false,
+        uri: uri,
       );
     }
 
@@ -29,6 +31,7 @@ class FetchResponse {
       isOk: FetchHelpers.isOk(response),
       message: response.reasonPhrase ?? error.toString(),
       httpResponse: response,
+      uri: uri,
     );
   }
 
@@ -45,6 +48,7 @@ class FetchResponse {
   final bool isOk;
   final String? message;
   final HttpResponse? httpResponse;
+  final Uri? uri;
 
   @override
   String toString() {

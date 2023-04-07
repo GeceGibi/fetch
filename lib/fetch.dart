@@ -14,7 +14,7 @@ part 'response.dart';
 typedef Handler<R extends FetchResponse> = R Function(
   HttpResponse? response,
   Object? error,
-  Uri? uri,
+  Uri uri,
 );
 
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;

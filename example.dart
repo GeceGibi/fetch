@@ -6,6 +6,7 @@ class CustomResponse extends FetchResponse {
     super.message,
     super.isOk,
     super.httpResponse,
+    required super.uri,
   });
 }
 
