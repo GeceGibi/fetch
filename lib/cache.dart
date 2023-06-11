@@ -57,12 +57,8 @@ class CacheFactory {
 
     final contains = _caches.containsKey(uri);
 
-    if (options.duration == Duration.zero) {
-      if (contains) {
-        _caches.remove(uri);
-      }
-
-      return false;
+    if (options.duration == Duration.zero && contains) {
+      _caches.remove(uri);
     }
 
     if (contains) {
@@ -113,8 +109,7 @@ class CacheFactory {
   }
 
   void remove(Uri uri) {
-    uri.removeFragment();
-
+    uri = uri.removeFragment();
     _caches.remove(uri);
   }
 }
