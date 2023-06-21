@@ -55,9 +55,10 @@ class CacheFactory {
       uri = uri.replace(query: '');
     }
 
-    final contains = _caches.containsKey(uri);
+    var contains = _caches.containsKey(uri);
 
     if (options.duration == Duration.zero && contains) {
+      contains = false;
       _caches.remove(uri);
     }
 
