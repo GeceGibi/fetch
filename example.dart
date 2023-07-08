@@ -37,6 +37,7 @@ void main(List<String> args) async {
   );
 
   final response = await fetch.get('/info', queryParams: {'bar': 1});
+  print(response);
 
   await fetch.get('/info', queryParams: {'bar': 1});
 

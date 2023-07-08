@@ -4,6 +4,7 @@ library fetch;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:http/http.dart' as http;
 
 part 'cache.dart';
@@ -92,7 +93,9 @@ class Fetch<R extends FetchResponse> {
       if (isCached) {
         response = cacheFactory.resolve(uri, _cacheOptions)!.response;
       } else {
-        response = await http.get(uri, headers: mergedHeaders).timeout(timeout);
+        response = await Isolate.run(
+          () => http.get(uri, headers: mergedHeaders).timeout(timeout),
+        );
         cacheFactory.cache(response, uri, _cacheOptions);
       }
 
@@ -154,9 +157,9 @@ class Fetch<R extends FetchResponse> {
       if (isCached) {
         response = cacheFactory.resolve(uri, _cacheOptions)!.response;
       } else {
-        response = await http
+        response = await Isolate.run(() => http
             .post(uri, body: body, headers: mergedHeaders)
-            .timeout(timeout);
+            .timeout(timeout));
 
         cacheFactory.cache(response, uri, _cacheOptions);
       }
