@@ -12,7 +12,7 @@ part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
-typedef Handler<R extends FetchResponse> = R Function(
+typedef Handler<R extends FetchResponse> = FutureOr<R> Function(
   HttpResponse? response,
   Object? error,
   Uri uri,
