@@ -19,6 +19,11 @@ void main(List<String> args) async {
       };
     },
     enableLogs: false,
+    overrides: FetchOverride(
+      post: (method, uri, body, headers) {
+        return method(uri, body: body, headers: headers);
+      },
+    ),
     beforeRequest: (uri) async {
       await Future.delayed(const Duration(seconds: 1));
       //print('Before Request');
