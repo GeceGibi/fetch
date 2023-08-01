@@ -25,6 +25,7 @@ class FetchLogger {
       elapsed: elapsedTime,
       postBody: postBody,
       isCached: isCached,
+      encoding: encoding,
     );
 
     _onFetchController.add(fetchLog);
@@ -47,12 +48,9 @@ class FetchLogger {
 }
 
 void printer(Object? data) {
-  // for (final line in '$data'.split('\n')) {
-  //   print(line);
-  // }
-
   final pattern = RegExp('.{1,800}');
   pattern.allMatches('$data').forEach(
+        // ignore: avoid_print
         (match) => print(match.group(0)),
       );
 }
@@ -69,20 +67,22 @@ class FetchLog {
         postBody = null,
         error = event.toString(),
         elapsed = null,
-        isCached = false;
+        isCached = false,
+        encoding = utf8;
 
   FetchLog.fromHttpResponse(
     HttpResponse response, {
     this.postBody,
     this.elapsed,
     this.isCached = false,
+    this.encoding = utf8,
   })  : status = response.statusCode,
         method = response.request?.method ?? '-',
         url = response.request?.url.toString() ?? '-',
         date = DateTime.now(),
         requestHeaders = response.request?.headers ?? const {},
         responseHeaders = response.headers,
-        response = utf8.decode(response.bodyBytes),
+        response = encoding.decode(response.bodyBytes),
         error = null,
         stackTrace = null;
 
@@ -98,11 +98,12 @@ class FetchLog {
   final StackTrace? stackTrace;
   final Duration? elapsed;
   final bool isCached;
+  final Encoding encoding;
 
   @override
   String toString() {
-    const prefix = 'LOG BEGIN >>>>>>>>>>>>>>>>';
-    const suffix = '<<<<<<<<<<<<<<<<<< LOG END';
+    final prefix = 'LOG BEGIN ${">" * 52}';
+    final suffix = '${"<" * 52} LOG END';
 
     if (error != null) {
       return [

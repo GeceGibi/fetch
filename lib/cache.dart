@@ -64,9 +64,7 @@ class CacheFactory {
 
     if (contains) {
       final entry = _caches[uri]!;
-      final isAfter = entry.date.add(entry.duration).isAfter(
-            DateTime.now(),
-          );
+      final isAfter = entry.date.add(entry.duration).isAfter(DateTime.now());
 
       if (!isAfter) {
         _caches.remove(uri);
@@ -100,7 +98,6 @@ class CacheFactory {
           options.duration,
           DateTime.now(),
         );
-
         break;
     }
   }

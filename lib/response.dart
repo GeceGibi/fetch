@@ -2,7 +2,7 @@ part of fetch;
 
 typedef HttpResponse = http.Response;
 
-class FetchResponse {
+class FetchResponse<T> {
   const FetchResponse(
     this.data, {
     this.message,
@@ -35,11 +35,11 @@ class FetchResponse {
     );
   }
 
-  final dynamic data;
+  final T? data;
 
-  T as<T>() {
+  T get as {
     if (data is T) {
-      return data;
+      return data!;
     }
 
     throw 'data is not type of $T';

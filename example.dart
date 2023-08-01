@@ -18,7 +18,7 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    enableLogs: false,
+    enableLogs: true,
     overrides: FetchOverride(
       post: (method, uri, body, headers) {
         return method(uri, body: body, headers: headers);
@@ -41,10 +41,7 @@ void main(List<String> args) async {
     handler: FetchResponse.fromHandler,
   );
 
-  final response = await fetch.get('/info', queryParams: {'bar': 1});
-  print(response);
-
-  await fetch.get('/info', queryParams: {'bar': 1});
+  await fetch.get('/info');
 
   // print(response.data);
   // print(response.data);
