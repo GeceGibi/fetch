@@ -19,8 +19,8 @@ class FetchResponse<T> {
     if (error != null || response == null) {
       return FetchResponse(
         null,
-        message: '$error',
         httpResponse: response,
+        message: '$error',
         isOk: false,
         uri: uri,
       );
@@ -42,13 +42,13 @@ class FetchResponse<T> {
       return data!;
     }
 
-    throw 'data is not type of $T';
+    throw 'data type is not of $T';
   }
 
+  final Uri? uri;
   final bool isOk;
   final String? message;
   final HttpResponse? httpResponse;
-  final Uri? uri;
 
   @override
   String toString() {
