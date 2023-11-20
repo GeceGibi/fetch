@@ -66,6 +66,7 @@ class Fetch<R extends FetchResponse> {
     this.beforeRequest,
     this.shouldRequest = _shouldRequest,
     this.enableLogs = true,
+    this.useIsolate = true,
     this.cacheOptions = const CacheOptions(),
     this.overrides = const FetchOverride(),
     this.encoding = utf8,
@@ -74,6 +75,7 @@ class Fetch<R extends FetchResponse> {
   ///
   String base;
 
+  final bool useIsolate;
   final bool enableLogs;
   final Duration timeout;
   final Encoding encoding;
@@ -175,9 +177,15 @@ class Fetch<R extends FetchResponse> {
                 mergedHeaders,
               );
             } else {
-              response = await Isolate.run(() => http
-                  .post(uri, body: body, headers: mergedHeaders)
-                  .timeout(timeout));
+              if (useIsolate) {
+                response = await Isolate.run(() => http
+                    .post(uri, body: body, headers: mergedHeaders)
+                    .timeout(timeout));
+              } else {
+                response = await http
+                    .post(uri, body: body, headers: mergedHeaders)
+                    .timeout(timeout);
+              }
             }
             break;
 
@@ -185,9 +193,15 @@ class Fetch<R extends FetchResponse> {
             if (overrides.get != null) {
               response = await overrides.get!(http.post, uri, mergedHeaders);
             } else {
-              response = await Isolate.run(() {
-                return http.get(uri, headers: mergedHeaders).timeout(timeout);
-              });
+              if (useIsolate) {
+                response = await Isolate.run(() {
+                  return http.get(uri, headers: mergedHeaders).timeout(timeout);
+                });
+              } else {
+                response = await http
+                    .get(uri, headers: mergedHeaders)
+                    .timeout(timeout);
+              }
             }
             break;
         }
