@@ -1,13 +1,8 @@
 part of fetch;
 
-class FetchLogger {
-  FetchLogger(
-    this.isEnabled, {
-    this.encoding = utf8,
-  });
-
-  final bool isEnabled;
-  final Encoding encoding;
+mixin FetchLogger {
+  bool isLogsEnabled = true;
+  Encoding logEncoding = utf8;
 
   final _onFetchController = StreamController<FetchLog>.broadcast();
   final _onErrorController = StreamController<FetchLog>.broadcast();
@@ -25,13 +20,13 @@ class FetchLogger {
       elapsed: elapsedTime,
       postBody: postBody,
       isCached: isCached,
-      encoding: encoding,
+      encoding: logEncoding,
     );
 
     _onFetchController.add(fetchLog);
     fetchLogs.add(fetchLog);
 
-    if (isEnabled) {
+    if (isLogsEnabled) {
       printer(fetchLog);
     }
   }
@@ -41,7 +36,7 @@ class FetchLogger {
     _onErrorController.add(fetchLog);
     fetchLogs.add(fetchLog);
 
-    if (isEnabled) {
+    if (isLogsEnabled) {
       printer(fetchLog);
     }
   }

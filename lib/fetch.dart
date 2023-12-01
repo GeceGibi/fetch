@@ -4,7 +4,6 @@ library fetch;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'package:http/http.dart' as http;
 
 part 'cache.dart';
@@ -21,13 +20,11 @@ typedef PostMethod = Future<http.Response> Function(
   Uri url, {
   Map<String, String>? headers,
   Object? body,
-  Encoding? encoding,
 });
 
 typedef GetMethod = Future<http.Response> Function(
   Uri url, {
   Map<String, String>? headers,
-  Encoding? encoding,
 });
 
 class FetchOverride {
@@ -56,7 +53,7 @@ typedef Handler<R extends FetchResponse> = FutureOr<R> Function(
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
 Map<String, dynamic> _defaultHeaderBuilder() => {};
 
-class Fetch<R extends FetchResponse> {
+class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
   Fetch({
     required this.base,
     required this.handler,
@@ -66,30 +63,26 @@ class Fetch<R extends FetchResponse> {
     this.beforeRequest,
     this.shouldRequest = _shouldRequest,
     this.enableLogs = true,
-    this.useIsolate = true,
     this.cacheOptions = const CacheOptions(),
     this.overrides = const FetchOverride(),
-    this.encoding = utf8,
-  });
+  }) {
+    isLogsEnabled = enableLogs;
+  }
 
   ///
   String base;
 
-  final bool useIsolate;
   final bool enableLogs;
   final Duration timeout;
-  final Encoding encoding;
+
   final Handler<R> handler;
   final FetchOverride overrides;
   final CacheOptions cacheOptions;
   final FutureOr<Map<String, dynamic>> Function() headerBuilder;
 
-  late final logger = FetchLogger(enableLogs, encoding: encoding);
-  final cacheFactory = CacheFactory();
-
   /// Streams
-  late final Stream<FetchLog> onFetchSuccess = logger._onFetchController.stream;
-  late final Stream<FetchLog> onFetchError = logger._onErrorController.stream;
+  late final Stream<FetchLog> onFetchSuccess = _onFetchController.stream;
+  late final Stream<FetchLog> onFetchError = _onErrorController.stream;
 
   /// Lifecycle
   final FutureOr<void> Function(Uri uri)? beforeRequest;
@@ -160,64 +153,39 @@ class Fetch<R extends FetchResponse> {
 
       await beforeRequest?.call(uri);
 
-      final HttpResponse response;
       final _cacheOptions = cacheOptions ?? this.cacheOptions;
-      final isCached = cacheFactory.isCached(uri, _cacheOptions);
+      final cached = isCached(uri, _cacheOptions);
 
-      if (isCached) {
-        response = cacheFactory.resolve(uri, _cacheOptions)!.response;
-      } else {
-        switch (type) {
-          case FetchType.POST:
-            if (overrides.post != null) {
-              response = await overrides.post!(
-                http.post,
-                uri,
-                body,
-                mergedHeaders,
-              );
-            } else {
-              if (useIsolate) {
-                response = await Isolate.run(() => http
-                    .post(uri, body: body, headers: mergedHeaders)
-                    .timeout(timeout));
-              } else {
-                response = await http
-                    .post(uri, body: body, headers: mergedHeaders)
-                    .timeout(timeout);
-              }
-            }
-            break;
+      final HttpResponse response;
 
-          case FetchType.GET:
-            if (overrides.get != null) {
-              response = await overrides.get!(http.post, uri, mergedHeaders);
-            } else {
-              if (useIsolate) {
-                response = await Isolate.run(() {
-                  return http.get(uri, headers: mergedHeaders).timeout(timeout);
-                });
-              } else {
-                response = await http
-                    .get(uri, headers: mergedHeaders)
-                    .timeout(timeout);
-              }
-            }
-            break;
-        }
+      if (cached) {
+        response = resolveCache(uri, _cacheOptions)!.response;
       }
 
-      cacheFactory.cache(response, uri, _cacheOptions);
+      ///
+      /// Get request
+      else {
+        response = switch (type) {
+          /// Post
+          FetchType.POST => overrides.post != null
+              ? await overrides.post!(http.post, uri, body, mergedHeaders)
+              : await http
+                  .post(uri, body: body, headers: mergedHeaders)
+                  .timeout(timeout),
+
+          /// Get
+          FetchType.GET => overrides.get != null
+              ? await overrides.get!(http.get, uri, mergedHeaders)
+              : await http.get(uri, headers: mergedHeaders).timeout(timeout),
+        };
+
+        cache(response, uri, _cacheOptions);
+      }
 
       stopwatch.stop();
 
       /// Log
-      logger._log(
-        response,
-        stopwatch.elapsed,
-        postBody: body,
-        isCached: isCached,
-      );
+      _log(response, stopwatch.elapsed, postBody: body, isCached: cached);
 
       /// Complete
       completer.complete(handler(response, null, uri));
@@ -226,7 +194,7 @@ class Fetch<R extends FetchResponse> {
       await afterRequest?.call(response, null);
     } catch (error, trace) {
       /// Log
-      logger._logError(error, trace);
+      _logError(error, trace);
 
       /// Complete
       completer.complete(handler(null, error, uri));

@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:fetch/fetch.dart';
 
 class CustomResponse extends FetchResponse {
@@ -20,20 +22,23 @@ void main(List<String> args) async {
     },
     enableLogs: true,
     overrides: FetchOverride(
-      post: (method, uri, body, headers) {
-        return method(uri, body: body, headers: headers);
+      post: (method, uri, body, headers) async {
+        return Isolate.run(() => method(uri, body: body, headers: headers));
+      },
+      get: (method, uri, headers) async {
+        return Isolate.run(() => method(uri, headers: headers));
       },
     ),
     beforeRequest: (uri) async {
       await Future.delayed(const Duration(seconds: 1));
-      //print('Before Request');
+      print('Before Request');
     },
     afterRequest: (_, __) {
-      //print('After Request');
+      print('After Request');
     },
     shouldRequest: (uri, headers) {
       if (uri.queryParameters.containsKey('foo')) {
-        throw 'test query params founded.';
+        throw 'foo founded !!';
       }
 
       return true;

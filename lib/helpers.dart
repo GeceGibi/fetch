@@ -21,15 +21,15 @@ abstract class FetchHelpers {
     var output = <String, String>{};
 
     for (final head in headers) {
-      output.addAll(mapStringy(head));
+      output.addAll(mapStringy(head) ?? {});
     }
 
     return output;
   }
 
-  static Map<String, String> mapStringy(Map? map) {
+  static Map<String, String>? mapStringy(Map? map) {
     if (map == null || map.isEmpty) {
-      return {};
+      return null;
     }
 
     return map.map<String, String>(

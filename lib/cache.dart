@@ -32,20 +32,16 @@ class Cache {
 }
 
 //! ----------------------------------------------------------------------------
-class CacheFactory {
-  CacheFactory();
+mixin CacheFactory {
   final _caches = <Uri, Cache>{};
 
-  Cache? resolve(Uri uri, CacheOptions options) {
+  Cache? resolveCache(Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
-    switch (options.strategy) {
-      case CacheStrategy.FULL_URL:
-        return _caches[uri];
-
-      case CacheStrategy.URL_WITHOUT_QUERY:
-        return _caches[uri.replace(query: '')];
-    }
+    return switch (options.strategy) {
+      CacheStrategy.FULL_URL => _caches[uri],
+      CacheStrategy.URL_WITHOUT_QUERY => _caches[uri.replace(query: '')],
+    };
   }
 
   bool isCached(Uri uri, CacheOptions options) {
@@ -83,30 +79,24 @@ class CacheFactory {
       return;
     }
 
-    switch (options.strategy) {
-      case CacheStrategy.FULL_URL:
-        _caches[uri] = Cache(
-          response,
-          options.duration,
-          DateTime.now(),
-        );
-        break;
+    final cachedData = Cache(
+      response,
+      options.duration,
+      DateTime.now(),
+    );
 
-      case CacheStrategy.URL_WITHOUT_QUERY:
-        _caches[uri.replace(query: '')] = Cache(
-          response,
-          options.duration,
-          DateTime.now(),
-        );
-        break;
-    }
+    final uriKey = options.strategy == CacheStrategy.FULL_URL
+        ? uri
+        : uri.replace(query: '');
+
+    _caches[uriKey] = cachedData;
   }
 
-  void clear() {
+  void clearCache() {
     _caches.clear();
   }
 
-  void remove(Uri uri) {
+  void removeCache(Uri uri) {
     uri = uri.removeFragment();
     _caches.remove(uri);
   }
