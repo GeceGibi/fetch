@@ -1,4 +1,4 @@
-// ignore_for_file: no_leading_underscores_for_local_identifiers, constant_identifier_names
+// ignore_for_file: constant_identifier_names
 
 library fetch;
 
@@ -11,7 +11,7 @@ part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
-enum Method {
+enum _Method {
   POST,
   GET,
   DELETE,
@@ -41,23 +41,45 @@ class FetchOverride {
     this.put,
   });
 
-  final Future<http.Response> Function(MethodWithBody method, Uri uri,
-      Object? body, Map<String, String> headers)? post;
-
-  final Future<http.Response> Function(MethodWithBody method, Uri uri,
-      Object? body, Map<String, String> headers)? delete;
-
-  final Future<http.Response> Function(MethodWithBody method, Uri uri,
-      Object? body, Map<String, String> headers)? put;
-
-  final Future<http.Response> Function(MethodWithBody method, Uri uri,
-      Object? body, Map<String, String> headers)? patch;
+  final Future<http.Response> Function(
+    MethodWithBody method,
+    Uri uri,
+    Object? body,
+    Map<String, String> headers,
+  )? post;
 
   final Future<http.Response> Function(
-      MethodJustGetter method, Uri uri, Map<String, String> headers)? get;
+    MethodWithBody method,
+    Uri uri,
+    Object? body,
+    Map<String, String> headers,
+  )? delete;
 
   final Future<http.Response> Function(
-      MethodJustGetter method, Uri uri, Map<String, String> headers)? head;
+    MethodWithBody method,
+    Uri uri,
+    Object? body,
+    Map<String, String> headers,
+  )? put;
+
+  final Future<http.Response> Function(
+    MethodWithBody method,
+    Uri uri,
+    Object? body,
+    Map<String, String> headers,
+  )? patch;
+
+  final Future<http.Response> Function(
+    MethodJustGetter method,
+    Uri uri,
+    Map<String, String> headers,
+  )? get;
+
+  final Future<http.Response> Function(
+    MethodJustGetter method,
+    Uri uri,
+    Map<String, String> headers,
+  )? head;
 }
 
 typedef Handler<R extends FetchResponse> = FutureOr<R> Function(
@@ -67,7 +89,7 @@ typedef Handler<R extends FetchResponse> = FutureOr<R> Function(
 );
 
 bool _shouldRequest(Uri uri, Map<String, String> headers) => true;
-Map<String, dynamic> _defaultHeaderBuilder() => {};
+Map<String, String> _defaultHeaderBuilder() => <String, String>{};
 
 class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
   Fetch({
@@ -94,7 +116,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
   final Handler<R> handler;
   final FetchOverride overrides;
   final CacheOptions cacheOptions;
-  final FutureOr<Map<String, dynamic>> Function() headerBuilder;
+  final FutureOr<Map<String, String>> Function() headerBuilder;
 
   /// Streams
   late final Stream<FetchLog> onFetchSuccess = _onFetchController.stream;
@@ -114,7 +136,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     Map<String, String> headers = const {},
     CacheOptions? cacheOptions,
   }) =>
-      _worker(Method.GET, endpoint, null, queryParams, headers, cacheOptions);
+      _worker(_Method.GET, endpoint, null, queryParams, headers, cacheOptions);
 
   Future<R> head(
     String endpoint, {
@@ -122,7 +144,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     Map<String, String> headers = const {},
     CacheOptions? cacheOptions,
   }) =>
-      _worker(Method.HEAD, endpoint, null, queryParams, headers, cacheOptions);
+      _worker(_Method.HEAD, endpoint, null, queryParams, headers, cacheOptions);
 
   /// POST
   Future<R> post(
@@ -133,7 +155,13 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     CacheOptions? cacheOptions,
   }) {
     return _worker(
-        Method.POST, endpoint, body, queryParams, headers, cacheOptions);
+      _Method.POST,
+      endpoint,
+      body,
+      queryParams,
+      headers,
+      cacheOptions,
+    );
   }
 
   Future<R> put(
@@ -144,7 +172,13 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     CacheOptions? cacheOptions,
   }) {
     return _worker(
-        Method.PUT, endpoint, body, queryParams, headers, cacheOptions);
+      _Method.PUT,
+      endpoint,
+      body,
+      queryParams,
+      headers,
+      cacheOptions,
+    );
   }
 
   Future<R> delete(
@@ -155,7 +189,13 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     CacheOptions? cacheOptions,
   }) {
     return _worker(
-        Method.DELETE, endpoint, body, queryParams, headers, cacheOptions);
+      _Method.DELETE,
+      endpoint,
+      body,
+      queryParams,
+      headers,
+      cacheOptions,
+    );
   }
 
   Future<R> patch(
@@ -166,11 +206,17 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     CacheOptions? cacheOptions,
   }) {
     return _worker(
-        Method.PATCH, endpoint, body, queryParams, headers, cacheOptions);
+      _Method.PATCH,
+      endpoint,
+      body,
+      queryParams,
+      headers,
+      cacheOptions,
+    );
   }
 
   Future<R> _worker(
-    Method type,
+    _Method type,
     String endpoint,
     Object? body,
     Map<String, dynamic>? queryParams,
@@ -197,6 +243,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
 
       await beforeRequest?.call(uri);
 
+      // ignore: no_leading_underscores_for_local_identifiers
       final _cacheOptions = cacheOptions ?? this.cacheOptions;
       final cached = isCached(uri, _cacheOptions);
 
@@ -211,34 +258,34 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
       else {
         response = await switch (type) {
           /// Post
-          Method.POST => overrides.post != null
+          _Method.POST => overrides.post != null
               ? overrides.post!(http.post, uri, body, mergedHeaders)
               : http
                   .post(uri, body: body, headers: mergedHeaders)
                   .timeout(timeout),
 
           /// Get
-          Method.GET => overrides.get != null
+          _Method.GET => overrides.get != null
               ? overrides.get!(http.get, uri, mergedHeaders)
               : http.get(uri, headers: mergedHeaders).timeout(timeout),
 
           /// Delete
-          Method.DELETE => overrides.delete != null
+          _Method.DELETE => overrides.delete != null
               ? overrides.delete!(http.delete, uri, body, mergedHeaders)
               : http.delete(uri, headers: mergedHeaders, body: body),
 
           /// Put
-          Method.PUT => overrides.put != null
+          _Method.PUT => overrides.put != null
               ? overrides.put!(http.put, uri, body, mergedHeaders)
               : http.put(uri, headers: mergedHeaders, body: body),
 
           // Head
-          Method.HEAD => overrides.head != null
+          _Method.HEAD => overrides.head != null
               ? overrides.head!(http.head, uri, mergedHeaders)
               : http.head(uri, headers: mergedHeaders),
 
           // Patch
-          Method.PATCH => overrides.patch != null
+          _Method.PATCH => overrides.patch != null
               ? overrides.patch!(http.patch, uri, body, mergedHeaders)
               : http.patch(uri, headers: mergedHeaders, body: body),
         };

@@ -30,7 +30,7 @@ void main(List<String> args) async {
       },
     ),
     beforeRequest: (uri) async {
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
       print('Before Request');
     },
     afterRequest: (_, __) {
@@ -46,9 +46,10 @@ void main(List<String> args) async {
     handler: FetchResponse.fromHandler,
   );
 
-  await fetch.get('/info');
+  final response = await fetch.get('/info');
+  final data = response.cast<Map<String, dynamic>>();
 
-  // print(response.data);
+  // print(response.data );
   // print(response.data);
   // fetch.post('/posts', jsonEncode({'foo': 1}));
 }

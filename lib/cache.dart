@@ -1,6 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
-part of fetch;
+part of 'fetch.dart';
 
 enum CacheStrategy {
   URL_WITHOUT_QUERY,

@@ -1,8 +1,11 @@
-part of fetch;
+part of 'fetch.dart';
 
+/// http.Response exportation
 typedef HttpResponse = http.Response;
 
-class FetchResponse<T> {
+/// Base fetch response
+class FetchResponse {
+  // ignore: public_member_api_docs
   const FetchResponse(
     this.data, {
     this.message,
@@ -11,6 +14,7 @@ class FetchResponse<T> {
     this.uri,
   });
 
+  // ignore: public_member_api_docs
   factory FetchResponse.fromHandler(
     HttpResponse? response,
     Object? error,
@@ -21,7 +25,6 @@ class FetchResponse<T> {
         null,
         httpResponse: response,
         message: '$error',
-        isOk: false,
         uri: uri,
       );
     }
@@ -35,14 +38,14 @@ class FetchResponse<T> {
     );
   }
 
-  final T? data;
+  final Object? data;
 
-  T get as {
+  T cast<T>() {
     if (data is T) {
-      return data!;
+      return data! as T;
     }
 
-    throw 'data type is not of $T';
+    throw Exception('data type is not of $T');
   }
 
   final Uri? uri;

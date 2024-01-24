@@ -1,11 +1,11 @@
-part of fetch;
+part of 'fetch.dart';
 
 abstract class FetchHelpers {
   static dynamic handleResponseBody(
     HttpResponse response, {
     Encoding encoding = utf8,
   }) {
-    final contentType = (response.headers['content-type'] ?? '');
+    final contentType = response.headers['content-type'] ?? '';
     final jsonDecodeTypes = ['application/json', 'application/javascript'];
 
     for (final type in jsonDecodeTypes) {
@@ -17,8 +17,8 @@ abstract class FetchHelpers {
     return response.body;
   }
 
-  static Map<String, String> mergeHeaders(List<Map> headers) {
-    var output = <String, String>{};
+  static Map<String, String> mergeHeaders(List<Map<String, String>> headers) {
+    final output = <String, String>{};
 
     for (final head in headers) {
       output.addAll(mapStringy(head) ?? {});
@@ -27,7 +27,7 @@ abstract class FetchHelpers {
     return output;
   }
 
-  static Map<String, String>? mapStringy(Map? map) {
+  static Map<String, String>? mapStringy(Map<Object?, Object?>? map) {
     if (map == null || map.isEmpty) {
       return null;
     }

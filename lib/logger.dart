@@ -1,4 +1,4 @@
-part of fetch;
+part of 'fetch.dart';
 
 mixin FetchLogger {
   bool isLogsEnabled = true;
@@ -134,11 +134,13 @@ class FetchLog {
       'headers:',
       '├──request:',
       ...[
-        for (final header in reqHeaders) '│    ├─${header.key}: ${header.value}'
+        for (final header in reqHeaders)
+          '│    ├─${header.key}: ${header.value}',
       ],
       '├──response:',
       ...[
-        for (final header in resHeaders) '│    ├─${header.key}: ${header.value}'
+        for (final header in resHeaders)
+          '│    ├─${header.key}: ${header.value}',
       ],
       if (postBody != null) ...['post body:', '$postBody'],
       'response-body:',
