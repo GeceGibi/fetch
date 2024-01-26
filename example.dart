@@ -5,10 +5,10 @@ import 'package:fetch/fetch.dart';
 class CustomResponse extends FetchResponse {
   CustomResponse(
     super.data, {
+    required super.uri,
     super.message,
     super.isOk,
     super.httpResponse,
-    required super.uri,
   });
 }
 
@@ -20,7 +20,6 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    enableLogs: true,
     overrides: FetchOverride(
       post: (method, uri, body, headers) async {
         return Isolate.run(() => method(uri, body: body, headers: headers));
@@ -47,7 +46,8 @@ void main(List<String> args) async {
   );
 
   final response = await fetch.get('/info');
-  final data = response.cast<Map<String, dynamic>>();
+
+  print(response.asList<int>());
 
   // print(response.data );
   // print(response.data);
