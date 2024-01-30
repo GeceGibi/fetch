@@ -62,7 +62,7 @@ class FetchResponse {
   }
 
   UnsupportedError _throw<T>() {
-    return UnsupportedError('data<${data.runtimeType}> is not type of $T');
+    return UnsupportedError('data<${data.runtimeType}> is not subtype of $T');
   }
 
   final Uri? uri;
