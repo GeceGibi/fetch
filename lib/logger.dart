@@ -58,7 +58,7 @@ class FetchLog {
         date = null,
         requestHeaders = const {},
         responseHeaders = const {},
-        response = null,
+        response = '',
         postBody = null,
         error = event.toString(),
         elapsed = null,
@@ -77,7 +77,7 @@ class FetchLog {
         date = DateTime.now(),
         requestHeaders = response.request?.headers ?? const {},
         responseHeaders = response.headers,
-        response = encoding.decode(response.bodyBytes),
+        response = response.body,
         error = null,
         stackTrace = null;
 
@@ -88,7 +88,7 @@ class FetchLog {
   final Object? postBody;
   final Map<String, String>? requestHeaders;
   final Map<String, String>? responseHeaders;
-  final dynamic response;
+  final String response;
   final dynamic error;
   final StackTrace? stackTrace;
   final Duration? elapsed;
