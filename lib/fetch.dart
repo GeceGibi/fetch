@@ -235,7 +235,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
       );
     } else {
       uri = base.replace(
-        path: path,
+        path: (base.path + path).replaceAll(RegExp('//+'), '/'),
         queryParameters: FetchHelpers.mapStringy(queryParams),
       );
     }

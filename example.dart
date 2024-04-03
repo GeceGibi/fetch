@@ -14,12 +14,13 @@ class CustomResponse extends FetchResponse {
 
 void main(List<String> args) async {
   final fetch = Fetch(
-    base: Uri.parse('https://api.gece.dev'),
+    base: Uri.parse('https://api.gece.dev/slm/namer///'),
     headerBuilder: () {
       return {
         'content-type': 'application/json',
       };
     },
+    enableLogs: false,
     overrides: FetchOverride(
       post: (method, uri, body, headers) async {
         return Isolate.run(() => method(uri, body: body, headers: headers));
@@ -45,9 +46,9 @@ void main(List<String> args) async {
     handler: FetchResponse.fromHandler,
   );
 
-  final response = await fetch.get('https://api.gece.dev');
+  final response = await fetch.get('/info');
 
-  print(response.asList<int>());
+  print(response.asMap<String, dynamic>());
 
   // print(response.data );
   // print(response.data);
