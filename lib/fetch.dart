@@ -108,7 +108,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
   }
 
   ///
-  String base;
+  Uri base;
 
   final bool enableLogs;
   final Duration timeout;
@@ -217,7 +217,7 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
 
   Future<R> _worker(
     _Method type,
-    String endpoint,
+    String path,
     Object? body,
     Map<String, dynamic>? queryParams,
     Map<String, String> headers,
@@ -227,9 +227,18 @@ class Fetch<R extends FetchResponse> with CacheFactory, FetchLogger {
     final stopwatch = Stopwatch()..start();
 
     /// Create uri
-    final uri = Uri.parse(
-      endpoint.startsWith('http') ? endpoint : base + endpoint,
-    ).replace(queryParameters: FetchHelpers.mapStringy(queryParams));
+    final Uri uri;
+
+    if (path.startsWith('http')) {
+      uri = Uri.parse(path).replace(
+        queryParameters: FetchHelpers.mapStringy(queryParams),
+      );
+    } else {
+      uri = base.replace(
+        path: path,
+        queryParameters: FetchHelpers.mapStringy(queryParams),
+      );
+    }
 
     /// Make
     try {

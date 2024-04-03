@@ -1,6 +1,6 @@
 part of 'fetch.dart';
 
-abstract class FetchHelpers {
+class FetchHelpers {
   static dynamic handleResponseBody(
     HttpResponse response, {
     Encoding encoding = utf8,
