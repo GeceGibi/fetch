@@ -14,7 +14,7 @@ class CustomResponse extends FetchResponse {
 
 void main(List<String> args) async {
   final fetch = Fetch(
-    base: Uri.parse('https://api.gece.dev/slm/namer///'),
+    base: Uri.parse('https://api.gece.dev'),
     headerBuilder: () {
       return {
         'content-type': 'application/json',
@@ -48,7 +48,7 @@ void main(List<String> args) async {
 
   final response = await fetch.get('/info');
 
-  print(response.asMap<String, dynamic>());
+  // print(response.asMap<String, dynamic>());
 
   // print(response.data );
   // print(response.data);

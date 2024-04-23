@@ -4,3 +4,4 @@ linter:
   rules:
     public_member_api_docs: false
     avoid_positional_boolean_parameters: false
+    avoid_field_initializers_in_const_classes: false

@@ -73,6 +73,7 @@ mixin CacheFactory {
   }
 
   void cache(HttpResponse response, Uri uri, CacheOptions options) {
+    // ignore: parameter_assignments
     uri = uri.removeFragment();
 
     if (options.duration == Duration.zero) {
