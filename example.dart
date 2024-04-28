@@ -2,14 +2,9 @@ import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
 
-class CustomResponse extends FetchResponse {
-  CustomResponse(
-    super.data, {
-    required super.uri,
-    super.message,
-    super.isOk,
-    super.httpResponse,
-  });
+class IResponse {
+  IResponse(this.ok);
+  final int ok;
 }
 
 void main(List<String> args) async {
@@ -21,32 +16,21 @@ void main(List<String> args) async {
       };
     },
     enableLogs: false,
-    overrides: FetchOverride(
-      post: (method, uri, body, headers) async {
-        return Isolate.run(() => method(uri, body: body, headers: headers));
-      },
-      get: (method, uri, headers) async {
-        return Isolate.run(() => method(uri, headers: headers));
-      },
-    ),
-    beforeRequest: (uri) async {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      print('Before Request');
+    override: (payload, method) {
+      return Isolate.run(() => method(payload));
     },
-    afterRequest: (_, __) {
-      print('After Request');
+    transform: (response) async {
+      return Isolate.run(() => response.asJson());
     },
-    shouldRequest: (uri, headers) {
-      if (uri.queryParameters.containsKey('foo')) {
-        throw 'foo founded !!';
-      }
-
-      return true;
-    },
-    handler: FetchResponse.fromHandler,
   );
 
-  final response = await fetch.get('/info');
+  final response = await fetch.get('/info', queryParams: {
+    'foo2': 1,
+  });
+
+  print(response.asMap());
+
+  //  print(response.describe());
 
   // print(response.asMap<String, dynamic>());
 

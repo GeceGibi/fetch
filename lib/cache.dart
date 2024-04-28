@@ -1,4 +1,4 @@
-// ignore_for_file: constant_identifier_names
+// ignore_for_file: constant_identifier_names, parameter_assignments
 
 part of 'fetch.dart';
 
@@ -26,7 +26,7 @@ class Cache {
     this.date,
   );
 
-  final HttpResponse response;
+  final FetchResponse response;
   final Duration duration;
   final DateTime date;
 }
@@ -72,8 +72,7 @@ mixin CacheFactory {
     return false;
   }
 
-  void cache(HttpResponse response, Uri uri, CacheOptions options) {
-    // ignore: parameter_assignments
+  void cache(FetchResponse response, Uri uri, CacheOptions options) {
     uri = uri.removeFragment();
 
     if (options.duration == Duration.zero) {

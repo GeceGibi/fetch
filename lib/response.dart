@@ -1,77 +1,118 @@
 part of 'fetch.dart';
 
 /// Wrapper of http.Response
-typedef HttpResponse = http.Response;
 
-class FetchResponse {
-  const FetchResponse(
-    this.data, {
-    this.message,
-    this.isOk = false,
-    this.httpResponse,
-    this.uri,
-  });
+typedef FetchBaseRequest = http.BaseRequest;
 
-  factory FetchResponse.fromHandler(
-    HttpResponse? response,
-    Object? error,
-    Uri? uri,
-  ) {
-    if (error != null || response == null) {
-      return FetchResponse(
-        null,
-        httpResponse: response,
-        message: '$error',
-        uri: uri,
-      );
-    }
-
-    return FetchResponse(
-      FetchHelpers.handleResponseBody(response),
-      isOk: FetchHelpers.isOk(response),
-      message: response.reasonPhrase ?? error.toString(),
-      httpResponse: response,
-      uri: uri,
-    );
-  }
-
-  final Object? data;
-
-  T cast<T>() {
-    if (data is T) {
-      return data as T;
-    }
-
-    throw _throw<T>();
-  }
+class FetchResponseJson {
+  FetchResponseJson._(this.json);
+  final dynamic json;
+  // final Encoding? encoding;
 
   Map<K, V> asMap<K, V>() {
-    if (data is Map) {
-      return (data! as Map).cast<K, V>();
-    }
-
-    throw _throw<Map<K, V>>();
+    return (json as Map).cast<K, V>();
   }
 
   List<E> asList<E>() {
-    if (data is List) {
-      return (data! as List).cast<E>();
-    }
-
-    throw _throw<List<E>>();
+    return (json as List).cast<E>();
   }
 
-  UnsupportedError _throw<T>() {
-    return UnsupportedError('data<${data.runtimeType}> is not subtype of $T');
+  static FutureOr<FetchResponseJson> toJson(
+    List<int> bytes, {
+    Encoding encoding = systemEncoding,
+  }) async {
+    return FetchResponseJson._(jsonDecode(encoding.decode(bytes)));
+  }
+}
+
+class FetchResponse extends http.Response {
+  FetchResponse(
+    super.body,
+    super.statusCode, {
+    super.reasonPhrase,
+    super.headers,
+    super.isRedirect,
+    super.persistentConnection,
+    super.request,
+  });
+
+  FetchResponse.bytes(
+    super.bodyBytes,
+    super.statusCode, {
+    super.reasonPhrase,
+    super.headers,
+    super.isRedirect,
+    super.persistentConnection,
+    super.request,
+  }) : super.bytes();
+
+  FetchResponse.fromResponse(http.Response response)
+      : super.bytes(
+          response.bodyBytes,
+          response.statusCode,
+          headers: response.headers,
+          isRedirect: response.isRedirect,
+          persistentConnection: response.persistentConnection,
+          reasonPhrase: response.reasonPhrase,
+          request: response.request,
+        );
+
+  bool get isSuccess => statusCode >= 200 && statusCode <= 299;
+
+  FetchResponseJson? _json;
+  FutureOr<FetchResponseJson> asJson() async {
+    _json ??= await FetchResponseJson.toJson(bodyBytes);
+    return _json!;
   }
 
-  final Uri? uri;
-  final bool isOk;
-  final String? message;
-  final HttpResponse? httpResponse;
-
-  @override
-  String toString() {
-    return 'FetchResponse(data: $data, isOk: $isOk, message: $message, httpResponse: $httpResponse)';
+  FutureOr<T> cast<T>() async {
+    return switch (T) {
+      const (Map) => (await asJson()).asMap<dynamic, dynamic>(),
+      const (List) => (await asJson()).asList<dynamic>(),
+      const (int) => int.parse(body),
+      const (double) => double.parse(body),
+      const (num) => num.parse(body),
+      const (String) => body,
+      _ => body,
+    } as T;
   }
+
+  String describe() {
+    final message = <String, dynamic>{
+      'body': body,
+      'statusCode': statusCode,
+      'reasonPhrase': reasonPhrase,
+      'contentLength': contentLength,
+    };
+
+    final content = [
+      for (final MapEntry(:key, :value) in message.entries) '$key: $value',
+    ].join(', ');
+
+    return 'FetchResponse($content)';
+  }
+
+  FetchResponse copyWith({
+    String? body,
+    int? statusCode,
+    String? reasonPhrase,
+    FetchHeaders? headers,
+    bool? isRedirect,
+    bool? persistentConnection,
+    FetchBaseRequest? request,
+  }) {
+    return FetchResponse(
+      body ?? this.body,
+      statusCode ?? this.statusCode,
+      reasonPhrase: reasonPhrase ?? super.reasonPhrase,
+      headers: headers ?? this.headers,
+      isRedirect: isRedirect ?? this.isRedirect,
+      persistentConnection: persistentConnection ?? this.persistentConnection,
+      request: request ?? this.request,
+    );
+  }
+}
+
+class FetchRequest extends http.BaseRequest {
+  FetchRequest(super.method, super.url);
 }

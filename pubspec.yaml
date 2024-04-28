@@ -1,6 +1,6 @@
 name: fetch
 description: A new Flutter package project.
-version: 1.5.3
+version: 2.0.0
 homepage:
 
 environment:
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.2.0
+  http: ^1.2.1
 
 dev_dependencies:
   flutter_test:

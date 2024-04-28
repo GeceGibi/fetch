@@ -1,119 +1,73 @@
 part of 'fetch.dart';
 
 mixin FetchLogger {
-  bool isLogsEnabled = true;
-  Encoding logEncoding = utf8;
+  bool _isLogsEnabled = true;
 
-  final _onFetchController = StreamController<FetchLog>.broadcast();
-  final _onErrorController = StreamController<FetchLog>.broadcast();
   final fetchLogs = <FetchLog>[];
 
+  void logError(Object? error, StackTrace stackTrace) {
+    if (!_isLogsEnabled) {
+      return;
+    }
+
+    final output = [
+      '├─error: $error',
+      '├─stack-trace: $stackTrace',
+    ].join('\n');
+
+    printer(output);
+  }
+
   ///
-  void _log(
-    HttpResponse response,
+  void log(
+    FetchResponse response,
     Duration elapsedTime, {
     Object? postBody,
     bool isCached = false,
   }) {
-    final fetchLog = FetchLog.fromHttpResponse(
+    final fetchLog = FetchLog(
       response,
       elapsed: elapsedTime,
-      postBody: postBody,
       isCached: isCached,
-      encoding: logEncoding,
     );
 
-    _onFetchController.add(fetchLog);
     fetchLogs.add(fetchLog);
 
-    if (isLogsEnabled) {
-      printer(fetchLog);
+    if (!_isLogsEnabled) {
+      return;
     }
+
+    printer(fetchLog);
   }
 
-  void _logError(Object? event, StackTrace? stackTrace) {
-    final fetchLog = FetchLog.error(event, stackTrace);
-    _onErrorController.add(fetchLog);
-    fetchLogs.add(fetchLog);
+  void printer(Object? data) {
+    final pattern = RegExp('.{1,800}');
 
-    if (isLogsEnabled) {
-      printer(fetchLog);
+    for (final match in pattern.allMatches('$data')) {
+      // ignore: avoid_print
+      print(match.group(0));
     }
   }
-}
-
-void printer(Object? data) {
-  final pattern = RegExp('.{1,800}');
-  pattern.allMatches('$data').forEach(
-        // ignore: avoid_print
-        (match) => print(match.group(0)),
-      );
 }
 
 class FetchLog {
-  FetchLog.error(Object? event, this.stackTrace)
-      : status = null,
-        method = null,
-        url = null,
-        date = null,
-        requestHeaders = const {},
-        responseHeaders = const {},
-        response = '',
-        postBody = null,
-        error = event.toString(),
-        elapsed = null,
-        isCached = false,
-        encoding = utf8;
-
-  FetchLog.fromHttpResponse(
-    HttpResponse response, {
-    this.postBody,
+  FetchLog(
+    this.response, {
     this.elapsed,
+    this.body,
     this.isCached = false,
-    this.encoding = utf8,
-  })  : status = response.statusCode,
-        method = response.request?.method ?? '-',
-        url = response.request?.url.toString() ?? '-',
-        date = DateTime.now(),
-        requestHeaders = response.request?.headers ?? const {},
-        responseHeaders = response.headers,
-        response = response.body,
-        error = null,
-        stackTrace = null;
+  }) : date = DateTime.now();
 
-  final int? status;
-  final String? method;
-  final String? url;
+  final FetchResponse response;
   final DateTime? date;
-  final Object? postBody;
-  final Map<String, String>? requestHeaders;
-  final Map<String, String>? responseHeaders;
-  final String response;
-  final dynamic error;
-  final StackTrace? stackTrace;
+  final Object? body;
+
   final Duration? elapsed;
   final bool isCached;
-  final Encoding encoding;
 
   @override
   String toString() {
-    final prefix = 'LOG BEGIN ${">" * 52}';
-    final suffix = '${"<" * 52} LOG END';
-
-    if (error != null) {
-      return [
-        '\n',
-        prefix,
-        'error: $error',
-        'stack trace: ',
-        '$stackTrace',
-        suffix,
-        '\n',
-      ].join('\n');
-    }
-
-    final reqHeaders = requestHeaders?.entries ?? [];
-    final resHeaders = responseHeaders?.entries ?? [];
+    final requestHeaders = response.request?.headers.entries ?? [];
 
     final String cacheNote;
 
@@ -124,29 +78,25 @@ class FetchLog {
     }
 
     return [
-      '\n',
-      prefix,
-      'url: $url',
-      'date: $date',
-      'method: $method',
-      'status: $status',
-      'elapsed: ${elapsed?.inMilliseconds}ms$cacheNote',
-      'headers:',
-      '├──request:',
-      ...[
-        for (final header in reqHeaders)
-          '│    ├─${header.key}: ${header.value}',
-      ],
-      '├──response:',
-      ...[
-        for (final header in resHeaders)
-          '│    ├─${header.key}: ${header.value}',
-      ],
-      if (postBody != null) ...['post body:', '$postBody'],
-      'response-body:',
-      response,
-      suffix,
-      '\n',
+      '├─ LOG BEGIN ${"─" * 40}',
+      '├─url: ${response.request?.url}',
+      '├─date: $date',
+      '├─method: ${response.request?.method}',
+      '├─status: ${response.statusCode}',
+      '├─reason-phrase: ${response.reasonPhrase}',
+      '├─content-length: ${response.contentLength}',
+      '├─elapsed: ${elapsed?.inMilliseconds}ms$cacheNote',
+      '├─headers:',
+      '   ├──request:',
+      for (final MapEntry(:key, :value) in requestHeaders)
+        '   │   ├──$key: $value',
+      '   ├──response:',
+      for (final MapEntry(:key, :value) in response.headers.entries)
+        '   │   ├──$key: $value',
+      if (body != null) '├─post-body: $body',
+      '├─response-body:',
+      response.body,
+      '├─ LOG END ${"─" * 40} ',
     ].join('\n');
   }
 }
