@@ -5,16 +5,17 @@ part of 'fetch.dart';
 typedef FetchBaseRequest = http.BaseRequest;
 
 class FetchResponseJson {
-  FetchResponseJson(this.json);
-  final dynamic json;
-  // final Encoding? encoding;
+  FetchResponseJson(this.data);
+  final Object? data;
 
   Map<K, V> asMap<K, V>() {
-    return (json as Map).cast<K, V>();
+    ArgumentError.checkNotNull(data);
+    return (data! as Map).cast<K, V>();
   }
 
   List<E> asList<E>() {
-    return (json as List).cast<E>();
+    ArgumentError.checkNotNull(data);
+    return (data! as List).cast<E>();
   }
 
   static FutureOr<FetchResponseJson> fromBytes(
