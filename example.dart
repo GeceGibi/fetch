@@ -15,7 +15,7 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    enableLogs: true,
+    enableLogs: false,
     override: (payload, method) {
       return Isolate.run(() => method(payload));
     },
@@ -24,17 +24,21 @@ void main(List<String> args) async {
     // },
   );
 
-  final response = await fetch.get('/info', queryParams: {
-    'foo2': 1,
-  });
+  final r1 = await fetch.get(
+    '/info',
+    cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
+    queryParams: {
+      'foo2': 1,
+    },
+  );
 
-  //  print(response.describe());
+  final r2 = await fetch.get(
+    '/info',
+    cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
+    queryParams: {
+      'foo2': 1,
+    },
+  );
 
-  //  print(response.describe());
-
-  // print(response.asMap<String, dynamic>());
-
-  // print(response.data );
-  // print(response.data);
-  // fetch.post('/posts', jsonEncode({'foo': 1}));
+  print([r1.elapsed, r2.elapsed]);
 }

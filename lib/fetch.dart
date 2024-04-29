@@ -69,7 +69,12 @@ class Fetch<R> with CacheFactory, FetchLogger {
       this.base = base;
     }
 
-    _isLogsEnabled = enableLogs;
+    if (transform == null && R != FetchResponse) {
+      throw ArgumentError(
+        // ignore: lines_longer_than_80_chars
+        'Fetch(...) must be Fetch<FetchResponse>(...) or transform method must be defined.',
+      );
+    }
   }
 
   ///
@@ -85,14 +90,6 @@ class Fetch<R> with CacheFactory, FetchLogger {
   final FutureOr<R> Function(FetchResponse response)? transform;
 
   final _onFetchController = StreamController<R>.broadcast();
-  // final cancelledResponse = FetchResponse(
-  //   '',
-  //   600,
-  //   reasonPhrase: 'Request cancelled from "shouldRequest"',
-  // );
-
-  /// Streams
-  // late final Stream<FetchResponse> onFetchSuccess = _onFetchController.stream;
 
   /// GET
   Future<R> get(
@@ -100,8 +97,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    bool enableLogs = false,
   }) async {
-    return _worker('GET', endpoint, null, queryParams, headers, cacheOptions);
+    return _worker(
+      type: 'GET',
+      endpoint: endpoint,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
+    );
   }
 
   Future<R> head(
@@ -109,8 +114,17 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
-  }) =>
-      _worker('HEAD', endpoint, null, queryParams, headers, cacheOptions);
+    bool enableLogs = false,
+  }) {
+    return _worker(
+      type: 'HEAD',
+      endpoint: endpoint,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
+    );
+  }
 
   /// POST
   Future<R> post(
@@ -119,8 +133,17 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    bool enableLogs = false,
   }) {
-    return _worker('POST', endpoint, body, queryParams, headers, cacheOptions);
+    return _worker(
+      type: 'POST',
+      endpoint: endpoint,
+      body: body,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
+    );
   }
 
   Future<R> put(
@@ -129,8 +152,17 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    bool enableLogs = false,
   }) {
-    return _worker('PUT', endpoint, body, queryParams, headers, cacheOptions);
+    return _worker(
+      type: 'PUT',
+      endpoint: endpoint,
+      body: body,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
+    );
   }
 
   Future<R> delete(
@@ -139,14 +171,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    bool? enableLogs,
   }) {
     return _worker(
-      'DELETE',
-      endpoint,
-      body,
-      queryParams,
-      headers,
-      cacheOptions,
+      type: 'DELETE',
+      endpoint: endpoint,
+      body: body,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
     );
   }
 
@@ -156,53 +190,54 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    bool? enableLogs,
   }) {
-    return _worker('PATCH', endpoint, body, queryParams, headers, cacheOptions);
+    return _worker(
+      type: 'PATCH',
+      endpoint: endpoint,
+      body: body,
+      queryParams: queryParams,
+      headers: headers,
+      cacheOptions: cacheOptions,
+      enableLogs: enableLogs,
+    );
   }
 
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
     final FetchPayload(:uri, :type, :body, :headers) = payload;
-    final stopwatch = Stopwatch()..start();
 
-    try {
-      final response = await switch (type) {
-        'GET' => http.get(uri, headers: headers).timeout(timeout),
-        'HEAD' => http.head(uri, headers: headers).timeout(timeout),
-        'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
-        'PUT' => http.put(uri, headers: headers, body: body).timeout(timeout),
-        'PATCH' =>
-          http.patch(uri, headers: headers, body: body).timeout(timeout),
-        'DELETE' =>
-          http.delete(uri, headers: headers, body: body).timeout(timeout),
-        _ => throw UnsupportedError('Unsupported type: $type')
-      };
+    final response = await switch (type) {
+      'GET' => http.get(uri, headers: headers).timeout(timeout),
+      'HEAD' => http.head(uri, headers: headers).timeout(timeout),
+      'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
+      'PUT' => http.put(uri, headers: headers, body: body).timeout(timeout),
+      'PATCH' => http.patch(uri, headers: headers, body: body).timeout(timeout),
+      'DELETE' =>
+        http.delete(uri, headers: headers, body: body).timeout(timeout),
+      _ => throw UnsupportedError('Unsupported type: $type')
+    };
 
-      stopwatch.stop();
-
-      return FetchResponse.fromResponse(
-        response,
-        encoding: encoding,
-        elapsed: stopwatch.elapsed,
-      );
-    } catch (e) {
-      stopwatch.stop();
-      rethrow;
-    }
+    return FetchResponse.fromResponse(
+      response,
+      encoding: encoding,
+    );
   }
 
-  Future<R> _worker(
-    String type,
-    String path,
+  Future<R> _worker({
+    required String type,
+    required String endpoint,
+    required FetchHeaders headers,
     Object? body,
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers,
     CacheOptions? cacheOptions,
-  ) async {
+    bool? enableLogs,
+  }) async {
     /// Create uri
     final Uri uri;
+    final stopwatch = Stopwatch()..start();
 
-    if (path.startsWith('http')) {
-      final parseUri = Uri.parse(path);
+    if (endpoint.startsWith('http')) {
+      final parseUri = Uri.parse(endpoint);
       uri = parseUri.replace(
         queryParameters: FetchHelpers.mapStringy({
           ...parseUri.queryParameters,
@@ -211,7 +246,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
       );
     } else {
       uri = base.replace(
-        path: (base.path + path).replaceAll(RegExp('//+'), '/'),
+        path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
         queryParameters: FetchHelpers.mapStringy({
           ...base.queryParameters,
           ...?queryParams,
@@ -223,17 +258,11 @@ class Fetch<R> with CacheFactory, FetchLogger {
       [await headerBuilder?.call() ?? {}, headers],
     );
 
-    // if (!(await shouldRequest?.call(uri, mergedHeaders) ?? true)) {
-    //   stopwatch.stop();
-    //   log(cancelledResponse, stopwatch.elapsed, postBody: body);
-    //   return transform?.call(cancelledResponse) ?? cancelledResponse as R;
-    // }
-
     // ignore: no_leading_underscores_for_local_identifiers
     final _cacheOptions = cacheOptions ?? this.cacheOptions;
     final cached = isCached(uri, _cacheOptions);
 
-    final FetchResponse response;
+    late FetchResponse response;
     final payload = FetchPayload(
       uri: uri,
       type: type,
@@ -246,21 +275,38 @@ class Fetch<R> with CacheFactory, FetchLogger {
     }
 
     /// Override
-    else if (override != null) {
-      response = await override!(payload, _runMethod);
-    }
-
-    /// Request
     else {
-      response = await _runMethod(payload);
+      if (override != null) {
+        response = await override!(payload, _runMethod);
+      }
+
+      /// Request
+      else {
+        response = await _runMethod(payload);
+      }
+
       cache(response, uri, _cacheOptions);
     }
 
-    /// Log
-    log(response, postBody: body, isCached: cached);
+    stopwatch.stop();
 
-    /// Complete
-    final result = await transform?.call(response) ?? response as R;
+    response = response.copyWith(elapsed: stopwatch.elapsed);
+
+    /// Log
+    log(
+      response,
+      postBody: body,
+      isCached: cached,
+      enableLogs: enableLogs ?? this.enableLogs,
+    );
+
+    final R result;
+
+    if (transform != null) {
+      result = transform!(response) as R;
+    } else {
+      result = response as R;
+    }
 
     _onFetchController.add(result);
 

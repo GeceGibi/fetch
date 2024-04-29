@@ -51,25 +51,18 @@ mixin CacheFactory {
       uri = uri.replace(query: '');
     }
 
-    var contains = _caches.containsKey(uri);
+    if (options.duration == Duration.zero || !_caches.containsKey(uri)) {
+      return false;
+    }
 
-    if (options.duration == Duration.zero && contains) {
-      contains = false;
+    final entry = _caches[uri]!;
+    final isAfter = entry.date.add(entry.duration).isAfter(DateTime.now());
+
+    if (!isAfter) {
       _caches.remove(uri);
     }
 
-    if (contains) {
-      final entry = _caches[uri]!;
-      final isAfter = entry.date.add(entry.duration).isAfter(DateTime.now());
-
-      if (!isAfter) {
-        _caches.remove(uri);
-      }
-
-      return isAfter;
-    }
-
-    return false;
+    return isAfter;
   }
 
   void cache(FetchResponse response, Uri uri, CacheOptions options) {

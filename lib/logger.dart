@@ -1,28 +1,14 @@
 part of 'fetch.dart';
 
 mixin FetchLogger {
-  bool _isLogsEnabled = true;
-
   final fetchLogs = <FetchLog>[];
-
-  void logError(Object? error, StackTrace stackTrace) {
-    if (!_isLogsEnabled) {
-      return;
-    }
-
-    final output = [
-      '├─error: $error',
-      '├─stack-trace: $stackTrace',
-    ].join('\n');
-
-    printer(output);
-  }
 
   ///
   void log(
     FetchResponse response, {
     Object? postBody,
     bool isCached = false,
+    bool enableLogs = false,
   }) {
     final fetchLog = FetchLog(
       response,
@@ -31,11 +17,9 @@ mixin FetchLogger {
 
     fetchLogs.add(fetchLog);
 
-    if (!_isLogsEnabled) {
-      return;
+    if (enableLogs) {
+      printer(fetchLog);
     }
-
-    printer(fetchLog);
   }
 
   void printer(Object? data) {
@@ -67,20 +51,20 @@ class FetchLog {
     final String cacheNote;
 
     if (isCached) {
-      cacheNote = ' (cached)';
+      cacheNote = ' (retrieved from cache)';
     } else {
       cacheNote = '';
     }
 
     return [
+      ' ',
       '╭-- LOG BEGIN ${"-" * 40}',
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
-      '├─status: ${response.statusCode}',
-      '├─reason-phrase: ${response.reasonPhrase}',
-      '├─content-length: ${response.contentLength}',
+      '├─status: ${response.statusCode} (${response.reasonPhrase})',
       '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
+      '├─content-length: ${response.contentLength}',
       '╰-headers:',
       '   ├──request:',
       for (final MapEntry(:key, :value) in requestHeaders)
@@ -91,6 +75,7 @@ class FetchLog {
       if (body != null) '├─post-body: $body',
       '├─response-body: ${response.body}',
       '╰─ LOG END ${"─" * 40} ',
+      ' ',
     ].join('\n');
   }
 }

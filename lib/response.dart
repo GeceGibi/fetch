@@ -111,6 +111,7 @@ class FetchResponse extends http.Response {
     bool? isRedirect,
     bool? persistentConnection,
     FetchBaseRequest? request,
+    Duration? elapsed,
   }) {
     return FetchResponse(
       body ?? this.body,
@@ -120,6 +121,7 @@ class FetchResponse extends http.Response {
       isRedirect: isRedirect ?? this.isRedirect,
       persistentConnection: persistentConnection ?? this.persistentConnection,
       request: request ?? this.request,
+      elapsed: elapsed ?? this.elapsed,
     );
   }
 }
