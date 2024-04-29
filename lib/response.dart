@@ -5,7 +5,7 @@ part of 'fetch.dart';
 typedef FetchBaseRequest = http.BaseRequest;
 
 class FetchResponseJson {
-  FetchResponseJson._(this.json);
+  FetchResponseJson(this.json);
   final dynamic json;
   // final Encoding? encoding;
 
@@ -17,11 +17,11 @@ class FetchResponseJson {
     return (json as List).cast<E>();
   }
 
-  static FutureOr<FetchResponseJson> toJson(
+  static FutureOr<FetchResponseJson> fromBytes(
     List<int> bytes, {
     Encoding encoding = systemEncoding,
   }) async {
-    return FetchResponseJson._(jsonDecode(encoding.decode(bytes)));
+    return FetchResponseJson(jsonDecode(encoding.decode(bytes)));
   }
 }
 
@@ -61,7 +61,7 @@ class FetchResponse extends http.Response {
 
   FetchResponseJson? _json;
   FutureOr<FetchResponseJson> asJson() async {
-    _json ??= await FetchResponseJson.toJson(bodyBytes);
+    _json ??= await FetchResponseJson.fromBytes(bodyBytes);
     return _json!;
   }
 
