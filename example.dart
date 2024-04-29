@@ -15,7 +15,7 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    enableLogs: false,
+    enableLogs: true,
     override: (payload, method) {
       return Isolate.run(() => method(payload));
     },
@@ -28,7 +28,7 @@ void main(List<String> args) async {
     'foo2': 1,
   });
 
-  print(response.describe());
+  //  print(response.describe());
 
   //  print(response.describe());
 

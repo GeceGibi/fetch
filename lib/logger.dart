@@ -73,7 +73,7 @@ class FetchLog {
     }
 
     return [
-      '├─ LOG BEGIN ${"─" * 40}',
+      '╭-- LOG BEGIN ${"-" * 40}',
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
@@ -81,7 +81,7 @@ class FetchLog {
       '├─reason-phrase: ${response.reasonPhrase}',
       '├─content-length: ${response.contentLength}',
       '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
-      '├─headers:',
+      '╰-headers:',
       '   ├──request:',
       for (final MapEntry(:key, :value) in requestHeaders)
         '   │   ├──$key: $value',
@@ -89,9 +89,8 @@ class FetchLog {
       for (final MapEntry(:key, :value) in response.headers.entries)
         '   │   ├──$key: $value',
       if (body != null) '├─post-body: $body',
-      '├─response-body:',
-      response.body,
-      '├─ LOG END ${"─" * 40} ',
+      '├─response-body: ${response.body}',
+      '╰─ LOG END ${"─" * 40} ',
     ].join('\n');
   }
 }
