@@ -303,7 +303,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     final R result;
 
     if (transform != null) {
-      result = transform!(response) as R;
+      result = await transform!(response);
     } else {
       result = response as R;
     }
