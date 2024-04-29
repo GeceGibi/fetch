@@ -58,7 +58,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
   Fetch({
     Uri? base,
     this.headerBuilder,
-    this.encoding,
+    this.encoding = systemEncoding,
     this.enableLogs = true,
     this.timeout = const Duration(seconds: 30),
     this.cacheOptions = const CacheOptions(),
@@ -77,7 +77,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
   final bool enableLogs;
   final Duration timeout;
-  final Encoding? encoding;
+  final Encoding encoding;
 
   final FetchOverride? override;
   final CacheOptions cacheOptions;
@@ -162,20 +162,32 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
     final FetchPayload(:uri, :type, :body, :headers) = payload;
+    final stopwatch = Stopwatch()..start();
 
-    final response = await switch (type) {
-      'GET' => http.get(uri, headers: headers).timeout(timeout),
-      'HEAD' => http.head(uri, headers: headers).timeout(timeout),
-      'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
-      'PUT' => http.put(uri, headers: headers, body: body).timeout(timeout),
-      'PATCH' => http.patch(uri, headers: headers, body: body).timeout(timeout),
-      'DELETE' => http.delete(uri, headers: headers, body: body).timeout(
-            timeout,
-          ),
-      _ => throw UnsupportedError('Unsupported type: $type')
-    };
+    try {
+      final response = await switch (type) {
+        'GET' => http.get(uri, headers: headers).timeout(timeout),
+        'HEAD' => http.head(uri, headers: headers).timeout(timeout),
+        'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
+        'PUT' => http.put(uri, headers: headers, body: body).timeout(timeout),
+        'PATCH' =>
+          http.patch(uri, headers: headers, body: body).timeout(timeout),
+        'DELETE' =>
+          http.delete(uri, headers: headers, body: body).timeout(timeout),
+        _ => throw UnsupportedError('Unsupported type: $type')
+      };
 
-    return FetchResponse.fromResponse(response);
+      stopwatch.stop();
+
+      return FetchResponse.fromResponse(
+        response,
+        encoding: encoding,
+        elapsed: stopwatch.elapsed,
+      );
+    } catch (e) {
+      stopwatch.stop();
+      rethrow;
+    }
   }
 
   Future<R> _worker(
@@ -186,8 +198,6 @@ class Fetch<R> with CacheFactory, FetchLogger {
     FetchHeaders headers,
     CacheOptions? cacheOptions,
   ) async {
-    final stopwatch = Stopwatch()..start();
-
     /// Create uri
     final Uri uri;
 
@@ -246,10 +256,8 @@ class Fetch<R> with CacheFactory, FetchLogger {
       cache(response, uri, _cacheOptions);
     }
 
-    stopwatch.stop();
-
     /// Log
-    log(response, stopwatch.elapsed, postBody: body, isCached: cached);
+    log(response, postBody: body, isCached: cached);
 
     /// Complete
     final result = await transform?.call(response) ?? response as R;

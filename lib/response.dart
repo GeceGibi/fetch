@@ -35,6 +35,8 @@ class FetchResponse extends http.Response {
     super.isRedirect,
     super.persistentConnection,
     super.request,
+    this.encoding = systemEncoding,
+    this.elapsed = Duration.zero,
   });
 
   FetchResponse.bytes(
@@ -45,10 +47,15 @@ class FetchResponse extends http.Response {
     super.isRedirect,
     super.persistentConnection,
     super.request,
+    this.encoding = systemEncoding,
+    this.elapsed = Duration.zero,
   }) : super.bytes();
 
-  FetchResponse.fromResponse(http.Response response)
-      : super.bytes(
+  FetchResponse.fromResponse(
+    http.Response response, {
+    this.encoding = systemEncoding,
+    this.elapsed = Duration.zero,
+  }) : super.bytes(
           response.bodyBytes,
           response.statusCode,
           headers: response.headers,
@@ -60,9 +67,12 @@ class FetchResponse extends http.Response {
 
   bool get isSuccess => statusCode >= 200 && statusCode <= 299;
 
+  final Encoding encoding;
+  final Duration elapsed;
+
   FetchResponseJson? _json;
   FutureOr<FetchResponseJson> asJson() async {
-    _json ??= await FetchResponseJson.fromBytes(bodyBytes);
+    _json ??= await FetchResponseJson.fromBytes(bodyBytes, encoding: encoding);
     return _json!;
   }
 
@@ -80,17 +90,17 @@ class FetchResponse extends http.Response {
 
   String describe() {
     final message = <String, dynamic>{
-      'body': body,
-      'statusCode': statusCode,
-      'reasonPhrase': reasonPhrase,
-      'contentLength': contentLength,
+      'requested to ': request?.url,
+      'status': '$statusCode | $reasonPhrase',
+      'content': '${headers[HttpHeaders.contentTypeHeader]} | $contentLength',
+      'elapsed': '${elapsed.inMilliseconds}ms',
     };
 
     final content = [
       for (final MapEntry(:key, :value) in message.entries) '$key: $value',
-    ].join(', ');
+    ].join('\n');
 
-    return 'FetchResponse($content)';
+    return content;
   }
 
   FetchResponse copyWith({

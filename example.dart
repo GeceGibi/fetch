@@ -2,13 +2,13 @@ import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
 
-class IResponse {
-  IResponse(this.ok);
-  final int ok;
-}
+// class IResponse {
+//   IResponse(this.ok);
+//   final int ok;
+// }
 
 void main(List<String> args) async {
-  final fetch = Fetch(
+  final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://api.gece.dev'),
     headerBuilder: () {
       return {
@@ -19,16 +19,16 @@ void main(List<String> args) async {
     override: (payload, method) {
       return Isolate.run(() => method(payload));
     },
-    transform: (response) async {
-      return Isolate.run(() => response.asJson());
-    },
+    // transform: (response) async {
+    //   return Isolate.run(() => response.asJson());
+    // },
   );
 
   final response = await fetch.get('/info', queryParams: {
     'foo2': 1,
   });
 
-  print(response.asMap());
+  print(response.describe());
 
   //  print(response.describe());
 

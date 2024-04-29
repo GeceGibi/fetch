@@ -20,14 +20,12 @@ mixin FetchLogger {
 
   ///
   void log(
-    FetchResponse response,
-    Duration elapsedTime, {
+    FetchResponse response, {
     Object? postBody,
     bool isCached = false,
   }) {
     final fetchLog = FetchLog(
       response,
-      elapsed: elapsedTime,
       isCached: isCached,
     );
 
@@ -53,7 +51,6 @@ mixin FetchLogger {
 class FetchLog {
   FetchLog(
     this.response, {
-    this.elapsed,
     this.body,
     this.isCached = false,
   }) : date = DateTime.now();
@@ -61,8 +58,6 @@ class FetchLog {
   final FetchResponse response;
   final DateTime? date;
   final Object? body;
-
-  final Duration? elapsed;
   final bool isCached;
 
   @override
@@ -85,7 +80,7 @@ class FetchLog {
       '├─status: ${response.statusCode}',
       '├─reason-phrase: ${response.reasonPhrase}',
       '├─content-length: ${response.contentLength}',
-      '├─elapsed: ${elapsed?.inMilliseconds}ms$cacheNote',
+      '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
       '├─headers:',
       '   ├──request:',
       for (final MapEntry(:key, :value) in requestHeaders)
