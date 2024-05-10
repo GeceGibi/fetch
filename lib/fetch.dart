@@ -24,10 +24,10 @@ class FetchPayload {
     this.body,
   });
 
-  Uri uri;
-  String type;
-  Object? body;
-  FetchHeaders? headers;
+  final Uri uri;
+  final String type;
+  final Object? body;
+  final FetchHeaders? headers;
 
   FetchPayload copyWith({
     Uri? uri,
@@ -217,10 +217,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
       _ => throw UnsupportedError('Unsupported type: $type')
     };
 
-    return FetchResponse.fromResponse(
-      response,
-      encoding: encoding,
-    );
+    return FetchResponse.fromResponse(response, encoding: encoding);
   }
 
   Future<R> _worker({
@@ -263,6 +260,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     final cached = isCached(uri, _cacheOptions);
 
     late FetchResponse response;
+
     final payload = FetchPayload(
       uri: uri,
       type: type,
@@ -276,16 +274,20 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
     /// Override
     else {
-      if (override != null) {
-        response = await override!(payload, _runMethod);
-      }
+      try {
+        if (override != null) {
+          response = await override!(payload, _runMethod);
+        }
 
-      /// Request
-      else {
-        response = await _runMethod(payload);
-      }
+        /// Request
+        else {
+          response = await _runMethod(payload);
+        }
 
-      cache(response, uri, _cacheOptions);
+        cache(response, uri, _cacheOptions);
+      } catch (e, s) {
+        response = FetchResponse.error(FetchError(e, s), uri, type);
+      }
     }
 
     stopwatch.stop();

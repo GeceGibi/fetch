@@ -26,6 +26,21 @@ class FetchResponseJson {
   }
 }
 
+class FetchError {
+  const FetchError(this.body, this.stackTrace);
+  final Object body;
+  final StackTrace stackTrace;
+
+  @override
+  String toString() {
+    return 'FetchError($body, $stackTrace)';
+  }
+}
+
+class FetchRequest extends http.BaseRequest {
+  FetchRequest(super.method, super.url);
+}
+
 class FetchResponse extends http.Response {
   FetchResponse(
     super.body,
@@ -37,6 +52,7 @@ class FetchResponse extends http.Response {
     super.request,
     this.encoding = systemEncoding,
     this.elapsed = Duration.zero,
+    this.error,
   });
 
   FetchResponse.bytes(
@@ -49,13 +65,15 @@ class FetchResponse extends http.Response {
     super.request,
     this.encoding = systemEncoding,
     this.elapsed = Duration.zero,
-  }) : super.bytes();
+  })  : error = null,
+        super.bytes();
 
   FetchResponse.fromResponse(
     http.Response response, {
     this.encoding = systemEncoding,
     this.elapsed = Duration.zero,
-  }) : super.bytes(
+  })  : error = null,
+        super.bytes(
           response.bodyBytes,
           response.statusCode,
           headers: response.headers,
@@ -65,10 +83,25 @@ class FetchResponse extends http.Response {
           request: response.request,
         );
 
+  FetchResponse.error(
+    this.error,
+    Uri uri,
+    String method,
+  )   : elapsed = Duration.zero,
+        encoding = systemEncoding,
+        super.bytes(
+          [],
+          1e3 ~/ 1,
+          request: FetchRequest(method, uri),
+        );
+
   bool get isSuccess => statusCode >= 200 && statusCode <= 299;
 
   final Encoding encoding;
   final Duration elapsed;
+
+  //
+  final FetchError? error;
 
   FetchResponseJson? _json;
   FutureOr<FetchResponseJson> asJson() async {
@@ -112,6 +145,7 @@ class FetchResponse extends http.Response {
     bool? persistentConnection,
     FetchBaseRequest? request,
     Duration? elapsed,
+    FetchError? error,
   }) {
     return FetchResponse(
       body ?? this.body,
@@ -122,10 +156,7 @@ class FetchResponse extends http.Response {
       persistentConnection: persistentConnection ?? this.persistentConnection,
       request: request ?? this.request,
       elapsed: elapsed ?? this.elapsed,
+      error: error ?? this.error,
     );
   }
-}
-
-class FetchRequest extends http.BaseRequest {
-  FetchRequest(super.method, super.url);
 }

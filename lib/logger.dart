@@ -63,17 +63,22 @@ class FetchLog {
       '├─date: $date',
       '├─method: ${response.request?.method}',
       '├─status: ${response.statusCode} (${response.reasonPhrase})',
-      '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
-      '├─content-length: ${response.contentLength}',
-      '╰-headers:',
-      '   ├──request:',
-      for (final MapEntry(:key, :value) in requestHeaders)
-        '   │   ├──$key: $value',
-      '   ├──response:',
-      for (final MapEntry(:key, :value) in response.headers.entries)
-        '   │   ├──$key: $value',
-      if (body != null) '├─post-body: $body',
-      '├─response-body: ${response.body}',
+      if (response.error != null) ...[
+        '├─error: ${response.error?.body}',
+        '├─stack: ${response.error?.stackTrace}',
+      ] else ...[
+        '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
+        '├─content-length: ${response.contentLength}',
+        '╰-headers:',
+        '   ├──request:',
+        for (final MapEntry(:key, :value) in requestHeaders)
+          '   │   ├──$key: $value',
+        '   ├──response:',
+        for (final MapEntry(:key, :value) in response.headers.entries)
+          '   │   ├──$key: $value',
+        if (body != null) '├─post-body: $body',
+        '├─response-body: ${response.body}',
+      ],
       '╰─ LOG END ${"─" * 40} ',
       ' ',
     ].join('\n');
