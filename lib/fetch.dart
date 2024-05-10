@@ -97,7 +97,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
-    bool enableLogs = false,
+    bool? enableLogs,
   }) async {
     return _worker(
       type: 'GET',
@@ -114,7 +114,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
-    bool enableLogs = false,
+    bool? enableLogs,
   }) {
     return _worker(
       type: 'HEAD',
@@ -133,7 +133,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
-    bool enableLogs = false,
+    bool? enableLogs,
   }) {
     return _worker(
       type: 'POST',
@@ -152,7 +152,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
-    bool enableLogs = false,
+    bool? enableLogs,
   }) {
     return _worker(
       type: 'PUT',

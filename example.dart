@@ -10,12 +10,13 @@ import 'package:fetch/fetch.dart';
 void main(List<String> args) async {
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://api.gece.dev'),
+
     headerBuilder: () {
       return {
         'content-type': 'application/json',
       };
     },
-    enableLogs: false,
+    enableLogs: true,
     override: (payload, method) {
       return Isolate.run(() => method(payload));
     },
