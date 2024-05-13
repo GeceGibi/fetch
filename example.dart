@@ -1,14 +1,25 @@
+import 'dart:async';
 import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
 
-// class IResponse {
-//   IResponse(this.ok);
-//   final int ok;
-// }
+class IResponse extends FetchResponse {
+  IResponse.fromResponse(
+    super.response, {
+    super.elapsed,
+    super.encoding,
+    super.error,
+  }) : super.fromResponse();
+
+  FetchJsonData? _json;
+  @override
+  FutureOr<FetchJsonData> asJson() async {
+    return _json ??= await Isolate.run<FetchJsonData>(() => super.asJson());
+  }
+}
 
 void main(List<String> args) async {
-  final fetch = Fetch<FetchResponse>(
+  final fetch = Fetch(
     base: Uri.parse('https://api.gece.dev'),
     headerBuilder: () {
       return {
@@ -16,33 +27,47 @@ void main(List<String> args) async {
       };
     },
     // timeout: Duration.zero,
-    enableLogs: true,
+    enableLogs: false,
     override: (payload, method) {
       return Isolate.run(() => method(payload));
     },
     transform: (response) {
-      // print(response.error);
-
-      return response;
-      // return Isolate.run(() => response.asJson());
+      return IResponse.fromResponse(
+        response,
+        elapsed: response.elapsed,
+        encoding: response.encoding,
+        error: response.error,
+      );
     },
   );
 
   final r1 = await fetch.get(
-    '/info',
+    'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',
     cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
     queryParams: {
       'foo2': 1,
     },
   );
 
-  final r2 = await fetch.get(
-    '/info',
-    cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
-    queryParams: {
-      'foo2': 1,
-    },
-  );
+  // final r2 = await fetch.get(
+  //   '/info',
+  //   cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
+  //   queryParams: {
+  //     'foo2': 1,
+  //   },
+  // );
 
-  print([r1.elapsed, r2.elapsed]);
+  final stopwatch = Stopwatch()..start();
+
+  print(
+    [
+      '',
+      (await r1.asJson()),
+      stopwatch.elapsed,
+      '',
+      (await r1.asJson()),
+      stopwatch.elapsed,
+      '',
+    ].join('\n'),
+  );
 }

@@ -18,11 +18,11 @@ mixin FetchLogger {
     fetchLogs.add(fetchLog);
 
     if (enableLogs) {
-      printer(fetchLog);
+      _printer(fetchLog);
     }
   }
 
-  void printer(Object? data) {
+  void _printer(Object? data) {
     final pattern = RegExp('.{1,800}');
 
     for (final match in pattern.allMatches('$data')) {

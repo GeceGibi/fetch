@@ -4,25 +4,18 @@ part of 'fetch.dart';
 
 typedef FetchBaseRequest = http.BaseRequest;
 
-class FetchResponseJson {
-  FetchResponseJson(this.data);
-  final Object? data;
+class FetchJsonData {
+  FetchJsonData(this.json);
+  final dynamic json;
 
   Map<K, V> asMap<K, V>() {
-    ArgumentError.checkNotNull(data);
-    return (data! as Map).cast<K, V>();
+    ArgumentError.checkNotNull(json);
+    return (json as Map).cast<K, V>();
   }
 
   List<E> asList<E>() {
-    ArgumentError.checkNotNull(data);
-    return (data! as List).cast<E>();
-  }
-
-  static FutureOr<FetchResponseJson> fromBytes(
-    List<int> bytes, {
-    Encoding encoding = systemEncoding,
-  }) async {
-    return FetchResponseJson(jsonDecode(encoding.decode(bytes)));
+    ArgumentError.checkNotNull(json);
+    return (json as List).cast<E>();
   }
 }
 
@@ -65,15 +58,15 @@ class FetchResponse extends http.Response {
     super.request,
     this.encoding = systemEncoding,
     this.elapsed = Duration.zero,
-  })  : error = null,
-        super.bytes();
+    this.error,
+  }) : super.bytes();
 
   FetchResponse.fromResponse(
     http.Response response, {
     this.encoding = systemEncoding,
     this.elapsed = Duration.zero,
-  })  : error = null,
-        super.bytes(
+    this.error,
+  }) : super.bytes(
           response.bodyBytes,
           response.statusCode,
           headers: response.headers,
@@ -99,41 +92,11 @@ class FetchResponse extends http.Response {
 
   final Encoding encoding;
   final Duration elapsed;
-
-  //
   final FetchError? error;
 
-  FetchResponseJson? _json;
-  FutureOr<FetchResponseJson> asJson() async {
-    _json ??= await FetchResponseJson.fromBytes(bodyBytes, encoding: encoding);
-    return _json!;
-  }
-
-  FutureOr<T> cast<T>() async {
-    return switch (T) {
-      const (Map) => (await asJson()).asMap<dynamic, dynamic>(),
-      const (List) => (await asJson()).asList<dynamic>(),
-      const (int) => int.parse(body),
-      const (double) => double.parse(body),
-      const (num) => num.parse(body),
-      const (String) => body,
-      _ => body,
-    } as T;
-  }
-
-  String describe() {
-    final message = <String, dynamic>{
-      'requested to ': request?.url,
-      'status': '$statusCode | $reasonPhrase',
-      'content': '${headers[HttpHeaders.contentTypeHeader]} | $contentLength',
-      'elapsed': '${elapsed.inMilliseconds}ms',
-    };
-
-    final content = [
-      for (final MapEntry(:key, :value) in message.entries) '$key: $value',
-    ].join('\n');
-
-    return content;
+  FetchJsonData? _json;
+  FutureOr<FetchJsonData> asJson() {
+    return _json ??= FetchJsonData(jsonDecode(encoding.decode(bodyBytes)));
   }
 
   FetchResponse copyWith({
