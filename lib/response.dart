@@ -5,17 +5,17 @@ part of 'fetch.dart';
 typedef FetchBaseRequest = http.BaseRequest;
 
 class FetchJsonData {
-  FetchJsonData(this.json);
-  final dynamic json;
+  FetchJsonData(this.data);
+  final dynamic data;
 
   Map<K, V> asMap<K, V>() {
-    ArgumentError.checkNotNull(json);
-    return (json as Map).cast<K, V>();
+    ArgumentError.checkNotNull(data);
+    return (data as Map).cast<K, V>();
   }
 
   List<E> asList<E>() {
-    ArgumentError.checkNotNull(json);
-    return (json as List).cast<E>();
+    ArgumentError.checkNotNull(data);
+    return (data as List).cast<E>();
   }
 }
 
