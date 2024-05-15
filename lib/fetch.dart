@@ -58,7 +58,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
   Fetch({
     Uri? base,
     this.headerBuilder,
-    this.encoding = systemEncoding,
+    this.encoding = utf8,
     this.enableLogs = true,
     this.timeout = const Duration(seconds: 30),
     this.cacheOptions = const CacheOptions(),

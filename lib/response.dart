@@ -43,7 +43,7 @@ class FetchResponse extends http.Response {
     super.isRedirect,
     super.persistentConnection,
     super.request,
-    this.encoding = systemEncoding,
+    this.encoding = utf8,
     this.elapsed = Duration.zero,
     this.error,
   });
@@ -56,14 +56,14 @@ class FetchResponse extends http.Response {
     super.isRedirect,
     super.persistentConnection,
     super.request,
-    this.encoding = systemEncoding,
+    this.encoding = utf8,
     this.elapsed = Duration.zero,
     this.error,
   }) : super.bytes();
 
   FetchResponse.fromResponse(
     http.Response response, {
-    this.encoding = systemEncoding,
+    this.encoding = utf8,
     this.elapsed = Duration.zero,
     this.error,
   }) : super.bytes(
@@ -81,7 +81,7 @@ class FetchResponse extends http.Response {
     Uri uri,
     String method,
   )   : elapsed = Duration.zero,
-        encoding = systemEncoding,
+        encoding = utf8,
         super.bytes(
           [],
           1e3 ~/ 1,
