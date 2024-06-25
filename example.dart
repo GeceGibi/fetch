@@ -41,6 +41,8 @@ void main(List<String> args) async {
     },
   );
 
+  await fetch.post('test', 'Hello', enableLogs: true);
+
   final r1 = await fetch.get(
     'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',
     cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
