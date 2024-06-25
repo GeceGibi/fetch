@@ -46,6 +46,7 @@ class FetchResponse extends http.Response {
     this.encoding = utf8,
     this.elapsed = Duration.zero,
     this.error,
+    this.postBody,
   });
 
   FetchResponse.bytes(
@@ -59,12 +60,14 @@ class FetchResponse extends http.Response {
     this.encoding = utf8,
     this.elapsed = Duration.zero,
     this.error,
+    this.postBody,
   }) : super.bytes();
 
   FetchResponse.fromResponse(
     http.Response response, {
     this.encoding = utf8,
     this.elapsed = Duration.zero,
+    this.postBody,
     this.error,
   }) : super.bytes(
           response.bodyBytes,
@@ -79,8 +82,9 @@ class FetchResponse extends http.Response {
   FetchResponse.error(
     this.error,
     Uri uri,
-    String method,
-  )   : elapsed = Duration.zero,
+    String method, {
+    this.postBody,
+  })  : elapsed = Duration.zero,
         encoding = utf8,
         super.bytes(
           [],
@@ -93,6 +97,7 @@ class FetchResponse extends http.Response {
   final Encoding encoding;
   final Duration elapsed;
   final FetchError? error;
+  final Object? postBody;
 
   FetchJsonData? _json;
   FutureOr<FetchJsonData> asJson() {
@@ -109,6 +114,7 @@ class FetchResponse extends http.Response {
     FetchBaseRequest? request,
     Duration? elapsed,
     FetchError? error,
+    Object? postBody,
   }) {
     return FetchResponse(
       body ?? this.body,
@@ -120,6 +126,7 @@ class FetchResponse extends http.Response {
       request: request ?? this.request,
       elapsed: elapsed ?? this.elapsed,
       error: error ?? this.error,
+      postBody: postBody ?? this.postBody,
     );
   }
 }

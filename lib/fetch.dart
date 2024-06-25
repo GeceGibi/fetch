@@ -18,33 +18,33 @@ typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
 class FetchPayload {
   FetchPayload({
     required this.uri,
-    required this.type,
+    required this.method,
     this.headers,
     this.body,
   });
 
   final Uri uri;
-  final String type;
+  final String method;
   final Object? body;
   final FetchHeaders? headers;
 
   FetchPayload copyWith({
     Uri? uri,
-    String? type,
+    String? method,
     Object? body,
     FetchHeaders? headers,
   }) {
     return FetchPayload(
       uri: uri ?? this.uri,
-      type: type ?? this.type,
-      body: body ?? this.type,
+      method: method ?? this.method,
+      body: body ?? this.body,
       headers: headers ?? this.headers,
     );
   }
 
   @override
   String toString() {
-    return 'FetchPayload(type: $type, uri: $uri, headers: $headers, body: $body)';
+    return 'FetchPayload(method: $method, uri: $uri, headers: $headers, body: $body)';
   }
 }
 
@@ -99,7 +99,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) async {
     return _worker(
-      type: 'GET',
+      'GET',
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
@@ -116,7 +116,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) {
     return _worker(
-      type: 'HEAD',
+      'HEAD',
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
@@ -135,7 +135,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) {
     return _worker(
-      type: 'POST',
+      'POST',
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -154,7 +154,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) {
     return _worker(
-      type: 'PUT',
+      'PUT',
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -173,7 +173,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) {
     return _worker(
-      type: 'DELETE',
+      'DELETE',
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -192,7 +192,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     bool? enableLogs,
   }) {
     return _worker(
-      type: 'PATCH',
+      'PATCH',
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -203,9 +203,9 @@ class Fetch<R> with CacheFactory, FetchLogger {
   }
 
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
-    final FetchPayload(:uri, :type, :body, :headers) = payload;
+    final FetchPayload(:uri, :method, :body, :headers) = payload;
 
-    final response = await switch (type) {
+    final response = await switch (method) {
       'GET' => http.get(uri, headers: headers).timeout(timeout),
       'HEAD' => http.head(uri, headers: headers).timeout(timeout),
       'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
@@ -213,14 +213,18 @@ class Fetch<R> with CacheFactory, FetchLogger {
       'PATCH' => http.patch(uri, headers: headers, body: body).timeout(timeout),
       'DELETE' =>
         http.delete(uri, headers: headers, body: body).timeout(timeout),
-      _ => throw UnsupportedError('Unsupported type: $type')
+      _ => throw UnsupportedError('Unsupported method: $method')
     };
 
-    return FetchResponse.fromResponse(response, encoding: encoding);
+    return FetchResponse.fromResponse(
+      response,
+      encoding: encoding,
+      postBody: payload.body,
+    );
   }
 
-  Future<R> _worker({
-    required String type,
+  Future<R> _worker(
+    String method, {
     required String endpoint,
     required FetchHeaders headers,
     Object? body,
@@ -262,7 +266,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
     final payload = FetchPayload(
       uri: uri,
-      type: type,
+      method: method,
       headers: mergedHeaders,
       body: body,
     );
@@ -285,7 +289,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
         cache(response, uri, _cacheOptions);
       } catch (e, s) {
-        response = FetchResponse.error(FetchError(e, s), uri, type);
+        response = FetchResponse.error(FetchError(e, s), uri, method);
       }
     }
 
@@ -296,7 +300,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     /// Log
     log(
       response,
-      postBody: body,
+      postBody: response.postBody,
       isCached: cached,
       enableLogs: enableLogs ?? this.enableLogs,
     );

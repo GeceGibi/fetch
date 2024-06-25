@@ -29,6 +29,10 @@ void main(List<String> args) async {
     // timeout: Duration.zero,
     enableLogs: false,
     override: (payload, method) {
+      if (payload.method == 'POST') {
+        payload = payload.copyWith(body: 'SELAM');
+      }
+
       return Isolate.run(() => method(payload));
     },
     transform: (response) {
@@ -43,33 +47,33 @@ void main(List<String> args) async {
 
   await fetch.post('test', 'Hello', enableLogs: true);
 
-  final r1 = await fetch.get(
-    'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',
-    cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
-    queryParams: {
-      'foo2': 1,
-    },
-  );
-
-  // final r2 = await fetch.get(
-  //   '/info',
+  // final r1 = await fetch.get(
+  //   'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',
   //   cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
   //   queryParams: {
   //     'foo2': 1,
   //   },
   // );
 
-  final stopwatch = Stopwatch()..start();
+  // // final r2 = await fetch.get(
+  // //   '/info',
+  // //   cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
+  // //   queryParams: {
+  // //     'foo2': 1,
+  // //   },
+  // // );
 
-  print(
-    [
-      '',
-      (await r1.asJson()),
-      stopwatch.elapsed,
-      '',
-      (await r1.asJson()),
-      stopwatch.elapsed,
-      '',
-    ].join('\n'),
-  );
+  // final stopwatch = Stopwatch()..start();
+
+  // print(
+  //   [
+  //     '',
+  //     (await r1.asJson()),
+  //     stopwatch.elapsed,
+  //     '',
+  //     (await r1.asJson()),
+  //     stopwatch.elapsed,
+  //     '',
+  //   ].join('\n'),
+  // );
 }

@@ -63,8 +63,10 @@ class FetchLog {
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
-      if (response.request?.method == 'POST')
-        '├─body(${body.runtimeType}): $body',
+      if (response.request?.method == 'POST') ...[
+        '├─body-type: ${body.runtimeType}',
+        '├─body: $body',
+      ],
       '├─status: ${response.statusCode} (${response.reasonPhrase})',
       if (response.error != null) ...[
         '├─error: ${response.error?.body}',
