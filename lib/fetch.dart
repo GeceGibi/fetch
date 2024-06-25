@@ -266,9 +266,9 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
     final payload = FetchPayload(
       uri: uri,
+      body: body,
       method: method,
       headers: mergedHeaders,
-      body: body,
     );
 
     if (cached) {

@@ -20,13 +20,13 @@ class FetchJsonData {
 }
 
 class FetchError {
-  const FetchError(this.body, this.stackTrace);
-  final Object body;
+  const FetchError(this.error, this.stackTrace);
+  final Object error;
   final StackTrace stackTrace;
 
   @override
   String toString() {
-    return 'FetchError($body, $stackTrace)';
+    return 'FetchError($error, $stackTrace)';
   }
 }
 

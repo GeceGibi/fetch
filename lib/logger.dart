@@ -63,13 +63,14 @@ class FetchLog {
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
-      if (response.request?.method == 'POST') ...[
+      if (response.request?.method
+          case 'POST' || 'PATCH' || 'DELETE' || 'PUT') ...[
         '├─body-type: ${body.runtimeType}',
         '├─body: $body',
       ],
       '├─status: ${response.statusCode} (${response.reasonPhrase})',
       if (response.error != null) ...[
-        '├─error: ${response.error?.body}',
+        '├─error: ${response.error?.error}',
         '├─stack: ${response.error?.stackTrace}',
       ] else ...[
         '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
