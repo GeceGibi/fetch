@@ -13,6 +13,7 @@ mixin FetchLogger {
     final fetchLog = FetchLog(
       response,
       isCached: isCached,
+      body: postBody,
     );
 
     fetchLogs.add(fetchLog);
@@ -35,7 +36,7 @@ mixin FetchLogger {
 class FetchLog {
   FetchLog(
     this.response, {
-    this.body,
+    required this.body,
     this.isCached = false,
   }) : date = DateTime.now();
 
