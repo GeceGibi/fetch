@@ -48,6 +48,13 @@ class FetchLog {
   @override
   String toString() {
     final requestHeaders = response.request?.headers.entries ?? [];
+    final bool mayHasPostBody;
+
+    if (response.request?.method case 'POST' || 'PATCH' || 'DELETE' || 'PUT') {
+      mayHasPostBody = true;
+    } else {
+      mayHasPostBody = false;
+    }
 
     final String cacheNote;
 
@@ -63,11 +70,7 @@ class FetchLog {
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
-      if (response.request?.method
-          case 'POST' || 'PATCH' || 'DELETE' || 'PUT') ...[
-        '├─body-type: ${body.runtimeType}',
-        '├─body: $body',
-      ],
+      if (mayHasPostBody) '├─body: <${body.runtimeType}>$body',
       '├─status: ${response.statusCode} (${response.reasonPhrase})',
       if (response.error != null) ...[
         '├─error: ${response.error?.error}',
