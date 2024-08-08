@@ -13,7 +13,7 @@ mixin FetchLogger {
     final fetchLog = FetchLog(
       response,
       isCached: isCached,
-      body: postBody,
+      postBody: postBody,
     );
 
     fetchLogs.add(fetchLog);
@@ -36,26 +36,18 @@ mixin FetchLogger {
 class FetchLog {
   FetchLog(
     this.response, {
-    required this.body,
+    required this.postBody,
     this.isCached = false,
   }) : date = DateTime.now();
 
   final FetchResponse response;
   final DateTime? date;
-  final Object? body;
+  final Object? postBody;
   final bool isCached;
 
   @override
   String toString() {
     final requestHeaders = response.request?.headers.entries ?? [];
-    final bool mayHasPostBody;
-
-    if (response.request?.method case 'POST' || 'PATCH' || 'DELETE' || 'PUT') {
-      mayHasPostBody = true;
-    } else {
-      mayHasPostBody = false;
-    }
-
     final String cacheNote;
 
     if (isCached) {
@@ -70,7 +62,6 @@ class FetchLog {
       '├─url: ${response.request?.url}',
       '├─date: $date',
       '├─method: ${response.request?.method}',
-      if (mayHasPostBody) '├─body: <${body.runtimeType}>$body',
       '├─status: ${response.statusCode} (${response.reasonPhrase})',
       if (response.error != null) ...[
         '├─error: ${response.error?.error}',
@@ -85,7 +76,7 @@ class FetchLog {
         '   ├──response:',
         for (final MapEntry(:key, :value) in response.headers.entries)
           '   │   ├──$key: $value',
-        if (body != null) '├─post-body: $body',
+        if (postBody != null) '├─post-body: $postBody',
         '├─response-body: ${response.body}',
       ],
       '╰─ LOG END ${"─" * 40} ',
