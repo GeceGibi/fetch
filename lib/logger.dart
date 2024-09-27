@@ -6,14 +6,12 @@ mixin FetchLogger {
   ///
   void log(
     FetchResponse response, {
-    Object? postBody,
     bool isCached = false,
     bool enableLogs = false,
   }) {
     final fetchLog = FetchLog(
       response,
       isCached: isCached,
-      postBody: postBody,
     );
 
     fetchLogs.add(fetchLog);
@@ -34,21 +32,17 @@ mixin FetchLogger {
 }
 
 class FetchLog {
-  FetchLog(
-    this.response, {
-    required this.postBody,
-    this.isCached = false,
-  }) : date = DateTime.now();
+  FetchLog(this.response, {this.isCached = false}) : date = DateTime.now();
 
   final FetchResponse response;
   final DateTime? date;
-  final Object? postBody;
   final bool isCached;
 
   @override
   String toString() {
     final FetchResponse(
       :elapsed,
+      :postBody,
     ) = response;
 
     final http.Response(

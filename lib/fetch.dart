@@ -297,7 +297,6 @@ class Fetch<R> with CacheFactory, FetchLogger {
     /// Log
     log(
       response,
-      postBody: response.postBody,
       isCached: cached,
       enableLogs: enableLogs ?? this.enableLogs,
     );
