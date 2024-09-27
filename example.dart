@@ -8,13 +8,17 @@ class IResponse extends FetchResponse {
     super.response, {
     super.elapsed,
     super.encoding,
-    super.error,
-  }) : super.fromResponse();
+    super.postBody,
+  }) : super();
 
-  FetchJsonData? _json;
   @override
-  FutureOr<FetchJsonData> asJson() async {
-    return _json ??= await Isolate.run<FetchJsonData>(() => super.asJson());
+  FutureOr<List<E>> asList<E>() {
+    return Isolate.run(() => super.asList());
+  }
+
+  @override
+  FutureOr<Map<K, V>> asMap<K, V>() {
+    return Isolate.run(() => super.asMap());
   }
 }
 
@@ -37,16 +41,17 @@ void main(List<String> args) async {
     },
     transform: (response) {
       return IResponse.fromResponse(
-        response,
+        response.response,
         elapsed: response.elapsed,
         encoding: response.encoding,
-        error: response.error,
+        postBody: response.postBody,
       );
     },
   );
 
-  await fetch.post('test', 'Hello', enableLogs: true);
-
+  final a = await fetch.get('info', enableLogs: true);
+  final b = await a.asMap<String, dynamic>();
+  print(b);
   // final r1 = await fetch.get(
   //   'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',
   //   cacheOptions: CacheOptions(duration: Duration(seconds: 10)),

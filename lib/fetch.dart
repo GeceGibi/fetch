@@ -44,6 +44,7 @@ class FetchPayload {
 
   @override
   String toString() {
+    // ignore: lines_longer_than_80_chars
     return 'FetchPayload(method: $method, uri: $uri, headers: $headers, body: $body)';
   }
 }
@@ -216,7 +217,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
       _ => throw UnsupportedError('Unsupported method: $method')
     };
 
-    return FetchResponse.fromResponse(
+    return FetchResponse(
       response,
       encoding: encoding,
       postBody: payload.body,
@@ -277,20 +278,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
     /// Override
     else {
-      try {
-        if (override != null) {
-          response = await override!(payload, _runMethod);
-        }
-
-        /// Request
-        else {
-          response = await _runMethod(payload);
-        }
-
-        cache(response, uri, _cacheOptions);
-      } catch (e, s) {
-        response = FetchResponse.error(FetchError(e, s), uri, method);
+      if (override != null) {
+        response = await override!(payload, _runMethod);
       }
+
+      /// Request
+      else {
+        response = await _runMethod(payload);
+      }
+
+      cache(response, uri, _cacheOptions);
     }
 
     stopwatch.stop();

@@ -47,7 +47,20 @@ class FetchLog {
 
   @override
   String toString() {
-    final requestHeaders = response.request?.headers.entries ?? [];
+    final FetchResponse(
+      :elapsed,
+    ) = response;
+
+    final http.Response(
+      :request,
+      :statusCode,
+      :reasonPhrase,
+      :contentLength,
+      :headers,
+      :body,
+    ) = response.response;
+
+    final requestHeaders = request?.headers.entries ?? [];
     final String cacheNote;
 
     if (isCached) {
@@ -59,26 +72,21 @@ class FetchLog {
     return [
       ' ',
       '╭-- LOG BEGIN ${"-" * 40}',
-      '├─url: ${response.request?.url}',
+      '├─url: ${request?.url}',
       '├─date: $date',
-      '├─method: ${response.request?.method}',
-      '├─status: ${response.statusCode} (${response.reasonPhrase})',
-      if (response.error != null) ...[
-        '├─error: ${response.error?.error}',
-        '├─stack: ${response.error?.stackTrace}',
-      ] else ...[
-        '├─elapsed: ${response.elapsed.inMilliseconds}ms$cacheNote',
-        '├─content-length: ${response.contentLength}',
-        '╰-headers:',
-        '   ├──request:',
-        for (final MapEntry(:key, :value) in requestHeaders)
-          '   │   ├──$key: $value',
-        '   ├──response:',
-        for (final MapEntry(:key, :value) in response.headers.entries)
-          '   │   ├──$key: $value',
-        if (postBody != null) '├─post-body: $postBody',
-        '├─response-body: ${response.body}',
-      ],
+      '├─method: ${request?.method}',
+      '├─status: $statusCode ($reasonPhrase)',
+      '├─elapsed: ${elapsed?.inMilliseconds}ms$cacheNote',
+      '├─content-length: $contentLength',
+      '╰-headers:',
+      '   ├──request:',
+      for (final MapEntry(:key, :value) in requestHeaders)
+        '   │   ├──$key: $value',
+      '   ├──response:',
+      for (final MapEntry(:key, :value) in headers.entries)
+        '   │   ├──$key: $value',
+      if (postBody != null) '├─post-body: $postBody',
+      '├─response-body: $body',
       '╰─ LOG END ${"─" * 40} ',
       ' ',
     ].join('\n');

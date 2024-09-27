@@ -1,131 +1,42 @@
 part of 'fetch.dart';
 
-/// Wrapper of http.Response
+class FetchResponse {
+  FetchResponse(
+    this.response, {
+    this.encoding = utf8,
+    this.postBody,
+    this.elapsed,
+  });
 
-typedef FetchBaseRequest = http.BaseRequest;
+  final http.Response response;
+  final Encoding encoding;
+  final Duration? elapsed;
+  final Object? postBody;
 
-class FetchJsonData {
-  FetchJsonData(this.data);
-  final dynamic data;
-
-  Map<K, V> asMap<K, V>() {
-    ArgumentError.checkNotNull(data);
+  FutureOr<Map<K, V>> asMap<K, V>() {
+    final data = jsonDecode(encoding.decode(response.bodyBytes));
     return (data as Map).cast<K, V>();
   }
 
-  List<E> asList<E>() {
-    ArgumentError.checkNotNull(data);
+  FutureOr<List<E>> asList<E>() {
+    final data = jsonDecode(encoding.decode(response.bodyBytes));
     return (data as List).cast<E>();
   }
-}
 
-class FetchError {
-  const FetchError(this.error, this.stackTrace);
-  final Object error;
-  final StackTrace stackTrace;
-
-  @override
-  String toString() {
-    return 'FetchError($error, $stackTrace)';
-  }
-}
-
-class FetchRequest extends http.BaseRequest {
-  FetchRequest(super.method, super.url);
-}
-
-class FetchResponse extends http.Response {
-  FetchResponse(
-    super.body,
-    super.statusCode, {
-    super.reasonPhrase,
-    super.headers,
-    super.isRedirect,
-    super.persistentConnection,
-    super.request,
-    this.encoding = utf8,
-    this.elapsed = Duration.zero,
-    this.error,
-    this.postBody,
-  });
-
-  FetchResponse.bytes(
-    super.bodyBytes,
-    super.statusCode, {
-    super.reasonPhrase,
-    super.headers,
-    super.isRedirect,
-    super.persistentConnection,
-    super.request,
-    this.encoding = utf8,
-    this.elapsed = Duration.zero,
-    this.error,
-    this.postBody,
-  }) : super.bytes();
-
-  FetchResponse.fromResponse(
-    http.Response response, {
-    this.encoding = utf8,
-    this.elapsed = Duration.zero,
-    this.postBody,
-    this.error,
-  }) : super.bytes(
-          response.bodyBytes,
-          response.statusCode,
-          headers: response.headers,
-          isRedirect: response.isRedirect,
-          persistentConnection: response.persistentConnection,
-          reasonPhrase: response.reasonPhrase,
-          request: response.request,
-        );
-
-  FetchResponse.error(
-    this.error,
-    Uri uri,
-    String method, {
-    this.postBody,
-  })  : elapsed = Duration.zero,
-        encoding = utf8,
-        super.bytes(
-          [],
-          1e3 ~/ 1,
-          request: FetchRequest(method, uri),
-        );
-
-  bool get isSuccess => statusCode >= 200 && statusCode <= 299;
-
-  final Encoding encoding;
-  final Duration elapsed;
-  final FetchError? error;
-  final Object? postBody;
-
-  FetchJsonData? _json;
-  FutureOr<FetchJsonData> asJson() {
-    return _json ??= FetchJsonData(jsonDecode(encoding.decode(bodyBytes)));
+  bool get isSuccess {
+    return response.statusCode >= 200 && response.statusCode <= 299;
   }
 
   FetchResponse copyWith({
-    String? body,
-    int? statusCode,
-    String? reasonPhrase,
-    FetchHeaders? headers,
-    bool? isRedirect,
-    bool? persistentConnection,
-    FetchBaseRequest? request,
+    http.Response? response,
     Duration? elapsed,
-    FetchError? error,
+    Encoding? encoding,
     Object? postBody,
   }) {
     return FetchResponse(
-      body ?? this.body,
-      statusCode ?? this.statusCode,
-      reasonPhrase: reasonPhrase ?? super.reasonPhrase,
-      headers: headers ?? this.headers,
-      isRedirect: isRedirect ?? this.isRedirect,
-      persistentConnection: persistentConnection ?? this.persistentConnection,
-      request: request ?? this.request,
+      response ?? this.response,
       elapsed: elapsed ?? this.elapsed,
-      error: error ?? this.error,
+      encoding: encoding ?? this.encoding,
       postBody: postBody ?? this.postBody,
     );
   }
