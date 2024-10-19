@@ -35,12 +35,3 @@ mixin FetchJsonResponse {
     return (data as List).cast<E>();
   }
 }
-
-class Res extends FetchResponse {
-  Res(
-    super.response, {
-    super.elapsed,
-    super.encoding,
-    super.postBody,
-  }) : super.fromResponse();
-}
