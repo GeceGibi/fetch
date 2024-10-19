@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
+import 'package:http/http.dart' as http;
 
-class IResponse extends FetchResponse {
+class IResponse extends FetchResponse with FetchJsonResponse {
   IResponse.fromResponse(
     super.response, {
     super.elapsed,
     super.encoding,
     super.postBody,
-  }) : super();
+  }) : super.fromResponse();
 
   @override
   FutureOr<List<E>> asList<E>() {
@@ -20,6 +21,9 @@ class IResponse extends FetchResponse {
   FutureOr<Map<K, V>> asMap<K, V>() {
     return Isolate.run(() => super.asMap());
   }
+
+  @override
+  http.Response get response => this;
 }
 
 void main(List<String> args) async {
@@ -41,9 +45,8 @@ void main(List<String> args) async {
     },
     transform: (response) {
       return IResponse.fromResponse(
-        response.response,
+        response,
         elapsed: response.elapsed,
-        encoding: response.encoding,
         postBody: response.postBody,
       );
     },
@@ -51,6 +54,7 @@ void main(List<String> args) async {
 
   final a = await fetch.get('info', enableLogs: true);
   final b = await a.asMap<String, dynamic>();
+
   print(b);
   // final r1 = await fetch.get(
   //   'https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json',

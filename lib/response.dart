@@ -1,17 +1,29 @@
 part of 'fetch.dart';
 
-class FetchResponse {
-  FetchResponse(
-    this.response, {
+class FetchResponse extends http.Response {
+  FetchResponse.fromResponse(
+    http.Response response, {
     this.encoding = utf8,
     this.postBody,
     this.elapsed,
-  });
+  }) : super.bytes(
+          response.bodyBytes,
+          response.statusCode,
+          headers: response.headers,
+          isRedirect: response.isRedirect,
+          persistentConnection: response.persistentConnection,
+          reasonPhrase: response.reasonPhrase,
+          request: response.request,
+        );
 
-  final http.Response response;
-  final Encoding encoding;
-  final Duration? elapsed;
+  Duration? elapsed;
+  Encoding encoding;
   final Object? postBody;
+}
+
+mixin FetchJsonResponse {
+  Encoding get encoding;
+  http.Response get response;
 
   FutureOr<Map<K, V>> asMap<K, V>() {
     final data = jsonDecode(encoding.decode(response.bodyBytes));
@@ -22,22 +34,13 @@ class FetchResponse {
     final data = jsonDecode(encoding.decode(response.bodyBytes));
     return (data as List).cast<E>();
   }
+}
 
-  bool get isSuccess {
-    return response.statusCode >= 200 && response.statusCode <= 299;
-  }
-
-  FetchResponse copyWith({
-    http.Response? response,
-    Duration? elapsed,
-    Encoding? encoding,
-    Object? postBody,
-  }) {
-    return FetchResponse(
-      response ?? this.response,
-      elapsed: elapsed ?? this.elapsed,
-      encoding: encoding ?? this.encoding,
-      postBody: postBody ?? this.postBody,
-    );
-  }
+class Res extends FetchResponse {
+  Res(
+    super.response, {
+    super.elapsed,
+    super.encoding,
+    super.postBody,
+  }) : super.fromResponse();
 }

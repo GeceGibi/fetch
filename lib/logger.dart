@@ -52,7 +52,7 @@ class FetchLog {
       :contentLength,
       :headers,
       :body,
-    ) = response.response;
+    ) = response;
 
     final requestHeaders = request?.headers.entries ?? [];
     final String cacheNote;

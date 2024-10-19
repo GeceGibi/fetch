@@ -217,7 +217,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
       _ => throw UnsupportedError('Unsupported method: $method')
     };
 
-    return FetchResponse(
+    return FetchResponse.fromResponse(
       response,
       encoding: encoding,
       postBody: payload.body,
@@ -291,8 +291,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     }
 
     stopwatch.stop();
-
-    response = response.copyWith(elapsed: stopwatch.elapsed);
+    response.elapsed = stopwatch.elapsed;
 
     /// Log
     log(
