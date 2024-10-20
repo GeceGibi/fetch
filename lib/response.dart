@@ -1,6 +1,6 @@
 part of 'fetch.dart';
 
-class FetchResponse extends http.Response {
+class FetchResponse extends http.Response with FetchJsonResponse {
   FetchResponse.fromResponse(
     http.Response response, {
     this.encoding = utf8,
@@ -23,6 +23,9 @@ class FetchResponse extends http.Response {
   Duration? elapsed;
   Encoding encoding;
   final Object? postBody;
+
+  @override
+  dynamic get jsonBody => jsonDecode(encoding.decode(bodyBytes));
 }
 
 mixin FetchJsonResponse {
