@@ -9,11 +9,11 @@ class FetchResponse extends http.Response {
   }) : super.bytes(
           response.bodyBytes,
           response.statusCode,
+          request: response.request,
           headers: response.headers,
           isRedirect: response.isRedirect,
           persistentConnection: response.persistentConnection,
           reasonPhrase: response.reasonPhrase,
-          request: response.request,
         );
 
   Duration? elapsed;
@@ -25,13 +25,17 @@ mixin FetchJsonResponse {
   Encoding get encoding;
   http.Response get response;
 
+  dynamic get data {
+    return jsonDecode(encoding.decode(response.bodyBytes));
+  }
+
   FutureOr<Map<K, V>> asMap<K, V>() {
-    final data = jsonDecode(encoding.decode(response.bodyBytes));
+    ArgumentError.checkNotNull(data);
     return (data as Map).cast<K, V>();
   }
 
   FutureOr<List<E>> asList<E>() {
-    final data = jsonDecode(encoding.decode(response.bodyBytes));
+    ArgumentError.checkNotNull(data);
     return (data as List).cast<E>();
   }
 }
