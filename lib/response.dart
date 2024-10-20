@@ -22,20 +22,15 @@ class FetchResponse extends http.Response {
 }
 
 mixin FetchJsonResponse {
-  Encoding get encoding;
-  http.Response get response;
+  dynamic get jsonBody;
 
-  dynamic get data {
-    return jsonDecode(encoding.decode(response.bodyBytes));
+  FutureOr<Map<K, V>> asMap<K, V>() async {
+    ArgumentError.checkNotNull(jsonBody);
+    return (await jsonBody as Map).cast<K, V>();
   }
 
-  FutureOr<Map<K, V>> asMap<K, V>() {
-    ArgumentError.checkNotNull(data);
-    return (data as Map).cast<K, V>();
-  }
-
-  FutureOr<List<E>> asList<E>() {
-    ArgumentError.checkNotNull(data);
-    return (data as List).cast<E>();
+  FutureOr<List<E>> asList<E>() async {
+    ArgumentError.checkNotNull(jsonBody);
+    return (await jsonBody as List).cast<E>();
   }
 }

@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
-import 'package:http/http.dart' as http;
 
 class IResponse extends FetchResponse with FetchJsonResponse {
   IResponse.fromResponse(
@@ -10,20 +10,33 @@ class IResponse extends FetchResponse with FetchJsonResponse {
     super.elapsed,
     super.encoding,
     super.postBody,
+    this.jsonBody,
   }) : super.fromResponse();
 
   @override
+  final dynamic jsonBody;
+
+  @override
   FutureOr<List<E>> asList<E>() {
-    return Isolate.run(() => super.asList());
+    return Isolate.run(
+      () {
+        print('run in isolate ${Isolate.current.debugName}');
+        return super.asList();
+      },
+      debugName: 'asList<$E>',
+    );
   }
 
   @override
   FutureOr<Map<K, V>> asMap<K, V>() {
-    return Isolate.run(() => super.asMap());
+    return Isolate.run(
+      () {
+        print('run in isolate ${Isolate.current.debugName}');
+        return super.asMap();
+      },
+      debugName: 'asMap<$K, $V>',
+    );
   }
-
-  @override
-  http.Response get response => this;
 }
 
 void main(List<String> args) async {
@@ -46,6 +59,7 @@ void main(List<String> args) async {
     transform: (response) {
       return IResponse.fromResponse(
         response,
+        jsonBody: jsonDecode(response.encoding.decode(response.bodyBytes)),
         elapsed: response.elapsed,
         postBody: response.postBody,
       );
