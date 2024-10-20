@@ -16,6 +16,10 @@ class FetchResponse extends http.Response {
           reasonPhrase: response.reasonPhrase,
         );
 
+  bool get isSuccess {
+    return statusCode >= 200 && statusCode <= 299;
+  }
+
   Duration? elapsed;
   Encoding encoding;
   final Object? postBody;
