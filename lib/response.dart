@@ -25,19 +25,31 @@ class FetchResponse extends http.Response with FetchJsonResponse {
   final Object? postBody;
 
   @override
-  dynamic get jsonBody => jsonDecode(encoding.decode(bodyBytes));
+  dynamic get jsonBody => jsonDecode(encoding.decode(bodyBytes))!;
 }
 
 mixin FetchJsonResponse {
   dynamic get jsonBody;
 
   FutureOr<Map<K, V>> asMap<K, V>() async {
-    ArgumentError.checkNotNull(jsonBody);
-    return (await jsonBody as Map).cast<K, V>();
+    if (jsonBody is! Map) {
+      throw ArgumentError(
+        '${jsonBody.runtimeType} is not subtype of Map<$K, $V>',
+        'asMap<$K, $V>',
+      );
+    }
+
+    return (jsonBody as Map).cast<K, V>();
   }
 
   FutureOr<List<E>> asList<E>() async {
-    ArgumentError.checkNotNull(jsonBody);
-    return (await jsonBody as List).cast<E>();
+    if (jsonBody is! List) {
+      throw ArgumentError(
+        '${jsonBody.runtimeType} is not subtype of List<$E>',
+        'asList<$E>',
+      );
+    }
+
+    return (jsonBody as List).cast<E>();
   }
 }

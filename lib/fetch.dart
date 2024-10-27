@@ -36,8 +36,8 @@ class FetchPayload {
   }) {
     return FetchPayload(
       uri: uri ?? this.uri,
-      method: method ?? this.method,
       body: body ?? this.body,
+      method: method ?? this.method,
       headers: headers ?? this.headers,
     );
   }
@@ -205,17 +205,23 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
     final FetchPayload(:uri, :method, :body, :headers) = payload;
+    final request = http.Request(method, uri)..headers.addAll(headers ?? {});
 
-    final response = await switch (method) {
-      'GET' => http.get(uri, headers: headers).timeout(timeout),
-      'HEAD' => http.head(uri, headers: headers).timeout(timeout),
-      'POST' => http.post(uri, headers: headers, body: body).timeout(timeout),
-      'PUT' => http.put(uri, headers: headers, body: body).timeout(timeout),
-      'PATCH' => http.patch(uri, headers: headers, body: body).timeout(timeout),
-      'DELETE' =>
-        http.delete(uri, headers: headers, body: body).timeout(timeout),
-      _ => throw UnsupportedError('Unsupported method: $method')
-    };
+    if (body != null) {
+      if (body is String) {
+        request.body = body;
+      } else if (body is List) {
+        request.bodyBytes = body.cast<int>();
+      } else if (body is Map) {
+        request.bodyFields = body.cast<String, String>();
+      } else {
+        throw ArgumentError('Invalid request body "$body".');
+      }
+    }
+
+    final response = await http.Response.fromStream(
+      await request.send().timeout(timeout),
+    );
 
     return FetchResponse.fromResponse(
       response,
