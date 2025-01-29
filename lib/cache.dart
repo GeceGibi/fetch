@@ -22,15 +22,15 @@ class CacheOptions {
 
 //! ----------------------------------------------------------------------------
 class Cache {
-  const Cache(
-    this.response,
-    this.options,
-    this.date,
-  );
+  Cache(this.response, this.options) : date = DateTime.now();
 
   final FetchResponse response;
   final CacheOptions options;
   final DateTime date;
+
+  bool get isExpired {
+    return date.add(options.duration).isBefore(DateTime.now());
+  }
 }
 
 //! ----------------------------------------------------------------------------
@@ -44,20 +44,14 @@ mixin CacheFactory {
     }
         .removeFragment();
 
-    if (options.duration == Duration.zero || !_caches.containsKey(url)) {
-      return _caches[url];
+    final entry = _caches[url];
+
+    if (entry != null && entry.isExpired) {
+      removeCache(url);
+      return null;
     }
 
-    final entry = _caches[url]!;
-    final isAfter = entry.date.add(entry.options.duration).isAfter(
-          DateTime.now(),
-        );
-
-    if (!isAfter) {
-      _caches.remove(url);
-    }
-
-    return null;
+    return _caches[url];
   }
 
   void cache(FetchResponse response, Uri uri, CacheOptions options) {
@@ -65,21 +59,18 @@ mixin CacheFactory {
       return;
     }
 
-    uri = uri.removeFragment();
-
     if (options.duration == Duration.zero) {
       return;
     }
 
-    final now = DateTime.now();
-    final cachedData = Cache(response, options, now);
-
-    final uriKey = switch (options.strategy) {
+    final cachedData = Cache(response, options);
+    final url = switch (options.strategy) {
       CacheStrategy.urlWithoutQuery => uri.replace(query: ''),
       CacheStrategy.fullUrl => uri,
-    };
+    }
+        .removeFragment();
 
-    _caches[uriKey] = cachedData;
+    _caches[url] = cachedData;
   }
 
   void clearCache() {
@@ -87,7 +78,6 @@ mixin CacheFactory {
   }
 
   void removeCache(Uri uri) {
-    uri = uri.removeFragment();
-    _caches.remove(uri);
+    _caches.remove(uri.removeFragment());
   }
 }
