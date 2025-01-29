@@ -265,11 +265,8 @@ class Fetch<R> with CacheFactory, FetchLogger {
       [await headerBuilder?.call() ?? {}, headers],
     );
 
-    // ignore: no_leading_underscores_for_local_identifiers
-    final _cacheOptions = cacheOptions ?? this.cacheOptions;
-    final cached = isCached(uri, _cacheOptions);
-
-    late FetchResponse response;
+    final resolvedCache = resolveCache(uri, cacheOptions ?? this.cacheOptions);
+    var response = resolvedCache?.response;
 
     final payload = FetchPayload(
       uri: uri,
@@ -278,12 +275,8 @@ class Fetch<R> with CacheFactory, FetchLogger {
       headers: mergedHeaders,
     );
 
-    if (cached) {
-      response = resolveCache(uri, _cacheOptions)!.response;
-    }
-
     /// Override
-    else {
+    if (response == null) {
       if (override != null) {
         response = await override!(payload, _runMethod);
       }
@@ -293,7 +286,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
         response = await _runMethod(payload);
       }
 
-      cache(response, uri, _cacheOptions);
+      cache(response, uri, cacheOptions ?? this.cacheOptions);
     }
 
     stopwatch.stop();
@@ -302,17 +295,14 @@ class Fetch<R> with CacheFactory, FetchLogger {
     /// Log
     log(
       response,
-      isCached: cached,
+      isCached: resolvedCache != null,
       enableLogs: enableLogs ?? this.enableLogs,
     );
 
-    final R result;
-
-    if (transform != null) {
-      result = await transform!(response);
-    } else {
-      result = response as R;
-    }
+    final result = switch (transform == null) {
+      false => await transform!(response),
+      true => response as R,
+    };
 
     _onFetchController.add(result);
 

@@ -1,17 +1,15 @@
-// ignore_for_file: constant_identifier_names, parameter_assignments
-
 part of 'fetch.dart';
 
 enum CacheStrategy {
-  URL_WITHOUT_QUERY,
-  FULL_URL,
+  urlWithoutQuery,
+  fullUrl;
 }
 
 //! ----------------------------------------------------------------------------
 class CacheOptions {
   const CacheOptions({
     this.duration = Duration.zero,
-    this.strategy = CacheStrategy.FULL_URL,
+    this.strategy = CacheStrategy.fullUrl,
   });
 
   final Duration duration;
@@ -22,12 +20,12 @@ class CacheOptions {
 class Cache {
   const Cache(
     this.response,
-    this.duration,
+    this.options,
     this.date,
   );
 
   final FetchResponse response;
-  final Duration duration;
+  final CacheOptions options;
   final DateTime date;
 }
 
@@ -36,33 +34,26 @@ mixin CacheFactory {
   final _caches = <Uri, Cache>{};
 
   Cache? resolveCache(Uri uri, CacheOptions options) {
-    uri = uri.removeFragment();
+    final url = switch (options.strategy) {
+      CacheStrategy.urlWithoutQuery => uri.replace(query: ''),
+      CacheStrategy.fullUrl => uri,
+    }
+        .removeFragment();
 
-    return switch (options.strategy) {
-      CacheStrategy.FULL_URL => _caches[uri],
-      CacheStrategy.URL_WITHOUT_QUERY => _caches[uri.replace(query: '')],
-    };
-  }
-
-  bool isCached(Uri uri, CacheOptions options) {
-    uri = uri.removeFragment();
-
-    if (CacheStrategy.URL_WITHOUT_QUERY == options.strategy) {
-      uri = uri.replace(query: '');
+    if (options.duration == Duration.zero || !_caches.containsKey(url)) {
+      return _caches[url];
     }
 
-    if (options.duration == Duration.zero || !_caches.containsKey(uri)) {
-      return false;
-    }
-
-    final entry = _caches[uri]!;
-    final isAfter = entry.date.add(entry.duration).isAfter(DateTime.now());
+    final entry = _caches[url]!;
+    final isAfter = entry.date.add(entry.options.duration).isAfter(
+          DateTime.now(),
+        );
 
     if (!isAfter) {
-      _caches.remove(uri);
+      _caches.remove(url);
     }
 
-    return isAfter;
+    return null;
   }
 
   void cache(FetchResponse response, Uri uri, CacheOptions options) {
@@ -71,16 +62,13 @@ mixin CacheFactory {
     if (options.duration == Duration.zero) {
       return;
     }
+    final now = DateTime.now();
+    final cachedData = Cache(response, options, now);
 
-    final cachedData = Cache(
-      response,
-      options.duration,
-      DateTime.now(),
-    );
-
-    final uriKey = options.strategy == CacheStrategy.FULL_URL
-        ? uri
-        : uri.replace(query: '');
+    final uriKey = switch (options.strategy) {
+      CacheStrategy.urlWithoutQuery => uri.replace(query: ''),
+      CacheStrategy.fullUrl => uri,
+    };
 
     _caches[uriKey] = cachedData;
   }
