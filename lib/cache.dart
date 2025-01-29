@@ -5,15 +5,19 @@ enum CacheStrategy {
   fullUrl;
 }
 
+bool _defaultCanCache(FetchResponse response) => true;
+
 //! ----------------------------------------------------------------------------
 class CacheOptions {
   const CacheOptions({
     this.duration = Duration.zero,
     this.strategy = CacheStrategy.fullUrl,
+    this.canCache = _defaultCanCache,
   });
 
   final Duration duration;
   final CacheStrategy strategy;
+  final bool Function(FetchResponse response) canCache;
 }
 
 //! ----------------------------------------------------------------------------
@@ -57,11 +61,16 @@ mixin CacheFactory {
   }
 
   void cache(FetchResponse response, Uri uri, CacheOptions options) {
+    if (!options.canCache(response)) {
+      return;
+    }
+
     uri = uri.removeFragment();
 
     if (options.duration == Duration.zero) {
       return;
     }
+
     final now = DateTime.now();
     final cachedData = Cache(response, options, now);
 
