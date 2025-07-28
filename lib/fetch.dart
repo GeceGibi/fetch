@@ -125,7 +125,6 @@ class Fetch<R extends FetchResponse> with CacheFactory {
     this.cacheOptions = const CacheOptions(),
     this.transform,
     this.override,
-    this.onLog,
   }) {
     if (base != null) {
       this.base = base;
@@ -165,13 +164,6 @@ class Fetch<R extends FetchResponse> with CacheFactory {
   /// Stream controller for fetch events
   final _onFetchController = StreamController<R>.broadcast();
 
-  /// Custom logging function for request/response events
-  ///
-  /// This function is called whenever a request/response event occurs.
-  /// It receives the FetchLog and a boolean indicating if the response was cached.
-  /// If null, logs are printed to console by default.
-  final void Function(R response, bool isCached)? onLog;
-
   /// List of all fetch logs for this instance
   final fetchLogs = <FetchLog>[];
 
@@ -187,19 +179,14 @@ class Fetch<R extends FetchResponse> with CacheFactory {
 
     fetchLogs.add(fetchLog);
 
-    if (onLog != null) {
-      onLog!(response, isCached);
+    if (!enableLogs) {
+      return;
     }
 
-    ///
-    else if (enableLogs) {
-      // Print log to console
-      final pattern = RegExp('.{1,800}');
-
-      for (final match in pattern.allMatches(fetchLog.toString().trim())) {
-        // ignore: avoid_print
-        print(match.group(0));
-      }
+    final pattern = RegExp('.{1,800}');
+    for (final match in pattern.allMatches(fetchLog.toString().trim())) {
+      // ignore: avoid_print
+      print(match.group(0));
     }
   }
 
@@ -436,7 +423,6 @@ class Fetch<R extends FetchResponse> with CacheFactory {
   }) async {
     /// Create uri
     final Uri uri;
-    final stopwatch = Stopwatch()..start();
 
     if (endpoint.startsWith('http')) {
       final parseUri = Uri.parse(endpoint);
@@ -469,6 +455,8 @@ class Fetch<R extends FetchResponse> with CacheFactory {
       method: method,
       headers: mergedHeaders,
     );
+
+    final stopwatch = Stopwatch()..start();
 
     /// Override
     if (response == null) {
