@@ -1,5 +1,10 @@
 // ignore_for_file: constant_identifier_names
 
+/// A comprehensive HTTP client library for Dart/Flutter applications.
+///
+/// This library provides a modern, type-safe HTTP client with built-in caching,
+/// logging, and response transformation capabilities. It's designed to be easy
+/// to use while providing powerful features for production applications.
 library fetch;
 
 import 'dart:async';
@@ -12,10 +17,23 @@ part 'logger.dart';
 part 'helpers.dart';
 part 'response.dart';
 
+/// Type alias for HTTP headers map
 typedef FetchHeaders = Map<String, String>;
+
+/// Type alias for HTTP method function signature
 typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
 
+/// Represents the payload for an HTTP request.
+///
+/// This class encapsulates all the necessary information for making an HTTP request
+/// including the URI, method, headers, and body.
 class FetchPayload {
+  /// Creates a new FetchPayload instance.
+  ///
+  /// [uri] - The target URI for the request
+  /// [method] - The HTTP method (GET, POST, PUT, DELETE, etc.)
+  /// [headers] - Optional HTTP headers
+  /// [body] - Optional request body
   FetchPayload({
     required this.uri,
     required this.method,
@@ -23,11 +41,21 @@ class FetchPayload {
     this.body,
   });
 
+  /// The target URI for the request
   final Uri uri;
+
+  /// The HTTP method (GET, POST, PUT, DELETE, etc.)
   final String method;
+
+  /// Optional request body
   final Object? body;
+
+  /// Optional HTTP headers
   final FetchHeaders? headers;
 
+  /// Creates a copy of this FetchPayload with the given fields replaced by new values.
+  ///
+  /// Returns a new FetchPayload instance with updated values.
   FetchPayload copyWith({
     Uri? uri,
     String? method,
@@ -44,17 +72,50 @@ class FetchPayload {
 
   @override
   String toString() {
-    // ignore: lines_longer_than_80_chars
     return 'FetchPayload(method: $method, uri: $uri, headers: $headers, body: $body)';
   }
 }
 
+/// Type alias for request override function
+///
+/// This function allows you to intercept and modify requests before they are sent.
+/// It receives the payload and the original method function.
 typedef FetchOverride = Future<FetchResponse> Function(
   FetchPayload payload,
   FetchMethod method,
 );
 
-class Fetch<R> with CacheFactory, FetchLogger {
+/// A comprehensive HTTP client with caching, logging, and transformation capabilities.
+///
+/// This class provides a modern HTTP client that supports:
+/// - Built-in caching with configurable strategies
+/// - Request/response logging
+/// - Response transformation
+/// - Request overriding
+/// - Timeout handling
+/// - Header building
+///
+/// Example usage:
+/// ```dart
+/// final fetch = Fetch<Map<String, dynamic>>(
+///   base: Uri.parse('https://api.example.com'),
+///   transform: (response) => response.jsonBody as Map<String, dynamic>,
+/// );
+///
+/// final data = await fetch.get('/users');
+/// ```
+class Fetch<R> with CacheFactory {
+  /// Creates a new Fetch instance.
+  ///
+  /// [base] - Base URI for all requests (optional)
+  /// [headerBuilder] - Function to build headers for each request
+  /// [encoding] - Character encoding for requests/responses (default: utf8)
+  /// [enableLogs] - Whether to enable request/response logging
+  /// [timeout] - Request timeout duration (default: 30 seconds)
+  /// [cacheOptions] - Cache configuration options
+  /// [transform] - Function to transform responses (required if R != FetchResponse)
+  /// [override] - Function to override requests before sending
+  /// [onLog] - Custom logging function for request/response events
   Fetch({
     Uri? base,
     this.headerBuilder,
@@ -64,6 +125,7 @@ class Fetch<R> with CacheFactory, FetchLogger {
     this.cacheOptions = const CacheOptions(),
     this.transform,
     this.override,
+    this.onLog,
   }) {
     if (base != null) {
       this.base = base;
@@ -71,27 +133,86 @@ class Fetch<R> with CacheFactory, FetchLogger {
 
     if (transform == null && R != FetchResponse) {
       throw ArgumentError(
-        // ignore: lines_longer_than_80_chars
         'Fetch(...) must be Fetch<FetchResponse>(...) or transform method must be defined.',
       );
     }
   }
 
-  ///
+  /// Base URI for all requests
   Uri base = Uri();
 
+  /// Whether to enable request/response logging
   final bool enableLogs;
+
+  /// Request timeout duration
   final Duration timeout;
+
+  /// Character encoding for requests/responses
   final Encoding encoding;
 
+  /// Optional request override function
   final FetchOverride? override;
+
+  /// Cache configuration options
   final CacheOptions cacheOptions;
+
+  /// Function to build headers for each request
   final FutureOr<FetchHeaders> Function()? headerBuilder;
+
+  /// Function to transform responses
   final FutureOr<R> Function(FetchResponse response)? transform;
 
+  /// Stream controller for fetch events
   final _onFetchController = StreamController<R>.broadcast();
 
-  /// GET
+  /// Custom logging function for request/response events
+  ///
+  /// This function is called whenever a request/response event occurs.
+  /// It receives the FetchLog and a boolean indicating if the response was cached.
+  /// If null, logs are printed to console by default.
+  final void Function(FetchLog fetchLog, {bool isCached})? onLog;
+
+  /// List of all fetch logs for this instance
+  final fetchLogs = <FetchLog>[];
+
+  /// Internal logging method that handles request/response logging.
+  ///
+  /// This method creates a FetchLog entry and either calls the custom onLog function
+  /// or prints the log to console with line wrapping.
+  ///
+  /// [response] - The HTTP response to log
+  /// [isCached] - Whether the response was retrieved from cache
+  void _onLog(FetchResponse response, {bool isCached = false}) {
+    final fetchLog = FetchLog(response, isCached: isCached);
+
+    fetchLogs.add(fetchLog);
+
+    if (onLog != null) {
+      onLog?.call(fetchLog, isCached: isCached);
+      return;
+    }
+
+    // Print log to console
+    final pattern = RegExp('.{1,800}');
+
+    for (final match in pattern.allMatches(fetchLog.toString().trim())) {
+      // ignore: avoid_print
+      print(match.group(0));
+    }
+  }
+
+  /// Stream of fetch events
+  Stream<R> get onFetch => _onFetchController.stream;
+
+  /// Performs a GET request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> get(
     String endpoint, {
     Map<String, dynamic>? queryParams,
@@ -109,6 +230,15 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Performs a HEAD request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> head(
     String endpoint, {
     Map<String, dynamic>? queryParams,
@@ -126,7 +256,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
-  /// POST
+  /// Performs a POST request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [body] - The request body
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> post(
     String endpoint,
     Object? body, {
@@ -146,6 +285,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Performs a PUT request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [body] - The request body
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> put(
     String endpoint,
     Object? body, {
@@ -165,6 +314,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Performs a DELETE request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [body] - The request body
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> delete(
     String endpoint,
     Object? body, {
@@ -184,6 +343,16 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Performs a PATCH request.
+  ///
+  /// [endpoint] - The endpoint to request (can be full URL or relative path)
+  /// [body] - The request body
+  /// [queryParams] - Optional query parameters
+  /// [headers] - Optional HTTP headers
+  /// [cacheOptions] - Optional cache options for this request
+  /// [enableLogs] - Whether to enable logging for this request
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> patch(
     String endpoint,
     Object? body, {
@@ -203,6 +372,11 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Executes the HTTP request using the http package.
+  ///
+  /// [payload] - The request payload containing all necessary information
+  ///
+  /// Returns a Future that completes with the HTTP response.
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
     final FetchPayload(:uri, :method, :body, :headers) = payload;
     final request = http.Request(method, uri)..headers.addAll(headers ?? {});
@@ -230,6 +404,25 @@ class Fetch<R> with CacheFactory, FetchLogger {
     );
   }
 
+  /// Internal worker method that handles all HTTP requests.
+  ///
+  /// This method orchestrates the entire request lifecycle including:
+  /// - URI construction
+  /// - Header merging
+  /// - Cache resolution
+  /// - Request execution
+  /// - Response transformation
+  /// - Logging
+  ///
+  /// [method] - The HTTP method
+  /// [endpoint] - The endpoint to request
+  /// [headers] - HTTP headers
+  /// [body] - Request body
+  /// [queryParams] - Query parameters
+  /// [cacheOptions] - Cache options
+  /// [enableLogs] - Whether to enable logging
+  ///
+  /// Returns a Future that completes with the transformed response.
   Future<R> _worker(
     String method, {
     required String endpoint,
@@ -293,10 +486,9 @@ class Fetch<R> with CacheFactory, FetchLogger {
     response.elapsed = stopwatch.elapsed;
 
     /// Log
-    log(
+    _onLog(
       response,
       isCached: resolvedCache != null,
-      enableLogs: enableLogs ?? this.enableLogs,
     );
 
     final result = switch (transform == null) {
@@ -307,5 +499,13 @@ class Fetch<R> with CacheFactory, FetchLogger {
     _onFetchController.add(result);
 
     return result;
+  }
+
+  /// Disposes the fetch instance and cleans up resources.
+  ///
+  /// This method should be called when the fetch instance is no longer needed
+  /// to prevent memory leaks.
+  void dispose() {
+    _onFetchController.close();
   }
 }

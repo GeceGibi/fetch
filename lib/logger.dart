@@ -1,49 +1,43 @@
 part of 'fetch.dart';
 
-mixin FetchLogger {
-  final fetchLogs = <FetchLog>[];
-
-  ///
-  void log(
-    FetchResponse response, {
-    bool isCached = false,
-    bool enableLogs = false,
-  }) {
-    final fetchLog = FetchLog(
-      response,
-      isCached: isCached,
-    );
-
-    fetchLogs.add(fetchLog);
-
-    if (enableLogs) {
-      _printer(fetchLog);
-    }
-  }
-
-  void _printer(Object? data) {
-    final pattern = RegExp('.{1,800}');
-
-    for (final match in pattern.allMatches('$data')) {
-      // ignore: avoid_print
-      print(match.group(0));
-    }
-  }
-}
-
+/// Mixin that provides logging functionality for HTTP requests and responses.
+///
+/// This mixin adds logging capabilities to the Fetch class, including:
+/// - Request/response logging
+/// - Cache hit/miss logging
+/// - Performance timing
+/// - Structured log output
+/// Represents a single fetch log entry.
+///
+/// This class encapsulates all the information about a single HTTP request/response
+/// including timing, headers, body, and cache status.
 class FetchLog {
+  /// Creates a new FetchLog instance.
+  ///
+  /// [response] - The HTTP response to log
+  /// [isCached] - Whether the response was retrieved from cache
   FetchLog(this.response, {this.isCached = false}) : date = DateTime.now();
 
+  /// The HTTP response
   final FetchResponse response;
+
+  /// When this log entry was created
   final DateTime? date;
+
+  /// Whether the response was retrieved from cache
   final bool isCached;
 
+  /// Returns a formatted string representation of the log entry.
+  ///
+  /// This method creates a structured, readable log output including:
+  /// - Request URL and method
+  /// - Response status and timing
+  /// - Request and response headers
+  /// - Request and response bodies
+  /// - Cache status
   @override
   String toString() {
-    final FetchResponse(
-      :elapsed,
-      :postBody,
-    ) = response;
+    final FetchResponse(:elapsed, :postBody) = response;
 
     final http.Response(
       :request,
