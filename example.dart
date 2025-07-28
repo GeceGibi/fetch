@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
@@ -8,7 +7,7 @@ import 'package:fetch/fetch.dart';
 ///
 /// This class shows how to create a custom response type with
 /// additional functionality like isolate-based JSON parsing.
-class IResponse extends FetchResponse with FetchJsonResponse {
+class IResponse extends FetchResponse {
   /// Creates a new IResponse instance.
   ///
   /// [response] - The original HTTP response
@@ -16,17 +15,7 @@ class IResponse extends FetchResponse with FetchJsonResponse {
   /// [elapsed] - Request duration
   /// [encoding] - Character encoding
   /// [postBody] - Original request body
-  IResponse.fromResponse(
-    super.response, {
-    super.elapsed,
-    super.encoding,
-    super.postBody,
-    this.jsonBody,
-  }) : super.fromResponse();
-
-  /// The parsed JSON body
-  @override
-  final dynamic jsonBody;
+  IResponse(super.response) : super();
 
   /// Converts the response to a List using isolate-based parsing.
   ///
@@ -36,9 +25,7 @@ class IResponse extends FetchResponse with FetchJsonResponse {
   @override
   FutureOr<List<E>> asList<E>() {
     return Isolate.run(
-      () {
-        return super.asList();
-      },
+      () => super.asList<E>(),
       debugName: 'asList<$E>',
     );
   }
@@ -52,9 +39,7 @@ class IResponse extends FetchResponse with FetchJsonResponse {
   @override
   FutureOr<Map<K, V>> asMap<K, V>() {
     return Isolate.run(
-      () {
-        return super.asMap();
-      },
+      () => super.asMap<K, V>(),
       debugName: 'asMap<$K, $V>',
     );
   }
@@ -92,12 +77,7 @@ void main(List<String> args) async {
     },
     transform: (response) {
       // Transform the response to our custom type
-      return IResponse.fromResponse(
-        response,
-        jsonBody: jsonDecode(response.encoding.decode(response.bodyBytes)),
-        elapsed: response.elapsed,
-        postBody: response.postBody,
-      );
+      return IResponse(response.response);
     },
   );
 

@@ -14,10 +14,12 @@ class FetchLog<R extends FetchResponse> {
     this.response, {
     this.isCached = false,
     this.maxBodyLength,
+    this.postBody,
+    this.elapsed,
   }) : date = DateTime.now();
 
   /// The HTTP response
-  final R response;
+  final http.Response response;
 
   /// When this log entry was created
   final DateTime date;
@@ -27,6 +29,12 @@ class FetchLog<R extends FetchResponse> {
 
   /// Maximum body length to log
   final int? maxBodyLength;
+
+  /// The original request body
+  final Object? postBody;
+
+  /// Request duration
+  final Duration? elapsed;
 
   /// Truncate text if it's too long
   String _truncate(String text) {
@@ -56,15 +64,13 @@ class FetchLog<R extends FetchResponse> {
   /// - Cache status
   @override
   String toString() {
-    final FetchResponse(:elapsed, :postBody) = response;
-
     final http.Response(
       :request,
+      :headers,
+      :body,
       :statusCode,
       :reasonPhrase,
-      :contentLength,
-      :headers,
-      :body
+      :contentLength
     ) = response;
 
     final reqHeaderEntries = request?.headers.entries ?? [];

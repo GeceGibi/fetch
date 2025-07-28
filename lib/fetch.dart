@@ -104,7 +104,7 @@ typedef FetchOverride = Future<FetchResponse> Function(
 ///
 /// final data = await fetch.get('/users');
 /// ```
-class Fetch<R extends FetchResponse> with CacheFactory {
+class Fetch<R> with CacheFactory {
   /// Creates a new Fetch instance.
   ///
   /// [base] - Base URI for all requests (optional)
@@ -174,8 +174,18 @@ class Fetch<R extends FetchResponse> with CacheFactory {
   ///
   /// [response] - The HTTP response to log
   /// [isCached] - Whether the response was retrieved from cache
-  void _onLog(R response, {bool isCached = false}) {
-    final fetchLog = FetchLog(response, isCached: isCached);
+  void _onLog(
+    http.Response response,
+    Object? postBody,
+    Duration elapsed, {
+    bool isCached = false,
+  }) {
+    final fetchLog = FetchLog(
+      response,
+      elapsed: elapsed,
+      postBody: postBody,
+      isCached: isCached,
+    );
 
     fetchLogs.add(fetchLog);
 
@@ -386,11 +396,7 @@ class Fetch<R extends FetchResponse> with CacheFactory {
       await request.send().timeout(timeout),
     );
 
-    return FetchResponse.fromResponse(
-      response,
-      encoding: encoding,
-      postBody: payload.body,
-    );
+    return FetchResponse(response, postBody: payload.body);
   }
 
   /// Internal worker method that handles all HTTP requests.
@@ -473,15 +479,19 @@ class Fetch<R extends FetchResponse> with CacheFactory {
     }
 
     stopwatch.stop();
-    response.elapsed = stopwatch.elapsed;
 
     final result = switch (transform == null) {
-      false => await transform!(response),
       true => response as R,
+      false => await transform!(response),
     };
 
     /// Log
-    _onLog(result, isCached: resolvedCache != null);
+    _onLog(
+      response.response,
+      payload.body,
+      stopwatch.elapsed,
+      isCached: resolvedCache != null,
+    );
 
     _onFetchController.add(result);
 
