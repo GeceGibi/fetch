@@ -170,7 +170,7 @@ class Fetch<R> with CacheFactory {
   /// This function is called whenever a request/response event occurs.
   /// It receives the FetchLog and a boolean indicating if the response was cached.
   /// If null, logs are printed to console by default.
-  final void Function(FetchLog fetchLog, {bool isCached})? onLog;
+  final void Function(FetchLog fetchLog)? onLog;
 
   /// List of all fetch logs for this instance
   final fetchLogs = <FetchLog>[];
@@ -188,16 +188,18 @@ class Fetch<R> with CacheFactory {
     fetchLogs.add(fetchLog);
 
     if (onLog != null) {
-      onLog?.call(fetchLog, isCached: isCached);
-      return;
+      onLog!(fetchLog);
     }
 
-    // Print log to console
-    final pattern = RegExp('.{1,800}');
+    ///
+    else if (enableLogs) {
+      // Print log to console
+      final pattern = RegExp('.{1,800}');
 
-    for (final match in pattern.allMatches(fetchLog.toString().trim())) {
-      // ignore: avoid_print
-      print(match.group(0));
+      for (final match in pattern.allMatches(fetchLog.toString().trim())) {
+        // ignore: avoid_print
+        print(match.group(0));
+      }
     }
   }
 
