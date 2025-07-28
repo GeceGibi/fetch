@@ -104,7 +104,7 @@ typedef FetchOverride = Future<FetchResponse> Function(
 ///
 /// final data = await fetch.get('/users');
 /// ```
-class Fetch<R> with CacheFactory {
+class Fetch<R extends FetchResponse> with CacheFactory {
   /// Creates a new Fetch instance.
   ///
   /// [base] - Base URI for all requests (optional)
@@ -170,7 +170,7 @@ class Fetch<R> with CacheFactory {
   /// This function is called whenever a request/response event occurs.
   /// It receives the FetchLog and a boolean indicating if the response was cached.
   /// If null, logs are printed to console by default.
-  final void Function(FetchLog fetchLog)? onLog;
+  final void Function(R response)? onLog;
 
   /// List of all fetch logs for this instance
   final fetchLogs = <FetchLog>[];
@@ -182,13 +182,13 @@ class Fetch<R> with CacheFactory {
   ///
   /// [response] - The HTTP response to log
   /// [isCached] - Whether the response was retrieved from cache
-  void _onLog(FetchResponse response, {bool isCached = false}) {
+  void _onLog(R response, {bool isCached = false}) {
     final fetchLog = FetchLog(response, isCached: isCached);
 
     fetchLogs.add(fetchLog);
 
     if (onLog != null) {
-      onLog!(fetchLog);
+      onLog!(response);
     }
 
     ///
@@ -487,16 +487,13 @@ class Fetch<R> with CacheFactory {
     stopwatch.stop();
     response.elapsed = stopwatch.elapsed;
 
-    /// Log
-    _onLog(
-      response,
-      isCached: resolvedCache != null,
-    );
-
     final result = switch (transform == null) {
       false => await transform!(response),
       true => response as R,
     };
+
+    /// Log
+    _onLog(result, isCached: resolvedCache != null);
 
     _onFetchController.add(result);
 

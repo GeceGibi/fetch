@@ -78,9 +78,9 @@ void main(List<String> args) async {
         'content-type': 'application/json',
       };
     },
-    onLog: (log) {
-      print(log);
-    },
+    // onLog: (response) {
+    //   print(response.elapsed);
+    // },
     override: (payload, method) {
       // Example of request overriding - modifying POST requests
       if (payload.method == 'POST') {
