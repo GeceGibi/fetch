@@ -13,7 +13,7 @@ class FetchLog<R extends FetchResponse> {
   FetchLog(
     this.response, {
     this.isCached = false,
-    this.maxBodyLength = 100,
+    this.maxBodyLength,
   }) : date = DateTime.now();
 
   /// The HTTP response
@@ -26,11 +26,11 @@ class FetchLog<R extends FetchResponse> {
   final bool isCached;
 
   /// Maximum body length to log
-  final int maxBodyLength;
+  final int? maxBodyLength;
 
   /// Truncate text if it's too long
   String _truncate(String text) {
-    if (text.length <= maxBodyLength) return text;
+    if (maxBodyLength == null || text.length <= maxBodyLength!) return text;
     return '${text.substring(0, maxBodyLength)}... (truncated)';
   }
 
@@ -57,6 +57,7 @@ class FetchLog<R extends FetchResponse> {
   @override
   String toString() {
     final FetchResponse(:elapsed, :postBody) = response;
+
     final http.Response(
       :request,
       :statusCode,
