@@ -13,8 +13,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 part 'cache.dart';
-part 'logger.dart';
+part 'cancel.dart';
 part 'helpers.dart';
+part 'logger.dart';
 part 'response.dart';
 
 /// Type alias for HTTP headers map
@@ -34,11 +35,13 @@ class FetchPayload {
   /// [method] - The HTTP method (GET, POST, PUT, DELETE, etc.)
   /// [headers] - Optional HTTP headers
   /// [body] - Optional request body
+  /// [cancelToken] - Optional token for cancelling the request
   FetchPayload({
     required this.uri,
     required this.method,
     this.headers,
     this.body,
+    this.cancelToken,
   });
 
   /// The target URI for the request
@@ -53,6 +56,9 @@ class FetchPayload {
   /// Optional HTTP headers
   final FetchHeaders? headers;
 
+  /// Optional cancel token
+  final CancelToken? cancelToken;
+
   /// Creates a copy of this FetchPayload with the given fields replaced by new values.
   ///
   /// Returns a new FetchPayload instance with updated values.
@@ -61,12 +67,14 @@ class FetchPayload {
     String? method,
     Object? body,
     FetchHeaders? headers,
+    CancelToken? cancelToken,
   }) {
     return FetchPayload(
       uri: uri ?? this.uri,
       body: body ?? this.body,
       method: method ?? this.method,
       headers: headers ?? this.headers,
+      cancelToken: cancelToken ?? this.cancelToken,
     );
   }
 
@@ -167,8 +175,8 @@ class Fetch<R> with CacheFactory {
 
   /// Internal logging method that handles request/response logging.
   ///
-  /// This method creates a FetchLog entry and either calls the custom onLog function
-  /// or prints the log to console with line wrapping.
+  /// This method creates a FetchLog entry and prints it to console.
+  /// Only called when logging is enabled.
   ///
   /// [response] - The HTTP response to log
   /// [isCached] - Whether the response was retrieved from cache
@@ -187,10 +195,6 @@ class Fetch<R> with CacheFactory {
 
     fetchLogs.add(fetchLog);
 
-    if (!enableLogs) {
-      return;
-    }
-
     final pattern = RegExp('.{1,800}');
     for (final match in pattern.allMatches(fetchLog.toString().trim())) {
       // ignore: avoid_print
@@ -208,6 +212,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> get(
@@ -216,6 +221,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) async {
     return _worker(
       'GET',
@@ -224,6 +230,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -234,6 +241,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> head(
@@ -242,6 +250,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) {
     return _worker(
       'HEAD',
@@ -250,6 +259,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -261,6 +271,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> post(
@@ -270,6 +281,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) {
     return _worker(
       'POST',
@@ -279,6 +291,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -290,6 +303,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> put(
@@ -299,6 +313,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) {
     return _worker(
       'PUT',
@@ -308,6 +323,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -319,6 +335,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> delete(
@@ -328,6 +345,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) {
     return _worker(
       'DELETE',
@@ -337,6 +355,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -348,6 +367,7 @@ class Fetch<R> with CacheFactory {
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
   /// [enableLogs] - Whether to enable logging for this request
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> patch(
@@ -357,6 +377,7 @@ class Fetch<R> with CacheFactory {
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) {
     return _worker(
       'PATCH',
@@ -366,6 +387,7 @@ class Fetch<R> with CacheFactory {
       headers: headers,
       cacheOptions: cacheOptions,
       enableLogs: enableLogs,
+      cancelToken: cancelToken,
     );
   }
 
@@ -375,8 +397,19 @@ class Fetch<R> with CacheFactory {
   ///
   /// Returns a Future that completes with the HTTP response.
   Future<FetchResponse> _runMethod(FetchPayload payload) async {
-    final FetchPayload(:uri, :method, :body, :headers) = payload;
+    final FetchPayload(:uri, :method, :body, :headers, :cancelToken) = payload;
+
+    // Check if cancelled before starting
+    if (cancelToken?.isCancelled ?? false) {
+      throw const CancelledException();
+    }
+
+    final client = http.Client();
     final request = http.Request(method, uri)..headers.addAll(headers ?? {});
+
+    // Add cancel callback to close client immediately
+    void onCancel() => client.close();
+    cancelToken?._addCallback(onCancel);
 
     if (body != null) {
       if (body is String) {
@@ -390,16 +423,38 @@ class Fetch<R> with CacheFactory {
       }
     }
 
-    final response = await http.Response.fromStream(
-      await request.send().timeout(timeout),
-    );
+    try {
+      // Start the request
+      final streamedResponse = await client.send(request).timeout(timeout);
 
-    return FetchResponse(
-      response,
-      postBody: payload.body,
-      payload: payload,
-      retryMethod: _runMethod,
-    );
+      // Check if cancelled during request
+      if (cancelToken?.isCancelled ?? false) {
+        throw const CancelledException();
+      }
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // Check if cancelled after receiving response
+      if (cancelToken?.isCancelled ?? false) {
+        throw const CancelledException();
+      }
+
+      return FetchResponse(
+        response,
+        postBody: payload.body,
+        payload: payload,
+        retryMethod: _runMethod,
+      );
+    } catch (e) {
+      // If client was closed due to cancellation, throw CancelledException
+      if (cancelToken?.isCancelled ?? false) {
+        throw const CancelledException();
+      }
+      rethrow;
+    } finally {
+      cancelToken?._removeCallback(onCancel);
+      client.close();
+    }
   }
 
   /// Internal worker method that handles all HTTP requests.
@@ -419,6 +474,7 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Query parameters
   /// [cacheOptions] - Cache options
   /// [enableLogs] - Whether to enable logging
+  /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> _worker(
@@ -429,6 +485,7 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     CacheOptions? cacheOptions,
     bool? enableLogs,
+    CancelToken? cancelToken,
   }) async {
     /// Create uri
     final Uri uri;
@@ -464,6 +521,7 @@ class Fetch<R> with CacheFactory {
       body: body,
       method: method,
       headers: mergedHeaders,
+      cancelToken: cancelToken,
     );
 
     final stopwatch = Stopwatch()..start();
@@ -489,12 +547,14 @@ class Fetch<R> with CacheFactory {
     };
 
     /// Log
-    _onLog(
-      response.response,
-      payload.body,
-      stopwatch.elapsed,
-      isCached: resolvedCache != null,
-    );
+    if (enableLogs ?? this.enableLogs) {
+      _onLog(
+        response.response,
+        payload.body,
+        stopwatch.elapsed,
+        isCached: resolvedCache != null,
+      );
+    }
 
     _onFetchController.add(result);
 

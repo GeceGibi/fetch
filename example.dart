@@ -45,6 +45,64 @@ class IResponse extends FetchResponse {
   }
 }
 
+/// Test function for cancel functionality.
+Future<void> testCancel() async {
+  print('\n=== Testing Cancel Functionality ===');
+  
+  final fetch = Fetch<FetchResponse>(
+    base: Uri.parse('https://httpbin.org'),
+  );
+
+  // Test 1: Cancel before request starts
+  print('\nTest 1: Cancel before request');
+  final token1 = CancelToken();
+  token1.cancel();
+  
+  try {
+    await fetch.get('/delay/5', cancelToken: token1);
+    print('❌ Should have thrown CancelledException');
+  } on CancelledException catch (e) {
+    print('✅ Correctly threw CancelledException: $e');
+  } catch (e) {
+    print('❌ Unexpected exception: $e');
+  }
+
+  // Test 2: Cancel during request
+  print('\nTest 2: Cancel during request');
+  final token2 = CancelToken();
+  
+  // Use a longer delay endpoint (10 seconds)
+  final requestFuture = fetch.get('https://httpstat.us/200?sleep=10000', cancelToken: token2);
+  
+  // Cancel after 500ms
+  Future.delayed(const Duration(milliseconds: 500), () {
+    print('Cancelling request after 500ms...');
+    token2.cancel();
+  });
+  
+  try {
+    await requestFuture;
+    print('❌ Should have thrown CancelledException');
+  } on CancelledException catch (e) {
+    print('✅ Request cancelled successfully: $e');
+  } catch (e) {
+    print('❌ Unexpected exception: $e');
+  }
+
+  // Test 3: Normal request without cancel
+  print('\nTest 3: Normal request without cancel');
+  try {
+    final response = await fetch.get('https://httpstat.us/200');
+    print('✅ Normal request completed: ${response.response.statusCode}');
+  } on CancelledException catch (e) {
+    print('✅ Request cancelled successfully: $e');
+  } catch (e) {
+    print('❌ Normal request failed: $e');
+  }
+
+  print('\n=== Cancel Tests Completed ===\n');
+}
+
 /// Main function demonstrating the Fetch library usage.
 ///
 /// This example shows various features of the Fetch library including:
@@ -55,6 +113,11 @@ class IResponse extends FetchResponse {
 /// - Caching
 /// - Logging
 void main(List<String> args) async {
+  // Test cancel functionality first
+  await testCancel();
+
+  print('=== Starting Normal Examples ===\n');
+
   // Create a Fetch instance with custom configuration
   final fetch = Fetch(
     base: Uri.parse('https://api.gece.dev'),

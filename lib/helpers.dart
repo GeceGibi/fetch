@@ -33,12 +33,11 @@ class FetchHelpers {
 
   /// Converts a map with any key/value types to a string map.
   ///
-  /// This method safely converts map keys and values to strings,
-  /// handling null values and empty maps appropriately.
+  /// This method safely converts map keys and values to strings.
+  /// Returns null if the input is null or empty to prevent adding
+  /// unnecessary query separators to URLs.
   ///
   /// [map] - The map to convert
-  ///
-  /// Returns a Map<String, String> or null if the input is null or empty.
   ///
   /// Example:
   /// ```dart
@@ -49,13 +48,13 @@ class FetchHelpers {
   /// });
   /// // Result: {'key1': 'value1', 'key2': '123', 'key3': 'true'}
   /// ```
-  static FetchHeaders? mapStringy(Map<Object?, Object?>? map) {
+  static Map<String, String>? mapStringy(Map<Object?, Object?>? map) {
     if (map == null || map.isEmpty) {
       return null;
     }
 
     return map.map<String, String>(
-      (key, value) => MapEntry('$key', '$value'),
+      (key, value) => MapEntry(key.toString(), value.toString()),
     );
   }
 }
