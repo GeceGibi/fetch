@@ -1,7 +1,15 @@
 part of 'fetch.dart';
 
 class FetchResponse {
-  FetchResponse(this.response, {this.postBody, this.elapsed});
+  FetchResponse(
+    this.response, {
+    this.postBody,
+    this.elapsed,
+    FetchPayload? payload,
+    FetchMethod? retryMethod,
+  })  : _payload = payload,
+        _retryMethod = retryMethod;
+
   final http.Response response;
 
   /// Whether the response indicates a successful HTTP status.
@@ -16,6 +24,44 @@ class FetchResponse {
 
   /// The original request body (for logging purposes)
   final Object? postBody;
+
+  /// Internal: Original request payload for retry
+  final FetchPayload? _payload;
+
+  /// Internal: Method to call for retry
+  final FetchMethod? _retryMethod;
+
+  /// Retries the request with the same parameters.
+  ///
+  /// Returns a new FetchResponse with the retry result.
+  /// Throws [UnsupportedError] if retry is not available (e.g., response from cache).
+  Future<FetchResponse> retry() async {
+    if (_retryMethod == null || _payload == null) {
+      throw UnsupportedError(
+        'Retry is not available for this response. '
+        'This might be a cached response or the retry capability was not enabled.',
+      );
+    }
+
+    return await _retryMethod!(_payload!);
+  }
+
+  /// Retries the request with modified payload.
+  ///
+  /// [payload] - Modified payload for the retry request
+  ///
+  /// Returns a new FetchResponse with the retry result.
+  /// Throws [UnsupportedError] if retry is not available.
+  Future<FetchResponse> retryWith(FetchPayload payload) async {
+    if (_retryMethod == null) {
+      throw UnsupportedError(
+        'Retry is not available for this response. '
+        'This might be a cached response or the retry capability was not enabled.',
+      );
+    }
+
+    return await _retryMethod!(payload);
+  }
 
   /// Converts the JSON response to a strongly-typed Map.
   ///

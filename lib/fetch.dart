@@ -80,10 +80,8 @@ class FetchPayload {
 ///
 /// This function allows you to intercept and modify requests before they are sent.
 /// It receives the payload and the original method function.
-typedef FetchOverride = Future<FetchResponse> Function(
-  FetchPayload payload,
-  FetchMethod method,
-);
+typedef FetchOverride =
+    Future<FetchResponse> Function(FetchPayload payload, FetchMethod method);
 
 /// A comprehensive HTTP client with caching, logging, and transformation capabilities.
 ///
@@ -396,7 +394,12 @@ class Fetch<R> with CacheFactory {
       await request.send().timeout(timeout),
     );
 
-    return FetchResponse(response, postBody: payload.body);
+    return FetchResponse(
+      response,
+      postBody: payload.body,
+      payload: payload,
+      retryMethod: _runMethod,
+    );
   }
 
   /// Internal worker method that handles all HTTP requests.
@@ -448,9 +451,10 @@ class Fetch<R> with CacheFactory {
       );
     }
 
-    final mergedHeaders = FetchHelpers.mergeHeaders(
-      [await headerBuilder?.call() ?? {}, headers],
-    );
+    final mergedHeaders = FetchHelpers.mergeHeaders([
+      await headerBuilder?.call() ?? {},
+      headers,
+    ]);
 
     final resolvedCache = resolveCache(uri, cacheOptions ?? this.cacheOptions);
     var response = resolvedCache?.response;
@@ -469,7 +473,6 @@ class Fetch<R> with CacheFactory {
       if (override != null) {
         response = await override!(payload, _runMethod);
       }
-
       /// Request
       else {
         response = await _runMethod(payload);
