@@ -1,3 +1,30 @@
+## 3.3.0 - 2025-12-09
+
+### Changed
+- **BREAKING**: `retry()` method now accepts an optional callback function for payload modification
+- **BREAKING**: `retryWith()` method removed, use `retry()` callback instead
+
+### Examples
+```dart
+// Retry with original payload
+await response.retry();
+
+// Retry with modified payload
+await response.retry((payload) {
+  return payload.copyWith(
+    headers: {'Authorization': 'Bearer new-token'},
+  );
+});
+
+// Modify multiple fields
+await response.retry((payload) {
+  return payload.copyWith(
+    headers: {'Authorization': 'Bearer new-token'},
+    body: newBody,
+  );
+});
+```
+
 ## 3.2.2 - 2025-12-09
 
 ### Changed
@@ -8,15 +35,6 @@
 ### Added
 - `headers` parameter to `retry()` method for overriding request headers during retry
 - `headers` parameter to `retryWith()` method for overriding request headers during retry
-
-### Examples
-```dart
-// Retry with new headers
-await response.retry(headers: {'Authorization': 'Bearer new-token'});
-
-// Retry with modified payload and new headers
-await response.retryWith(newPayload, headers: {'Authorization': 'Bearer new-token'});
-```
 
 ## 3.2.0 - 2025-12-08
 

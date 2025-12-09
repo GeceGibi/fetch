@@ -31,13 +31,30 @@ class FetchResponse {
   /// Internal: Method to call for retry
   final FetchMethod? _retryMethod;
 
-  /// Retries the request with the same parameters.
+  /// Retries the request with optional payload modification.
   ///
-  /// [headers] - Optional headers to override the original request headers
+  /// [onRetry] - Optional callback to modify the payload before retrying.
+  ///             Receives the original payload and returns a modified payload.
+  ///             If not provided, retries with the original payload.
   ///
   /// Returns a new FetchResponse with the retry result.
   /// Throws [UnsupportedError] if retry is not available (e.g., response from cache).
-  Future<FetchResponse> retry({FetchHeaders? headers}) async {
+  ///
+  /// Example:
+  /// ```dart
+  /// // Retry with original payload
+  /// await response.retry();
+  ///
+  /// // Retry with modified payload
+  /// await response.retry((payload) {
+  ///   return payload.copyWith(
+  ///     headers: {'Authorization': 'Bearer new-token'},
+  ///   );
+  /// });
+  /// ```
+  Future<FetchResponse> retry([
+    FetchPayload Function(FetchPayload payload)? onRetry,
+  ]) async {
     if (_retryMethod == null || _payload == null) {
       throw UnsupportedError(
         'Retry is not available for this response. '
@@ -45,30 +62,8 @@ class FetchResponse {
       );
     }
 
-    final payload = _payload!.copyWith(headers: headers);
+    final payload = onRetry?.call(_payload!) ?? _payload!;
     return _retryMethod!(payload);
-  }
-
-  /// Retries the request with modified payload.
-  ///
-  /// [payload] - Modified payload for the retry request
-  /// [headers] - Optional headers to override the payload headers
-  ///
-  /// Returns a new FetchResponse with the retry result.
-  /// Throws [UnsupportedError] if retry is not available.
-  Future<FetchResponse> retryWith(
-    FetchPayload payload, {
-    FetchHeaders? headers,
-  }) async {
-    if (_retryMethod == null) {
-      throw UnsupportedError(
-        'Retry is not available for this response. '
-        'This might be a cached response or the retry capability was not enabled.',
-      );
-    }
-
-    final finalPayload = payload.copyWith(headers: headers);
-    return _retryMethod!(finalPayload);
   }
 
   /// Converts the JSON response to a strongly-typed Map.
