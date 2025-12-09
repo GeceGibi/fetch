@@ -33,9 +33,11 @@ class FetchResponse {
 
   /// Retries the request with the same parameters.
   ///
+  /// [headers] - Optional headers to override the original request headers
+  ///
   /// Returns a new FetchResponse with the retry result.
   /// Throws [UnsupportedError] if retry is not available (e.g., response from cache).
-  Future<FetchResponse> retry() async {
+  Future<FetchResponse> retry({FetchHeaders? headers}) async {
     if (_retryMethod == null || _payload == null) {
       throw UnsupportedError(
         'Retry is not available for this response. '
@@ -43,16 +45,21 @@ class FetchResponse {
       );
     }
 
-    return await _retryMethod!(_payload!);
+    final payload = _payload!.copyWith(headers: headers);
+    return _retryMethod!(payload);
   }
 
   /// Retries the request with modified payload.
   ///
   /// [payload] - Modified payload for the retry request
+  /// [headers] - Optional headers to override the payload headers
   ///
   /// Returns a new FetchResponse with the retry result.
   /// Throws [UnsupportedError] if retry is not available.
-  Future<FetchResponse> retryWith(FetchPayload payload) async {
+  Future<FetchResponse> retryWith(
+    FetchPayload payload, {
+    FetchHeaders? headers,
+  }) async {
     if (_retryMethod == null) {
       throw UnsupportedError(
         'Retry is not available for this response. '
@@ -60,7 +67,8 @@ class FetchResponse {
       );
     }
 
-    return await _retryMethod!(payload);
+    final finalPayload = payload.copyWith(headers: headers);
+    return _retryMethod!(finalPayload);
   }
 
   /// Converts the JSON response to a strongly-typed Map.
