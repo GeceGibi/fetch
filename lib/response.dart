@@ -53,7 +53,7 @@ class FetchResponse {
   /// });
   /// ```
   Future<FetchResponse> retry([
-    FetchPayload Function(FetchPayload payload)? onRetry,
+    FutureOr<FetchPayload> Function(FetchPayload payload)? onRetry,
   ]) async {
     if (_retryMethod == null || _payload == null) {
       throw UnsupportedError(
@@ -62,7 +62,7 @@ class FetchResponse {
       );
     }
 
-    final payload = onRetry?.call(_payload!) ?? _payload!;
+    final payload = await onRetry?.call(_payload!) ?? _payload!;
     return _retryMethod!(payload);
   }
 
