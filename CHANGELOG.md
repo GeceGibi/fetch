@@ -1,3 +1,8 @@
+## 3.2.2 - 2025-12-09
+
+### Changed
+- Code organization: `FetchPayload` moved to separate file for better maintainability
+
 ## 3.2.1 - 2025-12-09
 
 ### Added
