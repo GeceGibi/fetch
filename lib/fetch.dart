@@ -29,8 +29,8 @@ typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
 ///
 /// This function allows you to intercept and modify requests before they are sent.
 /// It receives the payload and the original method function.
-typedef FetchOverride =
-    Future<FetchResponse> Function(FetchPayload payload, FetchMethod method);
+typedef FetchOverride = Future<FetchResponse> Function(
+    FetchPayload payload, FetchMethod method);
 
 /// A comprehensive HTTP client with caching, logging, and transformation capabilities.
 ///
@@ -66,12 +66,12 @@ class Fetch<R> with CacheFactory {
     Uri? base,
     this.headerBuilder,
     this.encoding = utf8,
-    this.enableLogs = true,
     this.timeout = const Duration(seconds: 30),
     this.cacheOptions = const CacheOptions(),
     this.transform,
     this.override,
-  }) {
+    bool enableLogs = true,
+  }) : _enableLogs = enableLogs {
     if (base != null) {
       this.base = base;
     }
@@ -86,8 +86,7 @@ class Fetch<R> with CacheFactory {
   /// Base URI for all requests
   Uri base = Uri();
 
-  /// Whether to enable request/response logging
-  final bool enableLogs;
+
 
   /// Request timeout duration
   final Duration timeout;
@@ -112,6 +111,10 @@ class Fetch<R> with CacheFactory {
 
   /// List of all fetch logs for this instance
   final fetchLogs = <FetchLog>[];
+
+    /// Stream of fetch events
+  Stream<R> get onFetch => _onFetchController.stream;
+
 
   /// Internal logging method that handles request/response logging.
   ///
@@ -142,8 +145,6 @@ class Fetch<R> with CacheFactory {
     }
   }
 
-  /// Stream of fetch events
-  Stream<R> get onFetch => _onFetchController.stream;
 
   /// Performs a GET request.
   ///
@@ -471,6 +472,7 @@ class Fetch<R> with CacheFactory {
       if (override != null) {
         response = await override!(payload, _runMethod);
       }
+
       /// Request
       else {
         response = await _runMethod(payload);
@@ -499,6 +501,18 @@ class Fetch<R> with CacheFactory {
     _onFetchController.add(result);
 
     return result;
+  }
+
+  /// Clears the fetch logs.
+    /// Whether to enable request/response logging
+  bool _enableLogs = true;
+  bool get enableLogs => _enableLogs;
+  set enableLogs(bool value) {
+    _enableLogs = value;
+
+    if(!value) {
+      fetchLogs.clear();
+    }
   }
 
   /// Disposes the fetch instance and cleans up resources.
