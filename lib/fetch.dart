@@ -382,7 +382,6 @@ class Fetch<R> with CacheFactory {
 
       return FetchResponse(
         response,
-        postBody: payload.body,
         payload: payload,
         retryMethod: _runMethod,
       );

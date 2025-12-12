@@ -3,7 +3,6 @@ part of 'fetch.dart';
 class FetchResponse {
   FetchResponse(
     this.response, {
-    this.postBody,
     this.elapsed,
     FetchPayload? payload,
     FetchMethod? retryMethod,
@@ -21,9 +20,6 @@ class FetchResponse {
 
   /// Request duration (time taken to complete the request)
   Duration? elapsed;
-
-  /// The original request body (for logging purposes)
-  final Object? postBody;
 
   /// Internal: Original request payload for retry
   final FetchPayload? _payload;

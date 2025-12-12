@@ -104,12 +104,16 @@ mixin CacheFactory {
 
     final entry = _caches[url];
 
-    if (entry != null && entry.isExpired) {
+    if (entry == null) {
+      return null;
+    }
+
+    if (entry.isExpired) {
       removeCache(url);
       return null;
     }
 
-    return _caches[url];
+    return entry;
   }
 
   /// Caches a response for the given URI and options.
