@@ -1,3 +1,26 @@
+## 4.3.0 - 2025-12-18
+
+### Breaking Changes
+- **REMOVED**: `transform` parameter from `Fetch` constructor
+- **MOVED**: Transform logic is now part of `RequestExecutor`
+- **NEW**: `RequestExecutor.direct()` now accepts optional `transform` parameter
+- **BENEFIT**: Cleaner separation of concerns - executors handle their own transforms
+
+### Migration Guide
+```dart
+// Before (4.2.x)
+final fetch = Fetch<Map<String, dynamic>>(
+  transform: (response) => jsonDecode(response.response.body),
+);
+
+// After (4.3.x)
+final fetch = Fetch<Map<String, dynamic>>(
+  executor: RequestExecutor.direct(
+    transform: (response) => jsonDecode(response.response.body),
+  ),
+);
+```
+
 ## 4.2.0 - 2025-12-18
 
 ### Improvements

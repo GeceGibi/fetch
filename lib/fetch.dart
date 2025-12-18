@@ -35,24 +35,22 @@ export 'src/features/interceptor.dart';
 export 'src/features/retry.dart';
 export 'src/utils/exception.dart';
 
-/// A comprehensive HTTP client with caching, logging, and transformation capabilities.
+/// A comprehensive HTTP client with caching, logging, and request capabilities.
 ///
 /// This class provides a modern HTTP client that supports:
 /// - Built-in caching with configurable strategies
 /// - Request/response logging
-/// - Response transformation
-/// - Request overriding
+/// - Custom executors for platform-specific strategies
 /// - Timeout handling
 /// - Header building
 ///
 /// Example usage:
 /// ```dart
-/// final fetch = Fetch<Map<String, dynamic>>(
+/// final fetch = Fetch<FetchResponse>(
 ///   base: Uri.parse('https://api.example.com'),
-///   transform: (response) => response.jsonBody as Map<String, dynamic>,
 /// );
 ///
-/// final data = await fetch.get('/users');
+/// final response = await fetch.get('/users');
 /// ```
 class Fetch<R> with CacheFactory {
   /// Creates a new Fetch instance.
@@ -67,7 +65,6 @@ class Fetch<R> with CacheFactory {
   /// [retryOptions] - Retry configuration options
   /// [interceptors] - List of interceptors
   /// [onError] - Global error handler
-  /// [transform] - Function to transform responses (required if R != FetchResponse)
   /// [executor] - Request executor for platform-specific execution strategies
   Fetch({
     Uri? base,
@@ -79,19 +76,12 @@ class Fetch<R> with CacheFactory {
     this.retryOptions = const RetryOptions.disabled(),
     this.interceptors = const [],
     this.onError,
-    this.transform,
     RequestExecutor? executor,
     bool enableLogs = true,
   })  : executor = executor ?? DefaultExecutor(),
         _enableLogs = enableLogs {
     if (base != null) {
       this.base = base;
-    }
-
-    if (transform == null && R != FetchResponse) {
-      throw ArgumentError(
-        'Fetch(...) must be Fetch<FetchResponse>(...) or transform method must be defined.',
-      );
     }
   }
 
@@ -127,9 +117,6 @@ class Fetch<R> with CacheFactory {
 
   /// Function to build headers for each request
   final FutureOr<FetchHeaders> Function()? headerBuilder;
-
-  /// Function to transform responses
-  final FutureOr<R> Function(FetchResponse response)? transform;
 
   /// Stream controller for fetch events
   final _onFetchController = StreamController<R>.broadcast();
@@ -598,17 +585,18 @@ class Fetch<R> with CacheFactory {
           cache(fetchResponse, uri, cacheOptions ?? this.cacheOptions);
         }
       } else {
-        // Cached response needs transform
+        // Cached response - executor will handle transform
         var cachedResponse = response;
         for (final interceptor in interceptors) {
           cachedResponse = await interceptor.onResponse(cachedResponse);
         }
 
         fetchResponse = cachedResponse;
-        result = switch (transform == null) {
-          true => cachedResponse as R,
-          false => await transform!(cachedResponse),
-        };
+        // Use executor for consistent transform handling
+        result = await executor.execute<R>(
+          payload.copyWith(),
+          (_) async => cachedResponse,
+        );
       }
 
       stopwatch.stop();
@@ -655,7 +643,7 @@ class Fetch<R> with CacheFactory {
     }
   }
 
-  /// Execute request with retry logic and transformation
+  /// Execute request with retry logic
   Future<R> _executeWithRetry(
     FetchPayload payload,
     RetryOptions options,
@@ -669,7 +657,6 @@ class Fetch<R> with CacheFactory {
         return await executor.execute<R>(
           payload,
           _runMethod,
-          transform,
         );
       } on FetchException catch (e) {
         final shouldRetry =

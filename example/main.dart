@@ -170,20 +170,22 @@ Future<void> executorExample() async {
   final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
     executor: RequestExecutor.isolate(
-      isolateTransform: parseJsonResponse, // Top-level function
+      transform: parseJsonResponse, // Top-level function
     ),
   );
 
   final isolateData = await fetchIsolate.get('/get');
   print('Transform in isolate: ${isolateData['url']}');
 
-  // Default executor (main isolate)
+  // Default executor with transform (main isolate)
   final fetchDirect = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    transform: (response) {
-      print('Transform in main isolate...');
-      return jsonDecode(response.response.body) as Map<String, dynamic>;
-    },
+    executor: RequestExecutor.direct(
+      transform: (response) {
+        print('Transform in main isolate...');
+        return jsonDecode(response.response.body) as Map<String, dynamic>;
+      },
+    ),
   );
 
   final directData = await fetchDirect.get('/get');

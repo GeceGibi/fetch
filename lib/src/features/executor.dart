@@ -20,26 +20,26 @@ typedef IsolateTransformFunction = dynamic Function(http.Response response);
 /// execution for mobile/desktop or direct execution for web.
 abstract class RequestExecutor {
   /// Creates a default executor that runs in the main isolate
-  factory RequestExecutor.direct() = DefaultExecutor;
+  ///
+  /// [transform] - Optional transform function for responses
+  factory RequestExecutor.direct({dynamic Function(FetchResponse)? transform}) =
+      DefaultExecutor;
 
   /// Creates an isolate-based executor for CPU-intensive operations
   ///
-  /// [isolateTransform] - Top-level or static function for transform in isolate
-  factory RequestExecutor.isolate({
-    IsolateTransformFunction? isolateTransform,
-  }) = IsolateExecutor;
+  /// [transform] - Top-level or static function for transform in isolate
+  factory RequestExecutor.isolate({IsolateTransformFunction? transform}) =
+      IsolateExecutor;
 
-  /// Executes the request with the given payload and transforms the response.
+  /// Executes the request with the given payload.
   ///
   /// [payload] - The request payload
   /// [method] - The function that performs the actual HTTP request
-  /// [transform] - Optional function to transform the response
   ///
-  /// Returns the transformed result or FetchResponse if no transform provided
+  /// Returns the result (transformed if executor has transform configured)
   Future<R> execute<R>(
     FetchPayload payload,
     ExecutorMethod method,
-    TransformFunction<R>? transform,
   );
 }
 
@@ -48,11 +48,16 @@ abstract class RequestExecutor {
 /// This is suitable for web platforms and simple use cases where
 /// isolate overhead is not needed.
 class DefaultExecutor implements RequestExecutor {
+  /// Creates a default executor with optional transform
+  const DefaultExecutor({this.transform});
+
+  /// Optional transform function for responses
+  final dynamic Function(FetchResponse)? transform;
+
   @override
   Future<R> execute<R>(
     FetchPayload payload,
     ExecutorMethod method,
-    TransformFunction<R>? transform,
   ) async {
     final response = await method(payload);
 
@@ -60,7 +65,7 @@ class DefaultExecutor implements RequestExecutor {
       return response as R;
     }
 
-    return await transform(response);
+    return await transform!(response) as R;
   }
 }
 
@@ -72,16 +77,15 @@ class DefaultExecutor implements RequestExecutor {
 /// Note: Not supported on web platforms.
 class IsolateExecutor implements RequestExecutor {
   /// Creates an isolate executor with optional isolate-safe transform
-  const IsolateExecutor({this.isolateTransform});
+  const IsolateExecutor({this.transform});
 
   /// Isolate-safe transform function (must be top-level or static)
-  final IsolateTransformFunction? isolateTransform;
+  final IsolateTransformFunction? transform;
 
   @override
   Future<R> execute<R>(
     FetchPayload payload,
     ExecutorMethod method,
-    TransformFunction<R>? transform,
   ) async {
     final receivePort = ReceivePort();
 
@@ -92,7 +96,7 @@ class IsolateExecutor implements RequestExecutor {
           sendPort: receivePort.sendPort,
           payload: payload,
           method: method,
-          isolateTransform: isolateTransform,
+          transform: transform,
         ),
       );
 
@@ -115,8 +119,8 @@ class IsolateExecutor implements RequestExecutor {
       final fetchResponse = await message.method(message.payload);
 
       final R result;
-      if (message.isolateTransform != null) {
-        result = await message.isolateTransform!(fetchResponse.response) as R;
+      if (message.transform != null) {
+        result = await message.transform!(fetchResponse.response) as R;
       } else {
         result = fetchResponse as R;
       }
@@ -134,13 +138,13 @@ class _IsolateMessage<R> {
     required this.sendPort,
     required this.payload,
     required this.method,
-    this.isolateTransform,
+    this.transform,
   });
 
   final SendPort sendPort;
   final FetchPayload payload;
   final ExecutorMethod method;
-  final IsolateTransformFunction? isolateTransform;
+  final IsolateTransformFunction? transform;
 }
 
 /// Error wrapper for isolate errors
