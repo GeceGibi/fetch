@@ -1,3 +1,56 @@
+## 8.5.0 - 2025-12-18
+
+### Breaking Changes
+
+- **REMOVED**: `RetryExecutor` - Retry logic moved directly to `Fetch` class
+- **REMOVED**: `DebounceOptions`, `RetryOptions`, `CacheOptions` from Fetch constructor
+- **REMOVED**: `CacheFactory` mixin, `Cache` class (use `CacheInterceptor` instead)
+
+### New Features
+
+- **NEW**: Built-in retry support in `Fetch` class with `retryIf`, `maxAttempts`, `retryDelay`
+- **IMPROVED**: Interceptors now re-run on retry (enables token refresh scenarios)
+- **SIMPLIFIED**: `DebounceInterceptor` internal state management
+
+### Migration
+
+```dart
+// Before (8.4.0)
+final fetch = Fetch(
+  retryOptions: RetryOptions(maxAttempts: 3, retryIf: (e) => e.isServerError),
+  debounceOptions: DebounceOptions(duration: Duration(seconds: 1)),
+  cacheOptions: CacheOptions(duration: Duration(seconds: 10)),
+);
+
+// After (8.5.0)
+final fetch = Fetch(
+  maxAttempts: 3,
+  retryIf: (e) => e.statusCode != null && e.statusCode! >= 500,
+  interceptors: [
+    DebounceInterceptor(duration: Duration(seconds: 1)),
+    CacheInterceptor(duration: Duration(seconds: 10)),
+  ],
+);
+```
+
+### Token Refresh Example
+
+```dart
+final fetch = Fetch(
+  maxAttempts: 2,
+  retryIf: (error) async {
+    if (error.statusCode == 401) {
+      await refreshToken();
+      return true; // Interceptors re-run, AuthInterceptor gets fresh token
+    }
+    return false;
+  },
+  interceptors: [
+    AuthInterceptor(getToken: () => currentToken),
+  ],
+);
+```
+
 ## 8.4.0 - 2025-12-18
 
 ### New Features

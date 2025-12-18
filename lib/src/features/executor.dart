@@ -3,7 +3,6 @@ import 'dart:isolate';
 
 import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
-import 'package:fetch/src/utils/exception.dart';
 
 /// Type alias for the method function that executes HTTP requests
 typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
@@ -49,80 +48,5 @@ class IsolateExecutor implements RequestExecutor {
     ExecutorMethod method,
   ) async {
     return Isolate.run(() => method(payload));
-  }
-}
-
-/// Retry executor that wraps another executor with retry logic.
-///
-/// This executor automatically retries failed requests based on the
-/// configured retry policy.
-class RetryExecutor implements RequestExecutor {
-  const RetryExecutor({
-    required this.executor,
-    this.maxAttempts = 3,
-    this.retryDelay = const Duration(seconds: 1),
-    this.retryIf,
-  });
-
-  /// The underlying executor to use for requests
-  final RequestExecutor executor;
-
-  /// Maximum number of attempts (includes initial attempt)
-  final int maxAttempts;
-
-  /// Delay between retries
-  final Duration retryDelay;
-
-  /// Function to determine whether to retry on error
-  /// Can be async to refresh tokens before retry
-  /// If null, retries on network and http errors
-  ///
-  /// Example - refresh token on 401:
-  /// ```dart
-  /// RetryExecutor(
-  ///   executor: DefaultExecutor(),
-  ///   retryIf: (error) async {
-  ///     if (error.statusCode == 401) {
-  ///       await refreshToken();
-  ///       return true;
-  ///     }
-  ///     return false;
-  ///   },
-  /// )
-  /// ```
-  final FutureOr<bool> Function(FetchException error)? retryIf;
-
-  FutureOr<bool> _shouldRetry(FetchException error) {
-    if (retryIf != null) {
-      return retryIf!(error);
-    }
-    // Default: retry on network and http errors
-    return error.type == FetchExceptionType.network ||
-        error.type == FetchExceptionType.http;
-  }
-
-  @override
-  Future<FetchResponse> execute(
-    FetchPayload payload,
-    ExecutorMethod method,
-  ) async {
-    var attempt = 0;
-
-    while (true) {
-      attempt++;
-
-      try {
-        return await executor.execute(payload, method);
-      } on FetchException catch (e) {
-        final shouldRetry = await _shouldRetry(e);
-
-        if (!shouldRetry || attempt >= maxAttempts) {
-          rethrow;
-        }
-
-        // Wait before retry
-        await Future<void>.delayed(retryDelay);
-      }
-    }
   }
 }

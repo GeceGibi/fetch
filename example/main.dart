@@ -103,21 +103,33 @@ Future<void> throttleExample() async {
   await Future<void>.delayed(const Duration(seconds: 3));
 }
 
-/// Retry on failure using RetryExecutor
+/// Retry on failure with token refresh support
 Future<void> retryExample() async {
   print('\n=== Retry Example ===');
 
+  var token = 'expired-token';
+
+  Future<void> refreshToken() async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    token = 'fresh-token';
+    print('  Token refreshed!');
+  }
+
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    executor: RetryExecutor(
-      executor: const DefaultExecutor(),
-      maxAttempts: 3,
-      retryDelay: const Duration(seconds: 1),
-      retryIf: (error) {
-        return error.type == FetchExceptionType.http;
-      },
-    ),
+    maxAttempts: 3,
+    retryDelay: const Duration(seconds: 1),
+    retryIf: (error) async {
+      // Refresh token on 401
+      if (error.statusCode == 401) {
+        await refreshToken();
+        return true;
+      }
+      // Retry on server errors
+      return error.statusCode != null && error.statusCode! >= 500;
+    },
     interceptors: [
+      AuthInterceptor(getToken: () => token),
       LogInterceptor(logRequest: false),
     ],
   );
@@ -227,20 +239,4 @@ Future<void> executorExample() async {
 
   final isolateData = await fetchIsolate.get('/get');
   print('Request executed in isolate: ${isolateData['url']}');
-
-  // Retry + Isolate executor combination
-  final fetchRetryIsolate = Fetch<Map<String, dynamic>>(
-    base: Uri.parse('https://httpbin.org'),
-    executor: RetryExecutor(
-      executor: const IsolateExecutor(),
-      maxAttempts: 3,
-      retryDelay: const Duration(milliseconds: 500),
-    ),
-    transform: (response) {
-      return jsonDecode(response.response.body) as Map<String, dynamic>;
-    },
-  );
-
-  final retryIsolateData = await fetchRetryIsolate.get('/get');
-  print('Request executed with retry+isolate: ${retryIsolateData['url']}');
 }

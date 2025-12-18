@@ -53,12 +53,18 @@ class Fetch<R> {
   /// [onError] - Global error handler for all errors
   /// [transform] - Function to transform responses (receives response and payload)
   /// [executor] - Request executor for platform-specific execution strategies
+  /// [retryIf] - Function to determine if request should be retried on error
+  /// [maxAttempts] - Maximum retry attempts (default: 1 = no retry)
+  /// [retryDelay] - Delay between retries (default: 1 second)
   Fetch({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
     this.interceptors = const [],
     this.onError,
     this.transform,
+    this.retryIf,
+    this.maxAttempts = 1,
+    this.retryDelay = const Duration(seconds: 1),
     RequestExecutor? executor,
   }) : executor = executor ?? const DefaultExecutor() {
     if (base != null) {
@@ -83,6 +89,17 @@ class Fetch<R> {
 
   /// Function to transform responses
   final FutureOr<R> Function(FetchResponse response)? transform;
+
+  /// Function to determine if request should be retried
+  /// Can be async (e.g., to refresh token before retry)
+  /// Return true to retry, false to throw error
+  final FutureOr<bool> Function(FetchException error)? retryIf;
+
+  /// Maximum retry attempts (includes initial attempt)
+  final int maxAttempts;
+
+  /// Delay between retries
+  final Duration retryDelay;
 
   /// Performs a GET request.
   ///
@@ -377,6 +394,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
     List<Interceptor> interceptors = const [],
+    int attempt = 1,
   }) async {
     /// Create URI
     final Uri uri;
@@ -425,8 +443,6 @@ class Fetch<R> {
         skipResponse = skip.response;
       }
 
-      final stopwatch = Stopwatch()..start();
-
       // Execute request if not skipped (e.g., by cache)
       final FetchResponse fetchResponse;
       if (skipResponse != null) {
@@ -444,8 +460,6 @@ class Fetch<R> {
         processedResponse = await interceptor.onResponse(processedResponse);
       }
 
-      stopwatch.stop();
-
       // Transform
       final result = transform == null
           ? processedResponse as R
@@ -453,6 +467,25 @@ class Fetch<R> {
 
       return result;
     } on FetchException catch (error) {
+      // Check if should retry
+      if (attempt < maxAttempts && retryIf != null) {
+        final shouldRetry = await retryIf!(error);
+        if (shouldRetry) {
+          await Future<void>.delayed(retryDelay);
+          // Recursive call - interceptors will re-run
+          return _worker(
+            method,
+            endpoint: endpoint,
+            headers: headers,
+            body: body,
+            queryParams: queryParams,
+            cancelToken: cancelToken,
+            interceptors: interceptors,
+            attempt: attempt + 1,
+          );
+        }
+      }
+
       // Error interceptors
       for (final interceptor in allInterceptors) {
         await interceptor.onError(error);

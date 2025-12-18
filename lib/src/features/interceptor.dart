@@ -80,15 +80,10 @@ class AuthInterceptor extends Interceptor {
 /// Only the last request within the debounce duration will execute.
 /// Each new request resets the timer, so early requests are cancelled.
 class DebounceInterceptor extends Interceptor {
-  DebounceInterceptor({required this.duration})
-      : _lastRequestTime = {},
-        _timers = {},
-        _completers = {};
+  DebounceInterceptor({required this.duration});
 
   final Duration duration;
-  final Map<String, DateTime> _lastRequestTime;
-  final Map<String, Timer> _timers;
-  final Map<String, Completer<void>> _completers;
+  final Map<String, _DebounceState> _states = {};
 
   @override
   Future<FetchPayload> onRequest(FetchPayload payload) async {
@@ -97,16 +92,13 @@ class DebounceInterceptor extends Interceptor {
     }
 
     final key = payload.uri.toString();
-    final now = DateTime.now();
 
-    // Cancel previous timer and reject previous request
-    final previousTimer = _timers[key];
-    if (previousTimer != null && previousTimer.isActive) {
-      previousTimer.cancel();
-      // Complete the previous request's completer with error
-      final previousCompleter = _completers[key];
-      if (previousCompleter != null && !previousCompleter.isCompleted) {
-        previousCompleter.completeError(
+    // Cancel previous request if exists
+    final previous = _states[key];
+    if (previous != null) {
+      previous.timer.cancel();
+      if (!previous.completer.isCompleted) {
+        previous.completer.completeError(
           FetchException(
             payload: payload,
             type: FetchExceptionType.debounced,
@@ -115,41 +107,32 @@ class DebounceInterceptor extends Interceptor {
       }
     }
 
-    // Create new completer for this request
+    // Create new state
     final completer = Completer<void>();
-    _completers[key] = completer;
-    _lastRequestTime[key] = now;
-
-    // Set timer to complete after debounce duration
-    _timers[key] = Timer(duration, () {
+    final timer = Timer(duration, () {
       if (!completer.isCompleted) {
         completer.complete();
       }
-      _timers.remove(key);
-      _completers.remove(key);
+      _states.remove(key);
     });
+    _states[key] = _DebounceState(timer, completer);
 
-    // Wait for either completion or cancellation
     await completer.future;
     return payload;
   }
 
   /// Clear all debounce state
   void clear() {
-    for (final timer in _timers.values) {
-      timer.cancel();
+    for (final state in _states.values) {
+      state.timer.cancel();
     }
-    _timers.clear();
-    _completers.clear();
-    _lastRequestTime.clear();
+    _states.clear();
   }
 
   /// Clear debounce state for specific endpoint
   void clearKey(String key) {
-    _timers[key]?.cancel();
-    _timers.remove(key);
-    _completers.remove(key);
-    _lastRequestTime.remove(key);
+    _states[key]?.timer.cancel();
+    _states.remove(key);
   }
 }
 
@@ -201,4 +184,11 @@ class ThrottleInterceptor extends Interceptor {
   void clearKey(String key) {
     _lastExecuted.remove(key);
   }
+}
+
+/// Internal state for debounce
+class _DebounceState {
+  _DebounceState(this.timer, this.completer);
+  final Timer timer;
+  final Completer<void> completer;
 }
