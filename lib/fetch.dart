@@ -330,17 +330,6 @@ class Fetch<R> {
         );
       }
 
-      // Check for HTTP errors
-      if (response.statusCode >= 400) {
-        throw FetchException(
-          payload: payload,
-          type: FetchExceptionType.http,
-          error: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-          statusCode: response.statusCode,
-          responseBody: response.body.isNotEmpty ? response.body : null,
-        );
-      }
-
       return FetchResponse(response, payload: payload);
     } on FetchException {
       rethrow;
