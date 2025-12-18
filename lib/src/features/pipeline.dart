@@ -10,8 +10,11 @@ class SkipRequest implements Exception {
   final FetchResponse response;
 }
 
-/// Abstract Interceptor class
-abstract class Interceptor {
+/// Abstract FetchPipeline class for request/response processing
+///
+/// Pipelines are executed in order for requests and responses.
+/// Each pipeline can modify the payload/response or skip the request entirely.
+abstract class FetchPipeline {
   /// Called before request is sent.
   /// Return modified payload or throw [SkipRequest] to skip the request.
   FutureOr<FetchPayload> onRequest(FetchPayload payload) => payload;
@@ -23,9 +26,9 @@ abstract class Interceptor {
   FutureOr<void> onError(FetchException error) {}
 }
 
-/// Request/Response logging interceptor
-class LogInterceptor extends Interceptor {
-  LogInterceptor({this.logRequest = true, this.logResponse = true});
+/// Request/Response logging pipeline
+class LogPipeline extends FetchPipeline {
+  LogPipeline({this.logRequest = true, this.logResponse = true});
 
   final bool logRequest;
   final bool logResponse;
@@ -33,11 +36,14 @@ class LogInterceptor extends Interceptor {
   @override
   FetchPayload onRequest(FetchPayload payload) {
     if (logRequest) {
+      // ignore: avoid_print
       print('→ ${payload.method} ${payload.uri}');
       if (payload.headers?.isNotEmpty ?? false) {
+        // ignore: avoid_print
         print('  Headers: ${payload.headers}');
       }
       if (payload.body != null) {
+        // ignore: avoid_print
         print('  Body: ${payload.body}');
       }
     }
@@ -47,15 +53,16 @@ class LogInterceptor extends Interceptor {
   @override
   FetchResponse onResponse(FetchResponse response) {
     if (logResponse) {
+      // ignore: avoid_print
       print('← ${response.response.statusCode} ${response.payload.uri}');
     }
     return response;
   }
 }
 
-/// Auth token interceptor
-class AuthInterceptor extends Interceptor {
-  AuthInterceptor({required this.getToken});
+/// Auth token pipeline
+class AuthPipeline extends FetchPipeline {
+  AuthPipeline({required this.getToken});
 
   final FutureOr<String?> Function() getToken;
 
@@ -74,13 +81,13 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
-/// Debounce interceptor
+/// Debounce pipeline
 ///
 /// Prevents rapid duplicate requests by debouncing them.
 /// Only the last request within the debounce duration will execute.
 /// Each new request resets the timer, so early requests are cancelled.
-class DebounceInterceptor extends Interceptor {
-  DebounceInterceptor({required this.duration});
+class DebouncePipeline extends FetchPipeline {
+  DebouncePipeline({required this.duration});
 
   final Duration duration;
   final Map<String, _DebounceState> _states = {};
@@ -136,13 +143,13 @@ class DebounceInterceptor extends Interceptor {
   }
 }
 
-/// Throttle interceptor
+/// Throttle pipeline
 ///
 /// Prevents rapid duplicate requests by throttling them.
 /// Only the first request within the throttle duration will execute.
 /// Subsequent requests within the duration will be rejected.
-class ThrottleInterceptor extends Interceptor {
-  ThrottleInterceptor({required this.duration}) : _lastExecuted = {};
+class ThrottlePipeline extends FetchPipeline {
+  ThrottlePipeline({required this.duration}) : _lastExecuted = {};
 
   final Duration duration;
   final Map<String, DateTime> _lastExecuted;

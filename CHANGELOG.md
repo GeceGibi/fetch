@@ -1,3 +1,96 @@
+## 10.0.1 - 2025-12-19
+
+### Changes
+
+- **RENAMED**: `Pipeline` → `FetchPipeline` (to avoid conflicts with other libraries)
+- **CHANGED**: `transform` is now always executed (default: `(response) => response as R`)
+
+## 10.0.0 - 2025-12-18
+
+### Breaking Changes - Simplified Architecture
+
+- **RENAMED**: `Interceptor` → `Pipeline`
+- **RENAMED**: `FetchPipeline` → `Executor`
+- **REMOVED**: `RequestExecutor` class (replaced with `Runner` typedef)
+- **RENAMED**: All interceptor classes:
+  - `LogInterceptor` → `LogPipeline`
+  - `AuthInterceptor` → `AuthPipeline`
+  - `CacheInterceptor` → `CachePipeline`
+  - `DebounceInterceptor` → `DebouncePipeline`
+  - `ThrottleInterceptor` → `ThrottlePipeline`
+
+### New Features
+
+- **NEW**: `Runner` typedef for custom execution (e.g., isolate)
+- **SIMPLIFIED**: No more `RequestExecutor` class hierarchy
+
+### Architecture
+
+```
+Fetch
+└── Executor
+    ├── pipelines: List<Pipeline>
+    ├── runner: Runner?  (optional, for isolate etc.)
+    ├── maxAttempts
+    ├── retryDelay
+    └── retryIf
+```
+
+### Migration
+
+```dart
+// Before (9.x)
+final fetch = Fetch(
+  pipeline: FetchPipeline(
+    interceptors: [LogInterceptor(), AuthInterceptor()],
+    executor: RequestExecutor.isolate(),
+  ),
+);
+
+// After (10.0.0)
+final fetch = Fetch(
+  executor: Executor(
+    pipelines: [LogPipeline(), AuthPipeline()],
+    runner: (method, payload) => Isolate.run(() => method(payload)),
+  ),
+);
+```
+
+## 9.0.0 - 2025-12-18
+
+### Breaking Changes
+
+- **NEW**: `FetchPipeline` - Orchestrates interceptors, executor, and retry logic
+- **REMOVED**: `interceptors`, `executor`, `maxAttempts`, `retryDelay`, `retryIf` from `Fetch` constructor
+- **CHANGED**: Use `pipeline` parameter instead
+
+### Improvements
+
+- **Separation of Concerns**: `Fetch` handles HTTP API, `FetchPipeline` handles request lifecycle
+- **Reusability**: Same pipeline can be shared across multiple Fetch instances
+- **Testability**: Pipeline can be easily mocked for testing
+- **Immutability**: Pipeline can be created with const constructor
+
+### Migration
+
+```dart
+// Before (8.x)
+final fetch = Fetch(
+  interceptors: [LogInterceptor(), AuthInterceptor()],
+  maxAttempts: 3,
+  retryIf: (e) => e.statusCode == 401,
+);
+
+// After (9.0.0)
+final fetch = Fetch(
+  pipeline: FetchPipeline(
+    interceptors: [LogInterceptor(), AuthInterceptor()],
+    maxAttempts: 3,
+    retryIf: (e) => e.statusCode == 401,
+  ),
+);
+```
+
 ## 8.5.2 - 2025-12-18
 
 ### Improvements

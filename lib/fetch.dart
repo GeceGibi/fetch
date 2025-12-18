@@ -14,7 +14,7 @@ import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
 import 'package:fetch/src/features/cancel.dart';
 import 'package:fetch/src/features/executor.dart';
-import 'package:fetch/src/features/interceptor.dart';
+import 'package:fetch/src/features/pipeline.dart';
 import 'package:fetch/src/utils/exception.dart';
 import 'package:http/http.dart' as http;
 
@@ -24,7 +24,7 @@ export 'src/core/response.dart';
 export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
 export 'src/features/executor.dart';
-export 'src/features/interceptor.dart';
+export 'src/features/pipeline.dart';
 export 'src/utils/exception.dart';
 
 /// A comprehensive HTTP client with caching, logging, and request capabilities.
@@ -40,6 +40,11 @@ export 'src/utils/exception.dart';
 /// ```dart
 /// final fetch = Fetch<FetchResponse>(
 ///   base: Uri.parse('https://api.example.com'),
+///   executor: Executor(
+///     pipelines: [LogPipeline(), AuthPipeline()],
+///     maxAttempts: 3,
+///     retryIf: (e) => e.statusCode == 401,
+///   ),
 /// );
 ///
 /// final response = await fetch.get('/users');
@@ -49,24 +54,16 @@ class Fetch<R> {
   ///
   /// [base] - Base URI for all requests (optional)
   /// [timeout] - Request timeout duration (default: 30 seconds)
-  /// [interceptors] - List of interceptors (can include CacheInterceptor, DebounceInterceptor, etc.)
+  /// [executor] - Request executor with pipelines and retry logic
   /// [onError] - Global error handler for all errors
   /// [transform] - Function to transform responses (receives response and payload)
-  /// [executor] - Request executor for platform-specific execution strategies
-  /// [retryIf] - Function to determine if request should be retried on error
-  /// [maxAttempts] - Maximum retry attempts (default: 1 = no retry)
-  /// [retryDelay] - Delay between retries (default: 1 second)
   Fetch({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
-    this.interceptors = const [],
+    this.executor = const Executor(),
     this.onError,
-    this.transform,
-    this.retryIf,
-    this.maxAttempts = 1,
-    this.retryDelay = const Duration(seconds: 1),
-    RequestExecutor? executor,
-  }) : executor = executor ?? const DefaultExecutor() {
+    FutureOr<R> Function(FetchResponse response)? transform,
+  }) : transform = transform ?? ((response) => response as R) {
     if (base != null) {
       this.base = base;
     }
@@ -78,28 +75,14 @@ class Fetch<R> {
   /// Request timeout duration
   final Duration timeout;
 
-  /// Request executor for platform-specific execution strategies
-  final RequestExecutor executor;
-
-  /// Interceptors
-  final List<Interceptor> interceptors;
+  /// Request executor (pipelines, runner, retry)
+  final Executor executor;
 
   /// Global error handler
   final void Function(FetchException error)? onError;
 
-  /// Function to transform responses
-  final FutureOr<R> Function(FetchResponse response)? transform;
-
-  /// Function to determine if request should be retried
-  /// Can be async (e.g., to refresh token before retry)
-  /// Return true to retry, false to throw error
-  final FutureOr<bool> Function(FetchException error)? retryIf;
-
-  /// Maximum retry attempts (includes initial attempt)
-  final int maxAttempts;
-
-  /// Delay between retries
-  final Duration retryDelay;
+  /// Function to transform responses (default: returns response as R)
+  final FutureOr<R> Function(FetchResponse response) transform;
 
   /// Performs a GET request.
   ///
@@ -114,7 +97,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) async {
     return _worker(
       'GET',
@@ -122,7 +105,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -139,7 +122,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) {
     return _worker(
       'HEAD',
@@ -147,7 +130,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -166,7 +149,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) {
     return _worker(
       'POST',
@@ -175,7 +158,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -194,7 +177,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) {
     return _worker(
       'PUT',
@@ -203,7 +186,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -222,7 +205,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) {
     return _worker(
       'DELETE',
@@ -231,7 +214,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -250,7 +233,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
+    List<FetchPipeline> pipelines = const [],
   }) {
     return _worker(
       'PATCH',
@@ -259,7 +242,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      interceptors: interceptors,
+      pipelines: pipelines,
     );
   }
 
@@ -280,7 +263,11 @@ class Fetch<R> {
     }
 
     final client = http.Client();
-    final request = http.Request(method, uri)..headers.addAll(headers ?? {});
+    final request = http.Request(method, uri);
+
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
 
     // Add cancel callback to close client immediately
     void onCancel() => client.close();
@@ -366,17 +353,12 @@ class Fetch<R> {
 
   /// Internal worker method that handles all HTTP requests.
   ///
-  /// This method orchestrates the entire request lifecycle including:
-  /// - URI construction
-  /// - Header merging
-  /// - Interceptors (request)
-  /// - Cache resolution
-  /// - Debouncing
-  /// - Retry logic
-  /// - Request execution
-  /// - Interceptors (response/error)
-  /// - Response transformation
-  /// - Logging
+  /// This method:
+  /// - Constructs the URI
+  /// - Creates the payload
+  /// - Delegates to executor for pipelines, execution, and retry
+  /// - Applies transformation
+  /// - Handles global error callback
   ///
   /// [method] - The HTTP method
   /// [endpoint] - The endpoint to request
@@ -384,6 +366,7 @@ class Fetch<R> {
   /// [body] - Request body
   /// [queryParams] - Query parameters
   /// [cancelToken] - Optional token to cancel the request
+  /// [pipelines] - Additional pipelines for this request
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> _worker(
@@ -393,10 +376,9 @@ class Fetch<R> {
     Object? body,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
-    List<Interceptor> interceptors = const [],
-    int attempt = 1,
+    List<FetchPipeline> pipelines = const [],
   }) async {
-    /// Create URI
+    // Create URI
     final Uri uri;
 
     if (endpoint.startsWith('http')) {
@@ -417,8 +399,8 @@ class Fetch<R> {
       );
     }
 
-    // Initial payload
-    var payload = FetchPayload(
+    // Create payload
+    final payload = FetchPayload(
       uri: uri,
       body: body,
       method: method,
@@ -426,74 +408,18 @@ class Fetch<R> {
       cancelToken: cancelToken,
     );
 
-    // All interceptors
-    final allInterceptors = <Interceptor>[
-      ...this.interceptors,
-      ...interceptors,
-    ];
-
     try {
-      // Request interceptors - can modify payload or throw SkipRequest
-      FetchResponse? skipResponse;
-      try {
-        for (final interceptor in allInterceptors) {
-          payload = await interceptor.onRequest(payload);
-        }
-      } on SkipRequest catch (skip) {
-        skipResponse = skip.response;
-      }
-
-      // Execute request if not skipped (e.g., by cache)
-      final FetchResponse fetchResponse;
-      if (skipResponse != null) {
-        fetchResponse = skipResponse;
-      } else {
-        fetchResponse = await executor.execute(
-          payload,
-          _runMethod,
-        );
-      }
-
-      // Response interceptors
-      var processedResponse = fetchResponse;
-      for (final interceptor in allInterceptors) {
-        processedResponse = await interceptor.onResponse(processedResponse);
-      }
+      // Execute through executor
+      final response = await executor.execute(
+        payload,
+        method: _runMethod,
+        pipelines: pipelines,
+      );
 
       // Transform
-      final result = transform == null
-          ? processedResponse as R
-          : await transform!(processedResponse);
-
-      return result;
+      return await transform(response);
     } on FetchException catch (error) {
-      // Check if should retry
-      if (attempt < maxAttempts && retryIf != null) {
-        final shouldRetry = await retryIf!(error);
-        if (shouldRetry) {
-          await Future<void>.delayed(retryDelay);
-          // Recursive call - interceptors will re-run
-          return _worker(
-            method,
-            endpoint: endpoint,
-            headers: headers,
-            body: body,
-            queryParams: queryParams,
-            cancelToken: cancelToken,
-            interceptors: interceptors,
-            attempt: attempt + 1,
-          );
-        }
-      }
-
-      // Error interceptors
-      for (final interceptor in allInterceptors) {
-        await interceptor.onError(error);
-      }
-
-      // Global error handler
       onError?.call(error);
-
       rethrow;
     } catch (error, stackTrace) {
       final fetchError = FetchException(
@@ -502,15 +428,7 @@ class Fetch<R> {
         error: error,
         stackTrace: stackTrace,
       );
-
-      // Error interceptors
-      for (final interceptor in allInterceptors) {
-        await interceptor.onError(fetchError);
-      }
-
-      // Global error handler
       onError?.call(fetchError);
-
       throw fetchError;
     }
   }

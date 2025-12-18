@@ -1,6 +1,6 @@
 import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
-import 'package:fetch/src/features/interceptor.dart';
+import 'package:fetch/src/features/pipeline.dart';
 
 /// Defines the caching strategy for HTTP requests.
 enum CacheStrategy {
@@ -11,11 +11,11 @@ enum CacheStrategy {
   fullUrl,
 }
 
-/// Cache interceptor
+/// Cache pipeline
 ///
 /// Caches responses based on the configured strategy and duration.
-class CacheInterceptor extends Interceptor {
-  CacheInterceptor({
+class CachePipeline extends FetchPipeline {
+  CachePipeline({
     required this.duration,
     this.strategy = CacheStrategy.fullUrl,
     this.canCache,

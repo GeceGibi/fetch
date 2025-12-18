@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
 
@@ -15,8 +16,8 @@ void main() async {
   // Retry example
   await retryExample();
 
-  // Interceptor example
-  await interceptorExample();
+  // Pipeline example
+  await pipelineExample();
 
   // Error handling example
   await errorHandlingExample();
@@ -27,8 +28,8 @@ void main() async {
   // Cancel example
   await cancelExample();
 
-  // Executor example (isolate-based, not available on web)
-  await executorExample();
+  // Runner example (isolate-based, not available on web)
+  await runnerExample();
 }
 
 /// Basic GET request
@@ -49,9 +50,11 @@ Future<void> debounceExample() async {
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    interceptors: [
-      DebounceInterceptor(duration: const Duration(seconds: 1)),
-    ],
+    executor: Executor(
+      pipelines: [
+        DebouncePipeline(duration: Duration(seconds: 1)),
+      ],
+    ),
   );
 
   print('Sending 5 rapid requests (only last will execute)...');
@@ -80,9 +83,11 @@ Future<void> throttleExample() async {
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    interceptors: [
-      ThrottleInterceptor(duration: const Duration(seconds: 2)),
-    ],
+    executor: Executor(
+      pipelines: [
+        ThrottlePipeline(duration: Duration(seconds: 2)),
+      ],
+    ),
   );
 
   print('Sending 5 rapid requests (only first will execute)...');
@@ -117,21 +122,23 @@ Future<void> retryExample() async {
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    maxAttempts: 3,
-    retryDelay: const Duration(seconds: 1),
-    retryIf: (error) async {
-      // Refresh token on 401
-      if (error.statusCode == 401) {
-        await refreshToken();
-        return true;
-      }
-      // Retry on server errors
-      return error.statusCode != null && error.statusCode! >= 500;
-    },
-    interceptors: [
-      AuthInterceptor(getToken: () => token),
-      LogInterceptor(logRequest: false),
-    ],
+    executor: Executor(
+      pipelines: [
+        AuthPipeline(getToken: () => token),
+        LogPipeline(logRequest: false),
+      ],
+      maxAttempts: 3,
+      retryDelay: const Duration(seconds: 1),
+      retryIf: (error) async {
+        // Refresh token on 401
+        if (error.statusCode == 401) {
+          await refreshToken();
+          return true;
+        }
+        // Retry on server errors
+        return error.statusCode != null && error.statusCode! >= 500;
+      },
+    ),
   );
 
   print('Attempting request to /status/500 (will retry 3 times)...');
@@ -143,16 +150,18 @@ Future<void> retryExample() async {
   }
 }
 
-/// Interceptors for logging and auth
-Future<void> interceptorExample() async {
-  print('\n=== Interceptor Example ===');
+/// Pipelines for logging and auth
+Future<void> pipelineExample() async {
+  print('\n=== Pipeline Example ===');
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    interceptors: [
-      LogInterceptor(),
-      AuthInterceptor(getToken: () => 'my-token'),
-    ],
+    executor: Executor(
+      pipelines: [
+        LogPipeline(),
+        AuthPipeline(getToken: () => 'my-token'),
+      ],
+    ),
   );
 
   await fetch.get('/headers');
@@ -183,10 +192,12 @@ Future<void> cacheExample() async {
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    interceptors: [
-      CacheInterceptor(duration: const Duration(seconds: 10)),
-      LogInterceptor(logRequest: false),
-    ],
+    executor: Executor(
+      pipelines: [
+        CachePipeline(duration: Duration(seconds: 10)),
+        LogPipeline(logRequest: false),
+      ],
+    ),
   );
 
   print('First request (not cached)');
@@ -223,14 +234,16 @@ Future<void> cancelExample() async {
   }
 }
 
-/// Executor example - using isolate for CPU-intensive operations
-Future<void> executorExample() async {
-  print('\n=== Executor Example ===');
+/// Runner example - using isolate for CPU-intensive operations
+Future<void> runnerExample() async {
+  print('\n=== Runner Example ===');
 
-  // Isolate executor - request runs in separate isolate
+  // Custom runner - request execution in separate isolate
   final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    executor: const RequestExecutor.isolate(),
+    executor: Executor(
+      runner: (method, payload) => Isolate.run(() => method(payload)),
+    ),
     transform: (response) {
       print('Transform in main isolate...');
       return jsonDecode(response.response.body) as Map<String, dynamic>;
