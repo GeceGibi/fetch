@@ -1,3 +1,35 @@
+## 8.1.0 - 2025-12-18
+
+### Breaking Changes
+
+- **BREAKING**: Removed `Interceptor.onError` method
+  - Error handling is now done via `Fetch.onError` callback only
+  - Interceptors no longer receive error notifications
+
+- **BREAKING**: Simplified `FetchExceptionType` enum
+  - `connectionError`, `timeout`, `unknown`, `parseError` → `network`
+  - `httpError` → `http`
+  - New enum values: `cancelled`, `debounced`, `throttled`, `network`, `http`
+
+### Improvements
+
+- **NEW**: `CacheInterceptor` moved to separate file (`lib/src/features/cache.dart`)
+- Cleaner separation of concerns
+
+### Migration Guide
+
+```dart
+// Before
+error.type == FetchExceptionType.httpError
+error.type == FetchExceptionType.connectionError
+error.type == FetchExceptionType.timeout
+error.type == FetchExceptionType.unknown
+
+// After
+error.type == FetchExceptionType.http
+error.type == FetchExceptionType.network  // covers connection, timeout, unknown
+```
+
 ## 8.0.0 - 2025-12-18
 
 ### Breaking Changes

@@ -17,14 +17,7 @@ abstract class Interceptor {
   FutureOr<FetchPayload> onRequest(FetchPayload payload) => payload;
 
   /// Called after response is received
-  FutureOr<FetchResponse> onResponse(
-    FetchResponse response,
-    FetchPayload payload,
-  ) =>
-      response;
-
-  /// Called when an error occurs
-  FutureOr<void> onError(FetchException error) {}
+  FutureOr<FetchResponse> onResponse(FetchResponse response) => response;
 }
 
 /// Request/Response logging interceptor
@@ -49,16 +42,11 @@ class LogInterceptor extends Interceptor {
   }
 
   @override
-  FetchResponse onResponse(FetchResponse response, FetchPayload payload) {
+  FetchResponse onResponse(FetchResponse response) {
     if (logResponse) {
-      print('← ${response.response.statusCode} ${payload.uri}');
+      print('← ${response.response.statusCode} ${response.payload.uri}');
     }
     return response;
-  }
-
-  @override
-  void onError(FetchException error) {
-    print('✗ Error: ${error.message}');
   }
 }
 
@@ -210,90 +198,4 @@ class ThrottleInterceptor extends Interceptor {
   void clearKey(String key) {
     _lastExecuted.remove(key);
   }
-}
-
-/// Cache interceptor
-///
-/// Caches responses based on the configured strategy and duration.
-class CacheInterceptor extends Interceptor {
-  CacheInterceptor({
-    required this.duration,
-    this.strategy = CacheStrategy.fullUrl,
-    this.canCache,
-  }) : _cache = {};
-
-  final Duration duration;
-  final CacheStrategy strategy;
-  final bool Function(FetchResponse response)? canCache;
-  final Map<Uri, _CacheEntry> _cache;
-
-  Uri _getCacheKey(Uri uri) {
-    return switch (strategy) {
-      CacheStrategy.urlWithoutQuery => uri.replace(query: ''),
-      CacheStrategy.fullUrl => uri,
-    };
-  }
-
-  @override
-  FetchPayload onRequest(FetchPayload payload) {
-    if (duration == Duration.zero) {
-      return payload;
-    }
-
-    final key = _getCacheKey(payload.uri);
-    final cached = _cache[key];
-
-    // Return cached response if available and not expired
-    if (cached != null && !cached.isExpired) {
-      throw SkipRequest(cached.response);
-    }
-
-    return payload;
-  }
-
-  @override
-  FetchResponse onResponse(FetchResponse response, FetchPayload payload) {
-    if (duration == Duration.zero) {
-      return response;
-    }
-
-    // Check if response can be cached
-    if (canCache != null && !canCache!(response)) {
-      return response;
-    }
-
-    // Cache the response
-    final key = _getCacheKey(payload.uri);
-    _cache[key] = _CacheEntry(response, duration);
-
-    return response;
-  }
-
-  /// Clear all cached responses
-  void clearCache() {
-    _cache.clear();
-  }
-
-  /// Clear cached response for specific URI
-  void clearCacheFor(Uri uri) {
-    final key = _getCacheKey(uri);
-    _cache.remove(key);
-  }
-}
-
-/// Internal cache entry
-class _CacheEntry {
-  _CacheEntry(this.response, this.duration) : date = DateTime.now();
-
-  final FetchResponse response;
-  final Duration duration;
-  final DateTime date;
-
-  bool get isExpired => date.add(duration).isBefore(DateTime.now());
-}
-
-/// Cache strategy enum
-enum CacheStrategy {
-  urlWithoutQuery,
-  fullUrl,
 }

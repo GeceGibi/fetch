@@ -81,10 +81,9 @@ class RetryExecutor implements RequestExecutor {
     if (retryIf != null) {
       return retryIf!(error);
     }
-    // Default: retry on server errors, connection errors, and timeouts
-    return error.type == FetchExceptionType.httpError ||
-        error.type == FetchExceptionType.connectionError ||
-        error.type == FetchExceptionType.timeout;
+    // Default: retry on network and http errors
+    return error.type == FetchExceptionType.network ||
+        error.type == FetchExceptionType.http;
   }
 
   @override

@@ -114,7 +114,7 @@ Future<void> retryExample() async {
       maxAttempts: 3,
       retryDelay: const Duration(seconds: 1),
       retryIf: (error) {
-        return error.type == FetchExceptionType.httpError;
+        return error.type == FetchExceptionType.http;
       },
     ),
     interceptors: [
@@ -219,7 +219,7 @@ Future<void> executorExample() async {
   final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
     executor: const RequestExecutor.isolate(),
-    transform: (response, payload) {
+    transform: (response) {
       print('Transform in main isolate...');
       return jsonDecode(response.response.body) as Map<String, dynamic>;
     },
@@ -236,7 +236,7 @@ Future<void> executorExample() async {
       maxAttempts: 3,
       retryDelay: const Duration(milliseconds: 500),
     ),
-    transform: (response, payload) {
+    transform: (response) {
       return jsonDecode(response.response.body) as Map<String, dynamic>;
     },
   );

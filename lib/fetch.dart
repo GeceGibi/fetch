@@ -21,6 +21,7 @@ import 'package:http/http.dart' as http;
 export 'src/core/helpers.dart';
 export 'src/core/payload.dart';
 export 'src/core/response.dart';
+export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
 export 'src/features/executor.dart';
 export 'src/features/interceptor.dart';
@@ -80,9 +81,8 @@ class Fetch<R> {
   /// Global error handler
   final void Function(FetchException error)? onError;
 
-  /// Function to transform responses (receives response and payload)
-  final FutureOr<R> Function(FetchResponse response, FetchPayload payload)?
-      transform;
+  /// Function to transform responses
+  final FutureOr<R> Function(FetchResponse response)? transform;
 
   /// Performs a GET request.
   ///
@@ -288,7 +288,8 @@ class Fetch<R> {
         onTimeout: () {
           throw FetchException(
             payload: payload,
-            type: FetchExceptionType.timeout,
+            type: FetchExceptionType.network,
+            message: 'Request timeout',
           );
         },
       );
@@ -315,13 +316,13 @@ class Fetch<R> {
       if (response.statusCode >= 400) {
         throw FetchException(
           payload: payload,
-          type: FetchExceptionType.httpError,
+          type: FetchExceptionType.http,
           error: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
           statusCode: response.statusCode,
         );
       }
 
-      return FetchResponse(response);
+      return FetchResponse(response, payload: payload);
     } on FetchException {
       rethrow;
     } catch (e, stackTrace) {
@@ -336,7 +337,7 @@ class Fetch<R> {
       // Connection error
       throw FetchException(
         payload: payload,
-        type: FetchExceptionType.connectionError,
+        type: FetchExceptionType.network,
         error: e,
         stackTrace: stackTrace,
       );
@@ -443,8 +444,7 @@ class Fetch<R> {
       // Response interceptors
       var processedResponse = fetchResponse;
       for (final interceptor in allInterceptors) {
-        processedResponse =
-            await interceptor.onResponse(processedResponse, payload);
+        processedResponse = await interceptor.onResponse(processedResponse);
       }
 
       stopwatch.stop();
@@ -452,19 +452,10 @@ class Fetch<R> {
       // Transform
       final result = transform == null
           ? processedResponse as R
-          : await transform!(processedResponse, payload);
+          : await transform!(processedResponse);
 
       return result;
     } on FetchException catch (error) {
-      final allInterceptors = <Interceptor>[
-        ...this.interceptors,
-        ...interceptors,
-      ];
-      // Error interceptors
-      for (final interceptor in allInterceptors) {
-        await interceptor.onError(error);
-      }
-
       // Global error handler
       onError?.call(error);
 
@@ -472,19 +463,10 @@ class Fetch<R> {
     } catch (error, stackTrace) {
       final fetchError = FetchException(
         payload: payload,
-        type: FetchExceptionType.unknown,
+        type: FetchExceptionType.network,
         error: error,
         stackTrace: stackTrace,
       );
-
-      // Error interceptors
-      final allInterceptors = <Interceptor>[
-        ...this.interceptors,
-        ...interceptors,
-      ];
-      for (final interceptor in allInterceptors) {
-        await interceptor.onError(fetchError);
-      }
 
       // Global error handler
       onError?.call(fetchError);

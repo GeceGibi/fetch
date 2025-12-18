@@ -1,11 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fetch/src/core/payload.dart';
 import 'package:http/http.dart' as http;
 
 class FetchResponse {
-  FetchResponse(this.response, {this.elapsed});
+  FetchResponse(
+    this.response, {
+    required this.payload,
+    this.elapsed,
+  });
+
   final http.Response response;
+
+  /// Original request payload
+  final FetchPayload payload;
 
   /// Whether the response indicates a successful HTTP status.
   ///
