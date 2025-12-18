@@ -1,3 +1,11 @@
+## 4.4.0 - 2025-12-18
+
+### Improvements
+- **UNIFIED**: All transform functions now use `TransformFunction<dynamic>`
+- **REMOVED**: `IsolateTransformFunction` typedef (replaced with `TransformFunction`)
+- **IMPROVED**: Consistent type usage across all executors
+- **BENEFIT**: Cleaner, more maintainable codebase
+
 ## 4.3.0 - 2025-12-18
 
 ### Breaking Changes

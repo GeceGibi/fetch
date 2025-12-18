@@ -3,16 +3,12 @@ import 'dart:isolate';
 
 import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
-import 'package:http/http.dart' as http;
 
 /// Type alias for the method function that executes HTTP requests
 typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
 
 /// Type alias for the transform function that converts responses
 typedef TransformFunction<R> = FutureOr<R> Function(FetchResponse response);
-
-/// Type alias for isolate-safe transform functions (top-level or static only)
-typedef IsolateTransformFunction = dynamic Function(http.Response response);
 
 /// Abstract class for request execution strategies.
 ///
@@ -22,13 +18,13 @@ abstract class RequestExecutor {
   /// Creates a default executor that runs in the main isolate
   ///
   /// [transform] - Optional transform function for responses
-  factory RequestExecutor.direct({dynamic Function(FetchResponse)? transform}) =
+  factory RequestExecutor.direct({TransformFunction<dynamic>? transform}) =
       DefaultExecutor;
 
   /// Creates an isolate-based executor for CPU-intensive operations
   ///
   /// [transform] - Top-level or static function for transform in isolate
-  factory RequestExecutor.isolate({IsolateTransformFunction? transform}) =
+  factory RequestExecutor.isolate({TransformFunction<dynamic>? transform}) =
       IsolateExecutor;
 
   /// Executes the request with the given payload.
@@ -52,7 +48,7 @@ class DefaultExecutor implements RequestExecutor {
   const DefaultExecutor({this.transform});
 
   /// Optional transform function for responses
-  final dynamic Function(FetchResponse)? transform;
+  final TransformFunction<dynamic>? transform;
 
   @override
   Future<R> execute<R>(
@@ -80,7 +76,7 @@ class IsolateExecutor implements RequestExecutor {
   const IsolateExecutor({this.transform});
 
   /// Isolate-safe transform function (must be top-level or static)
-  final IsolateTransformFunction? transform;
+  final TransformFunction<dynamic>? transform;
 
   @override
   Future<R> execute<R>(
@@ -120,7 +116,7 @@ class IsolateExecutor implements RequestExecutor {
 
       final R result;
       if (message.transform != null) {
-        result = await message.transform!(fetchResponse.response) as R;
+        result = await message.transform!(fetchResponse) as R;
       } else {
         result = fetchResponse as R;
       }
@@ -144,7 +140,7 @@ class _IsolateMessage<R> {
   final SendPort sendPort;
   final FetchPayload payload;
   final ExecutorMethod method;
-  final IsolateTransformFunction? transform;
+  final TransformFunction<dynamic>? transform;
 }
 
 /// Error wrapper for isolate errors

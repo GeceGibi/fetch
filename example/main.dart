@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:fetch/fetch.dart';
-import 'package:http/http.dart' as http;
 
 // Top-level function for isolate-safe transform
-Map<String, dynamic> parseJsonResponse(http.Response response) {
-  return jsonDecode(response.body) as Map<String, dynamic>;
+Map<String, dynamic> parseJsonResponse(FetchResponse response) {
+  return jsonDecode(response.response.body) as Map<String, dynamic>;
 }
 
 void main() async {
