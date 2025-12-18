@@ -5,7 +5,6 @@ class RetryOptions {
   const RetryOptions({
     this.maxAttempts = 3,
     this.retryDelay = const Duration(seconds: 1),
-    this.retryDelayFactor = 1.0,
     this.retryIf,
   });
 
@@ -16,9 +15,6 @@ class RetryOptions {
 
   /// Delay between retries
   final Duration retryDelay;
-
-  /// Factor to multiply delay by for each retry (for exponential backoff)
-  final double retryDelayFactor;
 
   /// Function to determine whether to retry
   final bool Function(FetchException error)? retryIf;

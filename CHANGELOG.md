@@ -1,3 +1,38 @@
+## 4.1.0 - 2025-12-18
+
+### Executor Pattern Implementation
+- **NEW**: Added `RequestExecutor` abstraction for platform-specific execution strategies
+- **NEW**: `DefaultExecutor` - runs requests in main isolate (default)
+- **NEW**: `IsolateExecutor` - runs requests and transforms in separate isolate for CPU-intensive operations
+- **ENHANCEMENT**: Transform function now executes within executor context
+- **BENEFIT**: Prevents UI blocking during heavy JSON parsing or data transformations
+- **BENEFIT**: Platform-aware execution (isolate on mobile/desktop, direct on web)
+
+### Usage
+```dart
+// Before (4.x) - using override
+final fetch = Fetch(
+  override: (payload, method) async {
+    // Custom request handling
+    return await compute(() => method(payload));
+  },
+);
+
+// After (5.x) - using executor
+final fetch = Fetch(
+  executor: RequestExecutor.isolate(), // or RequestExecutor.direct()
+  transform: (response) {
+    // Heavy parsing in isolate
+    return jsonDecode(response.response.body);
+  },
+);
+
+// Default executor (main isolate) - no need to specify
+final simpleFetch = Fetch(
+  transform: (response) => response.response.body,
+);
+```
+
 ## 4.0.0 - 2025-12-18
 
 ### Major Refactor

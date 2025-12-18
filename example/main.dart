@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fetch/fetch.dart';
 
 void main() async {
@@ -18,6 +20,9 @@ void main() async {
 
   // Cancel example
   await cancelExample();
+
+  // Executor example (isolate-based, not available on web)
+  await executorExample();
 }
 
 /// Basic GET request
@@ -149,4 +154,39 @@ Future<void> cancelExample() async {
   token.cancel();
 
   fetch.dispose();
+}
+
+/// Executor example - using isolate for CPU-intensive operations
+Future<void> executorExample() async {
+  print('\n=== Executor Example ===');
+
+  // Create fetch with isolate executor for heavy JSON parsing
+  final fetch = Fetch<Map<String, dynamic>>(
+    base: Uri.parse('https://httpbin.org'),
+    executor: RequestExecutor.isolate(),
+    transform: (response) {
+      // This will run in a separate isolate
+      print('Parsing JSON in isolate...');
+      return jsonDecode(response.response.body) as Map<String, dynamic>;
+    },
+  );
+
+  final data = await fetch.get('/get');
+  print('Data parsed in isolate: ${data['url']}');
+
+  // For comparison, using default executor (main isolate)
+  final fetchDirect = Fetch<Map<String, dynamic>>(
+    base: Uri.parse('https://httpbin.org'),
+    executor: RequestExecutor.direct(), // or just omit it (default)
+    transform: (response) {
+      print('Parsing JSON in main isolate...');
+      return jsonDecode(response.response.body) as Map<String, dynamic>;
+    },
+  );
+
+  final directData = await fetchDirect.get('/get');
+  print('Data parsed in main: ${directData['url']}');
+
+  fetch.dispose();
+  fetchDirect.dispose();
 }

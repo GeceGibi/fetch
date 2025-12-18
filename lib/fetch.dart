@@ -17,6 +17,7 @@ import 'package:fetch/src/core/response.dart';
 import 'package:fetch/src/features/cache.dart';
 import 'package:fetch/src/features/cancel.dart';
 import 'package:fetch/src/features/debounce.dart';
+import 'package:fetch/src/features/executor.dart';
 import 'package:fetch/src/features/interceptor.dart';
 import 'package:fetch/src/features/retry.dart';
 import 'package:fetch/src/utils/exception.dart';
@@ -29,16 +30,10 @@ export 'src/core/response.dart';
 export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
 export 'src/features/debounce.dart';
+export 'src/features/executor.dart';
 export 'src/features/interceptor.dart';
 export 'src/features/retry.dart';
 export 'src/utils/exception.dart';
-
-/// Type alias for request override function
-///
-/// This function allows you to intercept and modify requests before they are sent.
-/// It receives the payload and the original method function.
-typedef FetchOverride = Future<FetchResponse> Function(
-    FetchPayload payload, FetchMethod method);
 
 /// A comprehensive HTTP client with caching, logging, and transformation capabilities.
 ///
@@ -73,7 +68,7 @@ class Fetch<R> with CacheFactory {
   /// [interceptors] - List of interceptors
   /// [onError] - Global error handler
   /// [transform] - Function to transform responses (required if R != FetchResponse)
-  /// [override] - Function to override requests before sending
+  /// [executor] - Request executor for platform-specific execution strategies
   Fetch({
     Uri? base,
     this.headerBuilder,
@@ -85,9 +80,10 @@ class Fetch<R> with CacheFactory {
     this.interceptors = const [],
     this.onError,
     this.transform,
-    this.override,
+    RequestExecutor? executor,
     bool enableLogs = true,
-  }) : _enableLogs = enableLogs {
+  })  : executor = executor ?? DefaultExecutor(),
+        _enableLogs = enableLogs {
     if (base != null) {
       this.base = base;
     }
@@ -108,8 +104,8 @@ class Fetch<R> with CacheFactory {
   /// Character encoding for requests/responses
   final Encoding encoding;
 
-  /// Optional request override function
-  final FetchOverride? override;
+  /// Request executor for platform-specific execution strategies
+  final RequestExecutor executor;
 
   /// Cache configuration options
   final CacheOptions cacheOptions;
@@ -433,10 +429,12 @@ class Fetch<R> with CacheFactory {
 
     try {
       // Start the request
-      final streamedResponse =
-          await client.send(request).timeout(timeout, onTimeout: () {
-        throw FetchException.timeout(uri, timeout);
-      });
+      final streamedResponse = await client.send(request).timeout(
+        timeout,
+        onTimeout: () {
+          throw FetchException.timeout(uri, timeout);
+        },
+      );
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
@@ -580,41 +578,45 @@ class Fetch<R> with CacheFactory {
       final stopwatch = Stopwatch()..start();
 
       // Execute request if not cached
-      final FetchResponse fetchResponse;
+      final R result;
+      FetchResponse? fetchResponse;
 
       if (response == null) {
         final resolvedDebounce = debounceOptions ?? this.debounceOptions;
         final resolvedRetry = retryOptions ?? this.retryOptions;
 
-        // Debounce + Retry wrapper
-        fetchResponse = await _debounceManager.debounce(
+        // Debounce + Retry + Transform wrapper
+        result = await _debounceManager.debounce(
           uri.toString(),
           resolvedDebounce,
           () => _executeWithRetry(payload, resolvedRetry),
         );
 
-        cache(fetchResponse, uri, cacheOptions ?? this.cacheOptions);
+        // Keep response for caching/logging
+        if (result is FetchResponse) {
+          fetchResponse = result;
+          cache(fetchResponse, uri, cacheOptions ?? this.cacheOptions);
+        }
       } else {
-        fetchResponse = response;
+        // Cached response needs transform
+        var cachedResponse = response;
+        for (final interceptor in interceptors) {
+          cachedResponse = await interceptor.onResponse(cachedResponse);
+        }
+
+        fetchResponse = cachedResponse;
+        result = switch (transform == null) {
+          true => cachedResponse as R,
+          false => await transform!(cachedResponse),
+        };
       }
 
       stopwatch.stop();
 
-      // Response interceptors
-      var finalResponse = fetchResponse;
-      for (final interceptor in interceptors) {
-        finalResponse = await interceptor.onResponse(finalResponse);
-      }
-
-      final result = switch (transform == null) {
-        true => finalResponse as R,
-        false => await transform!(finalResponse),
-      };
-
       /// Log
-      if (enableLogs ?? this.enableLogs) {
+      if ((enableLogs ?? this.enableLogs) && fetchResponse != null) {
         _onLog(
-          finalResponse.response,
+          fetchResponse.response,
           payload.body,
           stopwatch.elapsed,
           isCached: resolvedCache != null,
@@ -653,23 +655,22 @@ class Fetch<R> with CacheFactory {
     }
   }
 
-  /// Execute request with retry logic
-  Future<FetchResponse> _executeWithRetry(
+  /// Execute request with retry logic and transformation
+  Future<R> _executeWithRetry(
     FetchPayload payload,
     RetryOptions options,
   ) async {
     var attempt = 0;
-    var delay = options.retryDelay;
 
     while (true) {
       attempt++;
 
       try {
-        if (override != null) {
-          return await override!(payload, _runMethod);
-        } else {
-          return await _runMethod(payload);
-        }
+        return await executor.execute<R>(
+          payload,
+          _runMethod,
+          transform,
+        );
       } on FetchException catch (e) {
         final shouldRetry =
             options.retryIf?.call(e) ?? RetryOptions.defaultRetryIf(e);
@@ -678,12 +679,8 @@ class Fetch<R> with CacheFactory {
           rethrow;
         }
 
-        // Wait before retry
-        await Future<void>.delayed(delay);
-        delay = Duration(
-          milliseconds:
-              (delay.inMilliseconds * options.retryDelayFactor).round(),
-        );
+        // Wait before retry with fixed delay
+        await Future<void>.delayed(options.retryDelay);
       }
     }
   }

@@ -26,8 +26,8 @@ enum FetchExceptionType {
 class FetchException implements Exception {
   FetchException({
     required this.message,
-    required this.type,
     this.statusCode,
+    this.type,
     this.data,
     this.stackTrace,
     this.uri,
@@ -80,7 +80,7 @@ class FetchException implements Exception {
   final String message;
 
   /// Error type
-  final FetchExceptionType type;
+  final FetchExceptionType? type;
 
   /// HTTP status code (if available)
   final int? statusCode;
