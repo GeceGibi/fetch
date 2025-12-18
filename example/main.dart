@@ -1,6 +1,12 @@
 import 'dart:convert';
 
 import 'package:fetch/fetch.dart';
+import 'package:http/http.dart' as http;
+
+// Top-level function for isolate-safe transform
+Map<String, dynamic> parseJsonResponse(http.Response response) {
+  return jsonDecode(response.body) as Map<String, dynamic>;
+}
 
 void main() async {
   // Basic usage
@@ -160,33 +166,29 @@ Future<void> cancelExample() async {
 Future<void> executorExample() async {
   print('\n=== Executor Example ===');
 
-  // Create fetch with isolate executor for heavy JSON parsing
-  final fetch = Fetch<Map<String, dynamic>>(
+  // Isolate executor with custom transform (top-level/static function)
+  final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    executor: RequestExecutor.isolate(),
-    transform: (response) {
-      // This will run in a separate isolate
-      print('Parsing JSON in isolate...');
-      return jsonDecode(response.response.body) as Map<String, dynamic>;
-    },
+    executor: RequestExecutor.isolate(
+      isolateTransform: parseJsonResponse, // Top-level function
+    ),
   );
 
-  final data = await fetch.get('/get');
-  print('Data parsed in isolate: ${data['url']}');
+  final isolateData = await fetchIsolate.get('/get');
+  print('Transform in isolate: ${isolateData['url']}');
 
-  // For comparison, using default executor (main isolate)
+  // Default executor (main isolate)
   final fetchDirect = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    executor: RequestExecutor.direct(), // or just omit it (default)
     transform: (response) {
-      print('Parsing JSON in main isolate...');
+      print('Transform in main isolate...');
       return jsonDecode(response.response.body) as Map<String, dynamic>;
     },
   );
 
   final directData = await fetchDirect.get('/get');
-  print('Data parsed in main: ${directData['url']}');
+  print('Transform in main: ${directData['url']}');
 
-  fetch.dispose();
+  fetchIsolate.dispose();
   fetchDirect.dispose();
 }

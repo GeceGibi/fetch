@@ -1,12 +1,20 @@
+## 4.2.0 - 2025-12-18
+
+### Improvements
+- **SIMPLIFIED**: IsolateExecutor now has cleaner logic
+- **REMOVED**: Auto JSON decode complexity - user decides transform behavior
+- **IMPROVED**: Transform only runs if `isolateTransform` is provided
+- **BENEFIT**: Simpler, more predictable executor behavior
+
 ## 4.1.0 - 2025-12-18
 
 ### Executor Pattern Implementation
 - **NEW**: Added `RequestExecutor` abstraction for platform-specific execution strategies
 - **NEW**: `DefaultExecutor` - runs requests in main isolate (default)
-- **NEW**: `IsolateExecutor` - runs requests and transforms in separate isolate for CPU-intensive operations
-- **ENHANCEMENT**: Transform function now executes within executor context
-- **BENEFIT**: Prevents UI blocking during heavy JSON parsing or data transformations
+- **NEW**: `IsolateExecutor` - runs HTTP requests in separate isolate, transforms in main isolate
+- **BENEFIT**: Prevents UI blocking during network requests
 - **BENEFIT**: Platform-aware execution (isolate on mobile/desktop, direct on web)
+- **NOTE**: Transform functions run in main isolate to avoid closure serialization issues
 
 ### Usage
 ```dart
@@ -18,11 +26,11 @@ final fetch = Fetch(
   },
 );
 
-// After (5.x) - using executor
+// After (4.1.x) - using executor
 final fetch = Fetch(
-  executor: RequestExecutor.isolate(), // or RequestExecutor.direct()
+  executor: RequestExecutor.isolate(), // HTTP request in isolate
   transform: (response) {
-    // Heavy parsing in isolate
+    // Transform runs in main isolate
     return jsonDecode(response.response.body);
   },
 );

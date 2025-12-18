@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
+import 'package:http/http.dart' as http;
 
 /// Type alias for the method function that executes HTTP requests
 typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
@@ -10,11 +11,24 @@ typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
 /// Type alias for the transform function that converts responses
 typedef TransformFunction<R> = FutureOr<R> Function(FetchResponse response);
 
+/// Type alias for isolate-safe transform functions (top-level or static only)
+typedef IsolateTransformFunction = dynamic Function(http.Response response);
+
 /// Abstract class for request execution strategies.
 ///
 /// This allows platform-specific implementations like isolate-based
 /// execution for mobile/desktop or direct execution for web.
 abstract class RequestExecutor {
+  /// Creates a default executor that runs in the main isolate
+  factory RequestExecutor.direct() = DefaultExecutor;
+
+  /// Creates an isolate-based executor for CPU-intensive operations
+  ///
+  /// [isolateTransform] - Top-level or static function for transform in isolate
+  factory RequestExecutor.isolate({
+    IsolateTransformFunction? isolateTransform,
+  }) = IsolateExecutor;
+
   /// Executes the request with the given payload and transforms the response.
   ///
   /// [payload] - The request payload
@@ -27,12 +41,6 @@ abstract class RequestExecutor {
     ExecutorMethod method,
     TransformFunction<R>? transform,
   );
-
-  /// Creates a default executor that runs in the main isolate
-  factory RequestExecutor.direct() = DefaultExecutor;
-
-  /// Creates an isolate-based executor for CPU-intensive operations
-  factory RequestExecutor.isolate() = IsolateExecutor;
 }
 
 /// Default executor that runs requests and transforms in the main isolate.
@@ -58,14 +66,17 @@ class DefaultExecutor implements RequestExecutor {
 
 /// Isolate-based executor for CPU-intensive operations.
 ///
-/// This executor runs HTTP requests and response transformations in a
-/// separate isolate to avoid blocking the main UI thread. Useful for:
-/// - Large JSON parsing operations
-/// - Heavy data transformations
-/// - Multiple concurrent requests
+/// Runs HTTP requests and transforms in a separate isolate.
+/// Provide an `isolateTransform` function (must be top-level or static).
 ///
 /// Note: Not supported on web platforms.
 class IsolateExecutor implements RequestExecutor {
+  /// Creates an isolate executor with optional isolate-safe transform
+  const IsolateExecutor({this.isolateTransform});
+
+  /// Isolate-safe transform function (must be top-level or static)
+  final IsolateTransformFunction? isolateTransform;
+
   @override
   Future<R> execute<R>(
     FetchPayload payload,
@@ -81,7 +92,7 @@ class IsolateExecutor implements RequestExecutor {
           sendPort: receivePort.sendPort,
           payload: payload,
           method: method,
-          transform: transform,
+          isolateTransform: isolateTransform,
         ),
       );
 
@@ -91,6 +102,7 @@ class IsolateExecutor implements RequestExecutor {
         throw result.error;
       }
 
+      // Result is already transformed in isolate
       return result as R;
     } finally {
       receivePort.close();
@@ -100,13 +112,13 @@ class IsolateExecutor implements RequestExecutor {
   /// Entry point for the isolate
   static Future<void> _isolateEntry<R>(_IsolateMessage<R> message) async {
     try {
-      final response = await message.method(message.payload);
+      final fetchResponse = await message.method(message.payload);
 
       final R result;
-      if (message.transform == null) {
-        result = response as R;
+      if (message.isolateTransform != null) {
+        result = await message.isolateTransform!(fetchResponse.response) as R;
       } else {
-        result = await message.transform!(response);
+        result = fetchResponse as R;
       }
 
       message.sendPort.send(result);
@@ -122,13 +134,13 @@ class _IsolateMessage<R> {
     required this.sendPort,
     required this.payload,
     required this.method,
-    this.transform,
+    this.isolateTransform,
   });
 
   final SendPort sendPort;
   final FetchPayload payload;
   final ExecutorMethod method;
-  final TransformFunction<R>? transform;
+  final IsolateTransformFunction? isolateTransform;
 }
 
 /// Error wrapper for isolate errors
