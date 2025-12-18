@@ -22,6 +22,9 @@ void main() async {
   // Error handling example
   await errorHandlingExample();
 
+  // Response validation example (business logic errors)
+  await responseValidatorExample();
+
   // Cache example
   await cacheExample();
 
@@ -175,6 +178,10 @@ Future<void> errorHandlingExample() async {
     base: Uri.parse('https://httpbin.org'),
     onError: (error) {
       print('✗ Global error handler: ${error.message}');
+      // Response body is now available in the error
+      if (error.responseBody != null) {
+        print('  Response Body: ${error.responseBody}');
+      }
     },
   );
 
@@ -183,6 +190,63 @@ Future<void> errorHandlingExample() async {
     await fetch.get('/status/404');
   } on FetchException catch (e) {
     print('  Caught: ${e.message}');
+    print('  Status Code: ${e.statusCode}');
+  }
+}
+
+/// Response validation for business logic errors using Pipeline
+///
+/// Sometimes APIs return 200 OK but with success: false in the body.
+/// Use ResponseValidatorPipeline to handle those cases globally.
+Future<void> responseValidatorExample() async {
+  print('\n=== Response Validator Pipeline Example ===');
+
+  // Example API that returns 200 but with error in body
+  // Real APIs might return: {"success": false, "error": "User not found"}
+
+  final fetch = Fetch<FetchResponse>(
+    base: Uri.parse('https://httpbin.org'),
+    executor: Executor(
+      pipelines: [
+        // Validate responses for business logic errors
+        ResponseValidatorPipeline(
+          validator: (response) {
+            try {
+              final json = jsonDecode(response.response.body);
+
+              if (json is Map<String, dynamic>) {
+                // Pattern 1: success: false
+                if (json['success'] == false) {
+                  return json['error'] as String? ?? 'Request failed';
+                }
+
+                // Pattern 2: error field exists
+                if (json.containsKey('error') && json['error'] != null) {
+                  return json['error'] as String;
+                }
+              }
+            } catch (_) {
+              // Not JSON, ignore
+            }
+
+            return null; // Valid response
+          },
+        ),
+      ],
+    ),
+    onError: (error) {
+      if (error.type == FetchExceptionType.custom) {
+        print('✗ Business logic error: ${error.message}');
+      }
+    },
+  );
+
+  print('Request to /get (success case)...');
+  try {
+    final response = await fetch.get('/get');
+    print('✓ Success: ${response.response.statusCode}');
+  } on FetchException catch (e) {
+    print('✗ Error: ${e.message}');
   }
 }
 

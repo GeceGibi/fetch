@@ -199,3 +199,57 @@ class _DebounceState {
   final Timer timer;
   final Completer<void> completer;
 }
+
+/// Type alias for response validator function
+///
+/// Returns error message if validation fails, null if valid.
+/// Receives the response and can inspect status code, body, etc.
+typedef ResponseValidator = FutureOr<String?> Function(FetchResponse response);
+
+/// Response validation pipeline for business logic errors
+///
+/// Use this pipeline to validate responses for business logic errors.
+/// Even if HTTP status is 2xx, your API might return success: false
+/// or similar patterns in the body.
+///
+/// Example:
+/// ```dart
+/// final fetch = Fetch<FetchResponse>(
+///   executor: Executor(
+///     pipelines: [
+///       ResponseValidatorPipeline(
+///         validator: (response) {
+///           final json = jsonDecode(response.response.body);
+///           if (json['success'] == false) {
+///             return json['message'] ?? 'Request failed';
+///           }
+///           return null; // Valid response
+///         },
+///       ),
+///     ],
+///   ),
+/// );
+/// ```
+class ResponseValidatorPipeline extends FetchPipeline {
+  ResponseValidatorPipeline({required this.validator});
+
+  /// Validator function that returns error message if invalid, null if valid
+  final ResponseValidator validator;
+
+  @override
+  Future<FetchResponse> onResponse(FetchResponse response) async {
+    final errorMessage = await validator(response);
+
+    if (errorMessage != null) {
+      throw FetchException(
+        type: FetchExceptionType.custom,
+        payload: response.payload,
+        message: errorMessage,
+        statusCode: response.response.statusCode,
+        responseBody: response.response.body,
+      );
+    }
+
+    return response;
+  }
+}

@@ -16,6 +16,9 @@ enum FetchExceptionType {
 
   /// HTTP error (4xx, 5xx)
   http,
+
+  /// Custom error (extracted from response body, business logic errors)
+  custom,
 }
 
 /// Custom exception class for Fetch operations
@@ -27,6 +30,7 @@ class FetchException implements Exception {
     this.error,
     this.stackTrace,
     this.statusCode,
+    this.responseBody,
   }) : _message = message;
 
   /// Request payload containing uri, method, headers, body (optional)
@@ -35,7 +39,18 @@ class FetchException implements Exception {
   /// Error type
   final FetchExceptionType type;
 
-  /// Custom error message (returns message, error string, or type name)
+  /// Response body (if available)
+  ///
+  /// This contains the raw response body from the server.
+  /// Useful for extracting error messages from API responses.
+  final String? responseBody;
+
+  /// Custom error message
+  ///
+  /// Returns in order of priority:
+  /// 1. Explicitly set message
+  /// 2. Error object string representation
+  /// 3. Exception type name
   String get message => _message ?? error?.toString() ?? type.name;
   final String? _message;
 
@@ -73,7 +88,10 @@ class FetchException implements Exception {
       buffer.write('\nHeaders: ${payload!.headers}');
     }
     if (payload?.body != null) {
-      buffer.write('\nBody: ${payload!.body}');
+      buffer.write('\nRequest Body: ${payload!.body}');
+    }
+    if (responseBody != null) {
+      buffer.write('\nResponse Body: $responseBody');
     }
     if (error != null) {
       buffer.write('\nError: $error');
@@ -88,8 +106,30 @@ class FetchException implements Exception {
       if (method != null) 'method': method,
       if (statusCode != null) 'statusCode': statusCode,
       'message': message,
+      if (responseBody != null) 'responseBody': responseBody,
       if (payload != null) 'payload': payload!.toJson(),
       if (error != null) 'error': error.toString(),
     };
+  }
+
+  /// Creates a copy of this exception with the given fields replaced.
+  FetchException copyWith({
+    FetchExceptionType? type,
+    FetchPayload? payload,
+    String? message,
+    Object? error,
+    StackTrace? stackTrace,
+    int? statusCode,
+    String? responseBody,
+  }) {
+    return FetchException(
+      type: type ?? this.type,
+      payload: payload ?? this.payload,
+      message: message ?? _message,
+      error: error ?? this.error,
+      stackTrace: stackTrace ?? this.stackTrace,
+      statusCode: statusCode ?? this.statusCode,
+      responseBody: responseBody ?? this.responseBody,
+    );
   }
 }

@@ -35,13 +35,27 @@ export 'src/utils/exception.dart';
 /// - Custom executors for platform-specific strategies
 /// - Timeout handling
 /// - Header building
+/// - Response validation via pipelines (for business logic errors)
 ///
 /// Example usage:
 /// ```dart
 /// final fetch = Fetch<FetchResponse>(
 ///   base: Uri.parse('https://api.example.com'),
 ///   executor: Executor(
-///     pipelines: [LogPipeline(), AuthPipeline()],
+///     pipelines: [
+///       LogPipeline(),
+///       AuthPipeline(getToken: () => token),
+///       // Validate responses for business logic errors
+///       ResponseValidatorPipeline(
+///         validator: (response) {
+///           final json = jsonDecode(response.response.body);
+///           if (json['success'] == false) {
+///             return json['message']; // Return error message
+///           }
+///           return null; // Valid response
+///         },
+///       ),
+///     ],
 ///     maxAttempts: 3,
 ///     retryIf: (e) => e.statusCode == 401,
 ///   ),
@@ -323,6 +337,7 @@ class Fetch<R> {
           type: FetchExceptionType.http,
           error: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
           statusCode: response.statusCode,
+          responseBody: response.body.isNotEmpty ? response.body : null,
         );
       }
 
@@ -409,7 +424,7 @@ class Fetch<R> {
     );
 
     try {
-      // Execute through executor
+      // Execute through executor (pipelines handle validation)
       final response = await executor.execute(
         payload,
         method: _runMethod,
