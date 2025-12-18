@@ -1,0 +1,10 @@
+name: fetch_example
+description: Example usage of the fetch package
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  fetch:
+    path: ../

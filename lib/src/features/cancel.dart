@@ -1,5 +1,3 @@
-part of 'fetch.dart';
-
 /// Token for canceling HTTP requests.
 ///
 /// Create a token and pass it to request methods to enable cancellation.
@@ -8,7 +6,7 @@ part of 'fetch.dart';
 /// ```dart
 /// final cancelToken = CancelToken();
 /// fetch.get('/users', cancelToken: cancelToken);
-/// 
+///
 /// // Cancel the request
 /// cancelToken.cancel();
 /// ```
@@ -30,7 +28,7 @@ class CancelToken {
   }
 
   /// Adds a callback to be called when cancelled
-  void _addCallback(void Function() callback) {
+  void addCallback(void Function() callback) {
     if (_isCancelled) {
       callback();
     } else {
@@ -39,18 +37,7 @@ class CancelToken {
   }
 
   /// Removes a callback
-  void _removeCallback(void Function() callback) {
+  void removeCallback(void Function() callback) {
     _callbacks.remove(callback);
   }
 }
-
-/// Exception thrown when a request is cancelled
-class CancelledException implements Exception {
-  const CancelledException([this.message = 'Request was cancelled']);
-
-  final String message;
-
-  @override
-  String toString() => 'CancelledException: $message';
-}
-

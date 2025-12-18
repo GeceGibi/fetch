@@ -1,4 +1,5 @@
-part of 'fetch.dart';
+import 'package:fetch/src/core/response.dart';
+import 'package:http/http.dart' as http;
 
 /// Represents a single fetch log entry.
 ///

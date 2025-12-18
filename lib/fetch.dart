@@ -10,20 +10,28 @@ library fetch;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fetch/src/core/helpers.dart';
+import 'package:fetch/src/core/logger.dart';
+import 'package:fetch/src/core/payload.dart';
+import 'package:fetch/src/core/response.dart';
+import 'package:fetch/src/features/cache.dart';
+import 'package:fetch/src/features/cancel.dart';
+import 'package:fetch/src/features/debounce.dart';
+import 'package:fetch/src/features/interceptor.dart';
+import 'package:fetch/src/features/retry.dart';
+import 'package:fetch/src/utils/exception.dart';
 import 'package:http/http.dart' as http;
 
-part 'cache.dart';
-part 'cancel.dart';
-part 'helpers.dart';
-part 'logger.dart';
-part 'payload.dart';
-part 'response.dart';
-
-/// Type alias for HTTP headers map
-typedef FetchHeaders = Map<String, String>;
-
-/// Type alias for HTTP method function signature
-typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
+export 'src/core/helpers.dart';
+export 'src/core/logger.dart';
+export 'src/core/payload.dart';
+export 'src/core/response.dart';
+export 'src/features/cache.dart';
+export 'src/features/cancel.dart';
+export 'src/features/debounce.dart';
+export 'src/features/interceptor.dart';
+export 'src/features/retry.dart';
+export 'src/utils/exception.dart';
 
 /// Type alias for request override function
 ///
@@ -60,6 +68,10 @@ class Fetch<R> with CacheFactory {
   /// [enableLogs] - Whether to enable request/response logging
   /// [timeout] - Request timeout duration (default: 30 seconds)
   /// [cacheOptions] - Cache configuration options
+  /// [debounceOptions] - Debounce configuration options
+  /// [retryOptions] - Retry configuration options
+  /// [interceptors] - List of interceptors
+  /// [onError] - Global error handler
   /// [transform] - Function to transform responses (required if R != FetchResponse)
   /// [override] - Function to override requests before sending
   Fetch({
@@ -68,6 +80,10 @@ class Fetch<R> with CacheFactory {
     this.encoding = utf8,
     this.timeout = const Duration(seconds: 30),
     this.cacheOptions = const CacheOptions(),
+    this.debounceOptions = const DebounceOptions.disabled(),
+    this.retryOptions = const RetryOptions.disabled(),
+    this.interceptors = const [],
+    this.onError,
     this.transform,
     this.override,
     bool enableLogs = true,
@@ -86,8 +102,6 @@ class Fetch<R> with CacheFactory {
   /// Base URI for all requests
   Uri base = Uri();
 
-
-
   /// Request timeout duration
   final Duration timeout;
 
@@ -99,6 +113,21 @@ class Fetch<R> with CacheFactory {
 
   /// Cache configuration options
   final CacheOptions cacheOptions;
+
+  /// Debounce configuration options
+  final DebounceOptions debounceOptions;
+
+  /// Retry configuration options
+  final RetryOptions retryOptions;
+
+  /// Interceptors
+  final List<Interceptor> interceptors;
+
+  /// Global error handler
+  final void Function(FetchException error, StackTrace stackTrace)? onError;
+
+  /// Debounce manager
+  final _debounceManager = DebounceManager();
 
   /// Function to build headers for each request
   final FutureOr<FetchHeaders> Function()? headerBuilder;
@@ -112,9 +141,8 @@ class Fetch<R> with CacheFactory {
   /// List of all fetch logs for this instance
   final fetchLogs = <FetchLog>[];
 
-    /// Stream of fetch events
+  /// Stream of fetch events
   Stream<R> get onFetch => _onFetchController.stream;
-
 
   /// Internal logging method that handles request/response logging.
   ///
@@ -145,13 +173,14 @@ class Fetch<R> with CacheFactory {
     }
   }
 
-
   /// Performs a GET request.
   ///
   /// [endpoint] - The endpoint to request (can be full URL or relative path)
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -161,6 +190,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) async {
@@ -170,6 +201,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -181,6 +214,8 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -190,6 +225,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) {
@@ -199,6 +236,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -211,6 +250,8 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -221,6 +262,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) {
@@ -231,6 +274,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -243,6 +288,8 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -253,6 +300,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) {
@@ -263,6 +312,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -275,6 +326,8 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -285,6 +338,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) {
@@ -295,6 +350,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -307,6 +364,8 @@ class Fetch<R> with CacheFactory {
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
   /// [cacheOptions] - Optional cache options for this request
+  /// [debounceOptions] - Optional debounce options for this request
+  /// [retryOptions] - Optional retry options for this request
   /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -317,6 +376,8 @@ class Fetch<R> with CacheFactory {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) {
@@ -327,6 +388,8 @@ class Fetch<R> with CacheFactory {
       queryParams: queryParams,
       headers: headers,
       cacheOptions: cacheOptions,
+      debounceOptions: debounceOptions,
+      retryOptions: retryOptions,
       enableLogs: enableLogs,
       cancelToken: cancelToken,
     );
@@ -342,7 +405,11 @@ class Fetch<R> with CacheFactory {
 
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
-      throw const CancelledException();
+      throw FetchException(
+        message: 'Request cancelled',
+        type: FetchExceptionType.cancelled,
+        uri: uri,
+      );
     }
 
     final client = http.Client();
@@ -350,7 +417,7 @@ class Fetch<R> with CacheFactory {
 
     // Add cancel callback to close client immediately
     void onCancel() => client.close();
-    cancelToken?._addCallback(onCancel);
+    cancelToken?.addCallback(onCancel);
 
     if (body != null) {
       if (body is String) {
@@ -366,18 +433,39 @@ class Fetch<R> with CacheFactory {
 
     try {
       // Start the request
-      final streamedResponse = await client.send(request).timeout(timeout);
+      final streamedResponse =
+          await client.send(request).timeout(timeout, onTimeout: () {
+        throw FetchException.timeout(uri, timeout);
+      });
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
-        throw const CancelledException();
+        throw FetchException(
+          message: 'Request cancelled',
+          type: FetchExceptionType.cancelled,
+          uri: uri,
+        );
       }
 
       final response = await http.Response.fromStream(streamedResponse);
 
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
-        throw const CancelledException();
+        throw FetchException(
+          message: 'Request cancelled',
+          type: FetchExceptionType.cancelled,
+          uri: uri,
+        );
+      }
+
+      // Check for HTTP errors
+      if (response.statusCode >= 400) {
+        throw FetchException.httpError(
+          response.statusCode,
+          uri,
+          message: response.reasonPhrase,
+          data: response.body,
+        );
       }
 
       return FetchResponse(
@@ -385,14 +473,22 @@ class Fetch<R> with CacheFactory {
         payload: payload,
         retryMethod: _runMethod,
       );
-    } catch (e) {
-      // If client was closed due to cancellation, throw CancelledException
-      if (cancelToken?.isCancelled ?? false) {
-        throw const CancelledException();
-      }
+    } on FetchException {
       rethrow;
+    } catch (e) {
+      // If client was closed due to cancellation
+      if (cancelToken?.isCancelled ?? false) {
+        throw FetchException(
+          message: 'Request cancelled',
+          type: FetchExceptionType.cancelled,
+          uri: uri,
+        );
+      }
+
+      // Connection error
+      throw FetchException.connectionError(uri, e);
     } finally {
-      cancelToken?._removeCallback(onCancel);
+      cancelToken?.removeCallback(onCancel);
       client.close();
     }
   }
@@ -402,8 +498,12 @@ class Fetch<R> with CacheFactory {
   /// This method orchestrates the entire request lifecycle including:
   /// - URI construction
   /// - Header merging
+  /// - Interceptors (request)
   /// - Cache resolution
+  /// - Debouncing
+  /// - Retry logic
   /// - Request execution
+  /// - Interceptors (response/error)
   /// - Response transformation
   /// - Logging
   ///
@@ -413,6 +513,8 @@ class Fetch<R> with CacheFactory {
   /// [body] - Request body
   /// [queryParams] - Query parameters
   /// [cacheOptions] - Cache options
+  /// [debounceOptions] - Debounce options
+  /// [retryOptions] - Retry options
   /// [enableLogs] - Whether to enable logging
   /// [cancelToken] - Optional token to cancel the request
   ///
@@ -424,94 +526,188 @@ class Fetch<R> with CacheFactory {
     Object? body,
     Map<String, dynamic>? queryParams,
     CacheOptions? cacheOptions,
+    DebounceOptions? debounceOptions,
+    RetryOptions? retryOptions,
     bool? enableLogs,
     CancelToken? cancelToken,
   }) async {
-    /// Create uri
-    final Uri uri;
+    try {
+      /// Create URI
+      final Uri uri;
 
-    if (endpoint.startsWith('http')) {
-      final parseUri = Uri.parse(endpoint);
-      uri = parseUri.replace(
-        queryParameters: FetchHelpers.mapStringy({
-          ...parseUri.queryParameters,
-          ...?queryParams,
-        }),
-      );
-    } else {
-      uri = base.replace(
-        path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
-        queryParameters: FetchHelpers.mapStringy({
-          ...base.queryParameters,
-          ...?queryParams,
-        }),
-      );
-    }
-
-    final mergedHeaders = FetchHelpers.mergeHeaders([
-      await headerBuilder?.call() ?? {},
-      headers,
-    ]);
-
-    final resolvedCache = resolveCache(uri, cacheOptions ?? this.cacheOptions);
-    var response = resolvedCache?.response;
-
-    final payload = FetchPayload(
-      uri: uri,
-      body: body,
-      method: method,
-      headers: mergedHeaders,
-      cancelToken: cancelToken,
-    );
-
-    final stopwatch = Stopwatch()..start();
-
-    /// Override
-    if (response == null) {
-      if (override != null) {
-        response = await override!(payload, _runMethod);
+      if (endpoint.startsWith('http')) {
+        final parseUri = Uri.parse(endpoint);
+        uri = parseUri.replace(
+          queryParameters: FetchHelpers.mapStringy({
+            ...parseUri.queryParameters,
+            ...?queryParams,
+          }),
+        );
+      } else {
+        uri = base.replace(
+          path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
+          queryParameters: FetchHelpers.mapStringy({
+            ...base.queryParameters,
+            ...?queryParams,
+          }),
+        );
       }
 
-      /// Request
-      else {
-        response = await _runMethod(payload);
+      final mergedHeaders = FetchHelpers.mergeHeaders([
+        await headerBuilder?.call() ?? {},
+        headers,
+      ]);
+
+      // Initial payload
+      var payload = FetchPayload(
+        uri: uri,
+        body: body,
+        method: method,
+        headers: mergedHeaders,
+        cancelToken: cancelToken,
+      );
+
+      // Request interceptors
+      for (final interceptor in interceptors) {
+        payload = await interceptor.onRequest(payload);
       }
 
-      cache(response, uri, cacheOptions ?? this.cacheOptions);
-    }
+      // Check cache
+      final resolvedCache =
+          resolveCache(uri, cacheOptions ?? this.cacheOptions);
+      var response = resolvedCache?.response;
 
-    stopwatch.stop();
+      final stopwatch = Stopwatch()..start();
 
-    final result = switch (transform == null) {
-      true => response as R,
-      false => await transform!(response),
-    };
+      // Execute request if not cached
+      final FetchResponse fetchResponse;
 
-    /// Log
-    if (enableLogs ?? this.enableLogs) {
-      _onLog(
-        response.response,
-        payload.body,
-        stopwatch.elapsed,
-        isCached: resolvedCache != null,
+      if (response == null) {
+        final resolvedDebounce = debounceOptions ?? this.debounceOptions;
+        final resolvedRetry = retryOptions ?? this.retryOptions;
+
+        // Debounce + Retry wrapper
+        fetchResponse = await _debounceManager.debounce(
+          uri.toString(),
+          resolvedDebounce,
+          () => _executeWithRetry(payload, resolvedRetry),
+        );
+
+        cache(fetchResponse, uri, cacheOptions ?? this.cacheOptions);
+      } else {
+        fetchResponse = response;
+      }
+
+      stopwatch.stop();
+
+      // Response interceptors
+      var finalResponse = fetchResponse;
+      for (final interceptor in interceptors) {
+        finalResponse = await interceptor.onResponse(finalResponse);
+      }
+
+      final result = switch (transform == null) {
+        true => finalResponse as R,
+        false => await transform!(finalResponse),
+      };
+
+      /// Log
+      if (enableLogs ?? this.enableLogs) {
+        _onLog(
+          finalResponse.response,
+          payload.body,
+          stopwatch.elapsed,
+          isCached: resolvedCache != null,
+        );
+      }
+
+      _onFetchController.add(result);
+
+      return result;
+    } on FetchException catch (error, stackTrace) {
+      // Error interceptors
+      for (final interceptor in interceptors) {
+        await interceptor.onError(error);
+      }
+
+      // Global error handler
+      onError?.call(error, stackTrace);
+
+      rethrow;
+    } catch (error, stackTrace) {
+      final fetchError = FetchException(
+        message: error.toString(),
+        type: FetchExceptionType.unknown,
+        stackTrace: stackTrace,
       );
+
+      // Error interceptors
+      for (final interceptor in interceptors) {
+        await interceptor.onError(fetchError);
+      }
+
+      // Global error handler
+      onError?.call(fetchError, stackTrace);
+
+      throw fetchError;
     }
+  }
 
-    _onFetchController.add(result);
+  /// Execute request with retry logic
+  Future<FetchResponse> _executeWithRetry(
+    FetchPayload payload,
+    RetryOptions options,
+  ) async {
+    var attempt = 0;
+    var delay = options.retryDelay;
 
-    return result;
+    while (true) {
+      attempt++;
+
+      try {
+        if (override != null) {
+          return await override!(payload, _runMethod);
+        } else {
+          return await _runMethod(payload);
+        }
+      } on FetchException catch (e) {
+        final shouldRetry =
+            options.retryIf?.call(e) ?? RetryOptions.defaultRetryIf(e);
+
+        if (!shouldRetry || attempt >= options.maxAttempts) {
+          rethrow;
+        }
+
+        // Wait before retry
+        await Future<void>.delayed(delay);
+        delay = Duration(
+          milliseconds:
+              (delay.inMilliseconds * options.retryDelayFactor).round(),
+        );
+      }
+    }
   }
 
   /// Clears the fetch logs.
-    /// Whether to enable request/response logging
+  /// Whether to enable request/response logging
   bool _enableLogs = true;
   bool get enableLogs => _enableLogs;
   set enableLogs(bool value) {
     _enableLogs = value;
 
-    if(!value) {
+    if (!value) {
       fetchLogs.clear();
     }
+  }
+
+  /// Clears all debounce states.
+  void clearDebounce() {
+    _debounceManager.clear();
+  }
+
+  /// Clears debounce state for a specific endpoint.
+  void clearDebounceForEndpoint(String endpoint) {
+    _debounceManager.clearKey(endpoint);
   }
 
   /// Disposes the fetch instance and cleans up resources.
@@ -520,5 +716,6 @@ class Fetch<R> with CacheFactory {
   /// to prevent memory leaks.
   void dispose() {
     _onFetchController.close();
+    _debounceManager.clear();
   }
 }

@@ -1,4 +1,4 @@
-part of 'fetch.dart';
+import 'package:fetch/src/core/response.dart';
 
 /// Defines the caching strategy for HTTP requests.
 ///

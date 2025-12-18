@@ -6,6 +6,11 @@ A comprehensive HTTP client library for Dart/Flutter applications with built-in 
 
 - **Type-safe HTTP client** with generic response transformation
 - **Built-in caching** with configurable strategies and expiration
+- **Request debouncing** to prevent rapid duplicate requests
+- **Auto-retry** with exponential backoff for failed requests
+- **Interceptors** for request/response/error handling
+- **Custom exceptions** with detailed error types
+- **Global error handler** for centralized error management
 - **Request/response logging** with detailed timing and metadata
 - **Request overriding** for intercepting and modifying requests
 - **Header building** with automatic merging
@@ -165,6 +170,119 @@ final fetch = Fetch<FetchResponse>(
 final response = await fetch.get('/users', enableLogs: true);
 ```
 
+### Debouncing
+
+Hızlı tekrarlayan isteklerde sadece son isteği çalıştır:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  debounceOptions: DebounceOptions(duration: Duration(milliseconds: 500)),
+);
+
+// 5 hızlı istek - sadece son çalışır
+for (var i = 0; i < 5; i++) {
+  fetch.get('/search?q=flutter');
+  await Future.delayed(Duration(milliseconds: 100));
+}
+```
+
+### Retry Mechanism
+
+Otomatik yeniden deneme ile hata toleransı:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  retryOptions: RetryOptions(
+    maxAttempts: 3,
+    retryDelay: Duration(seconds: 1),
+    retryDelayFactor: 2.0, // Exponential backoff
+    retryIf: (error) => error.isServerError || error.isTimeout,
+  ),
+);
+
+// Server hatası durumunda 3 kez dener
+await fetch.get('/api/endpoint');
+```
+
+### Interceptors
+
+Request/response/error için middleware:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    // Log interceptor
+    LogInterceptor(),
+    
+    // Auth interceptor
+    AuthInterceptor(
+      getToken: () async => await storage.getToken(),
+    ),
+    
+    // Custom interceptor
+    MyCustomInterceptor(),
+  ],
+);
+```
+
+Kendi interceptor'ınızı oluşturun:
+
+```dart
+class MyCustomInterceptor extends Interceptor {
+  @override
+  Future<FetchPayload> onRequest(FetchPayload payload) async {
+    // İstek öncesi
+    print('Sending request to ${payload.uri}');
+    return payload;
+  }
+
+  @override
+  Future<FetchResponse> onResponse(FetchResponse response) async {
+    // Response sonrası
+    print('Received response: ${response.response.statusCode}');
+    return response;
+  }
+
+  @override
+  Future<void> onError(FetchException error) async {
+    // Hata durumunda
+    print('Error occurred: ${error.message}');
+  }
+}
+```
+
+### Error Handling
+
+Detaylı exception handling:
+
+```dart
+try {
+  await fetch.get('/api/endpoint');
+} on FetchException catch (e) {
+  if (e.isTimeout) {
+    print('Request timeout');
+  } else if (e.isServerError) {
+    print('Server error: ${e.statusCode}');
+  } else if (e.isClientError) {
+    print('Client error: ${e.statusCode}');
+  } else if (e.isConnectionError) {
+    print('Network error');
+  }
+}
+```
+
+Global error handler:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  onError: (error, stackTrace) {
+    // Tüm hatalar buraya düşer
+    logger.error(error, stackTrace);
+    showErrorDialog(error.message);
+  },
+);
+```
+
 ## API Reference
 
 ### Fetch Class
@@ -177,23 +295,57 @@ The main HTTP client class with the following constructor parameters:
 - `enableLogs` - Whether to enable logging (default: true)
 - `timeout` - Request timeout duration (default: 30 seconds)
 - `cacheOptions` - Cache configuration options
+- `debounceOptions` - Debounce configuration options
+- `retryOptions` - Retry configuration options
+- `interceptors` - List of interceptors
+- `onError` - Global error handler
 - `transform` - Function to transform responses
 - `override` - Function to override requests before sending
 
 ### HTTP Methods
 
-- `get(endpoint, {queryParams, headers, cacheOptions, enableLogs})`
-- `post(endpoint, body, {queryParams, headers, cacheOptions, enableLogs})`
-- `put(endpoint, body, {queryParams, headers, cacheOptions, enableLogs})`
-- `delete(endpoint, body, {queryParams, headers, cacheOptions, enableLogs})`
-- `patch(endpoint, body, {queryParams, headers, cacheOptions, enableLogs})`
-- `head(endpoint, {queryParams, headers, cacheOptions, enableLogs})`
+- `get(endpoint, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `post(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `put(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `delete(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `patch(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `head(endpoint, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
 
 ### CacheOptions
 
 - `duration` - How long to cache responses
 - `strategy` - Cache strategy (CacheStrategy.fullUrl or CacheStrategy.urlWithoutQuery)
 - `canCache` - Function to determine if a response can be cached
+
+### DebounceOptions
+
+- `duration` - Debounce süresi (son çağrıdan sonra beklenecek süre)
+- `enabled` - Debounce aktif mi (duration > 0 ise aktif)
+
+### RetryOptions
+
+- `maxAttempts` - Maksimum deneme sayısı (varsayılan: 3)
+- `retryDelay` - Retry'lar arası bekleme süresi (varsayılan: 1 saniye)
+- `retryDelayFactor` - Her retry'da delay çarpanı (exponential backoff için)
+- `retryIf` - Retry yapılıp yapılmayacağını belirleyen fonksiyon
+
+### FetchException
+
+Hata türleri:
+- `FetchExceptionType.cancelled` - İstek iptal edildi
+- `FetchExceptionType.debounced` - İstek debounce edildi
+- `FetchExceptionType.connectionError` - Bağlantı hatası
+- `FetchExceptionType.timeout` - Timeout hatası
+- `FetchExceptionType.httpError` - HTTP hatası (4xx, 5xx)
+- `FetchExceptionType.parseError` - JSON parse hatası
+- `FetchExceptionType.unknown` - Bilinmeyen hata
+
+Yardımcı metodlar:
+- `isHttpError` - HTTP hatası mı?
+- `isTimeout` - Timeout hatası mı?
+- `isConnectionError` - Bağlantı hatası mı?
+- `isClientError` - Client hatası mı? (4xx)
+- `isServerError` - Server hatası mı? (5xx)
 
 ### FetchResponse
 
@@ -214,7 +366,11 @@ See the `example.dart` file for comprehensive usage examples including:
 - Request overriding
 - Response transformation
 - Caching strategies
-- Error handling
+- Debouncing
+- Retry mechanism
+- Interceptors
+- Error handling with FetchException
+- Global error handler
 
 ## Contributing
 

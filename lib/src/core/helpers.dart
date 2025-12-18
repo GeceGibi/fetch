@@ -1,4 +1,5 @@
-part of 'fetch.dart';
+/// Type alias for HTTP headers map
+typedef FetchHeaders = Map<String, String>;
 
 /// Utility class providing helper methods for HTTP operations.
 ///

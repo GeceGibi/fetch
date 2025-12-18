@@ -1,4 +1,11 @@
-part of 'fetch.dart';
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:fetch/src/core/payload.dart';
+import 'package:http/http.dart' as http;
+
+/// Type alias for HTTP method function signature
+typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
 
 class FetchResponse {
   FetchResponse(
@@ -109,4 +116,3 @@ class FetchResponse {
     return jsonBody.cast<E>();
   }
 }
-

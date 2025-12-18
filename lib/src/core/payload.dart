@@ -1,4 +1,5 @@
-part of 'fetch.dart';
+import 'package:fetch/src/core/helpers.dart';
+import 'package:fetch/src/features/cancel.dart';
 
 /// Represents the payload for an HTTP request.
 ///
@@ -59,4 +60,3 @@ class FetchPayload {
     return 'FetchPayload(method: $method, uri: $uri, headers: $headers, body: $body)';
   }
 }
-

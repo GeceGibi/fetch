@@ -1,3 +1,55 @@
+## 4.0.0 - 2025-12-18
+
+### Major Refactor
+- **BREAKING**: Converted from `part`/`part of` to modular architecture with package imports
+- **BREAKING**: Removed throttling feature, replaced with debouncing
+- **NEW**: Added retry mechanism with exponential backoff
+- **NEW**: Added interceptor system (LogInterceptor, AuthInterceptor, RetryInterceptor)
+- **NEW**: Added FetchException with detailed error types
+- **NEW**: Added global error handler (onError callback)
+- **NEW**: Reorganized project structure:
+  - `/lib/src/core/` - Core HTTP functionality
+  - `/lib/src/features/` - Feature modules (cache, cancel, debounce, interceptor, retry)
+  - `/lib/src/utils/` - Utilities (exception)
+  - `/example/` - Standalone example package
+
+### Features
+- **Debounce**: Prevent duplicate rapid requests
+- **Retry**: Automatic retry with configurable attempts and delays
+- **Interceptors**: Request/response/error middleware
+- **Exception Handling**: 8 detailed exception types with helper methods
+- **Global Error Handler**: Centralized error management
+
+### Breaking Changes
+- ThrottleOptions removed, use DebounceOptions instead
+- CancelledException removed, use FetchException with type=cancelled
+- All files now use package imports instead of part/part of
+- Private APIs (_addCallback, _removeCallback) now public (addCallback, removeCallback)
+
+### Migration Guide
+```dart
+// Before (3.x)
+final fetch = Fetch(
+  throttleOptions: ThrottleOptions(duration: Duration(seconds: 2)),
+);
+
+// After (4.x)
+final fetch = Fetch(
+  debounceOptions: DebounceOptions(duration: Duration(seconds: 1)),
+  retryOptions: RetryOptions(maxAttempts: 3),
+  interceptors: [LogInterceptor(), AuthInterceptor(...)],
+  onError: (error, stackTrace) => handleError(error),
+);
+
+// Exception handling
+try {
+  await fetch.get('/api');
+} on FetchException catch (e) {
+  if (e.isTimeout) { /* handle timeout */ }
+  if (e.isServerError) { /* handle 5xx */ }
+}
+```
+
 ## 3.3.0 - 2025-12-09
 
 ### Changed
