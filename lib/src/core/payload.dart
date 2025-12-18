@@ -57,6 +57,16 @@ class FetchPayload {
 
   @override
   String toString() {
-    return 'FetchPayload(method: $method, uri: $uri, headers: $headers, body: $body)';
+    final buffer = StringBuffer()..writeln('$method $uri');
+
+    if (headers?.isNotEmpty ?? false) {
+      buffer.writeln('Headers: $headers');
+    }
+
+    if (body != null) {
+      buffer.writeln('Body: $body');
+    }
+
+    return buffer.toString().trimRight();
   }
 }

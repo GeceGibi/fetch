@@ -18,6 +18,9 @@ abstract class Interceptor {
 
   /// Called after response is received
   FutureOr<FetchResponse> onResponse(FetchResponse response) => response;
+
+  /// Called when an error occurs
+  FutureOr<void> onError(FetchException error) {}
 }
 
 /// Request/Response logging interceptor

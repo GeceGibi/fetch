@@ -72,4 +72,25 @@ class FetchResponse {
 
     return jsonBody.cast<E>();
   }
+
+  @override
+  String toString() {
+    final buffer = StringBuffer()
+      ..writeln('${payload.method} ${payload.uri}')
+      ..writeln('Status: ${response.statusCode} ${response.reasonPhrase}');
+
+    if (elapsed != null) {
+      buffer.writeln('Elapsed: ${elapsed!.inMilliseconds}ms');
+    }
+
+    if (response.headers.isNotEmpty) {
+      buffer.writeln('Headers: ${response.headers}');
+    }
+
+    if (response.body.isNotEmpty) {
+      buffer.writeln('Body: ${response.body}');
+    }
+
+    return buffer.toString().trimRight();
+  }
 }

@@ -399,26 +399,23 @@ class Fetch<R> {
       );
     }
 
-    final mergedHeaders = FetchHelpers.mergeHeaders([
-      headers,
-    ]);
-
     // Initial payload
     var payload = FetchPayload(
       uri: uri,
       body: body,
       method: method,
-      headers: mergedHeaders,
+      headers: headers,
       cancelToken: cancelToken,
     );
 
+    // All interceptors
+    final allInterceptors = <Interceptor>[
+      ...this.interceptors,
+      ...interceptors,
+    ];
+
     try {
       // Request interceptors - can modify payload or throw SkipRequest
-      final allInterceptors = <Interceptor>[
-        ...this.interceptors,
-        ...interceptors,
-      ];
-
       FetchResponse? skipResponse;
       try {
         for (final interceptor in allInterceptors) {
@@ -456,6 +453,11 @@ class Fetch<R> {
 
       return result;
     } on FetchException catch (error) {
+      // Error interceptors
+      for (final interceptor in allInterceptors) {
+        await interceptor.onError(error);
+      }
+
       // Global error handler
       onError?.call(error);
 
@@ -467,6 +469,11 @@ class Fetch<R> {
         error: error,
         stackTrace: stackTrace,
       );
+
+      // Error interceptors
+      for (final interceptor in allInterceptors) {
+        await interceptor.onError(fetchError);
+      }
 
       // Global error handler
       onError?.call(fetchError);

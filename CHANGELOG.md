@@ -1,3 +1,27 @@
+## 8.4.0 - 2025-12-18
+
+### New Features
+
+- **NEW**: Added `Interceptor.onError` callback for error handling in interceptors
+- **NEW**: Added `FetchResponse.toString()` for better logging
+- **NEW**: Improved `FetchPayload.toString()` for better logging
+
+### Example
+
+```dart
+class MyInterceptor extends Interceptor {
+  @override
+  void onError(FetchException error) {
+    print('Error: ${error.message}');
+    analytics.logError(error);
+  }
+}
+
+// Logging
+print(response); // GET https://api.example.com/users\nStatus: 200 OK\n...
+print(payload);  // POST https://api.example.com/login\nHeaders: {...}\n...
+```
+
 ## 8.3.0 - 2025-12-18
 
 ### Improvements
