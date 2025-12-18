@@ -80,4 +80,16 @@ class FetchException implements Exception {
     }
     return buffer.toString();
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'type': type.name,
+      if (uri != null) 'uri': uri.toString(),
+      if (method != null) 'method': method,
+      if (statusCode != null) 'statusCode': statusCode,
+      'message': message,
+      if (payload != null) 'payload': payload!.toJson(),
+      if (error != null) 'error': error.toString(),
+    };
+  }
 }

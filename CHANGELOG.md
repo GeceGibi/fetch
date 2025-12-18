@@ -1,3 +1,9 @@
+## 8.5.1 - 2025-12-18
+
+### New Features
+
+- **NEW**: `toJson()` method added to `FetchPayload`, `FetchResponse`, `FetchException`
+
 ## 8.5.0 - 2025-12-18
 
 ### Breaking Changes
