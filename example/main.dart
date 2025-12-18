@@ -41,8 +41,6 @@ Future<void> basicExample() async {
 
   final response = await fetch.get('/get');
   print('Status: ${response.response.statusCode}');
-
-  fetch.dispose();
 }
 
 /// Debounce - only last request executes
@@ -74,7 +72,6 @@ Future<void> debounceExample() async {
 
   // Wait for the last request to complete
   await lastRequest;
-  fetch.dispose();
 }
 
 /// Throttle - only first request within duration executes
@@ -104,7 +101,6 @@ Future<void> throttleExample() async {
 
   // Wait for throttle window to clear
   await Future<void>.delayed(const Duration(seconds: 3));
-  fetch.dispose();
 }
 
 /// Retry on failure using RetryExecutor
@@ -133,8 +129,6 @@ Future<void> retryExample() async {
     print('✗ Failed after 3 attempts');
     print('  Error: ${e.message}');
   }
-
-  fetch.dispose();
 }
 
 /// Interceptors for logging and auth
@@ -150,8 +144,6 @@ Future<void> interceptorExample() async {
   );
 
   await fetch.get('/headers');
-
-  fetch.dispose();
 }
 
 /// Error handling with onError callback
@@ -171,8 +163,6 @@ Future<void> errorHandlingExample() async {
   } on FetchException catch (e) {
     print('  Caught: ${e.message}');
   }
-
-  fetch.dispose();
 }
 
 /// Cache responses
@@ -192,8 +182,6 @@ Future<void> cacheExample() async {
 
   print('Second request (from cache)');
   await fetch.get('/get');
-
-  fetch.dispose();
 }
 
 /// Cancel requests
@@ -206,17 +194,21 @@ Future<void> cancelExample() async {
 
   final token = CancelToken();
 
-  fetch.get('/delay/5', cancelToken: token).catchError((Object e) {
-    if (e is FetchException && e.type == FetchExceptionType.cancelled) {
-      print('Request cancelled');
-    }
-    return Future<FetchResponse>.error(e);
-  });
+  // Start request and handle cancellation
+  final future = fetch.get('/delay/5', cancelToken: token);
 
+  // Cancel after 500ms
   await Future<void>.delayed(const Duration(milliseconds: 500));
   token.cancel();
 
-  fetch.dispose();
+  // Wait for the cancelled request to complete
+  try {
+    await future;
+  } on FetchException catch (e) {
+    if (e.type == FetchExceptionType.cancelled) {
+      print('Request cancelled successfully');
+    }
+  }
 }
 
 /// Executor example - using isolate for CPU-intensive operations
@@ -227,7 +219,7 @@ Future<void> executorExample() async {
   final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
     executor: const RequestExecutor.isolate(),
-    transform: (response) {
+    transform: (response, payload) {
       print('Transform in main isolate...');
       return jsonDecode(response.response.body) as Map<String, dynamic>;
     },
@@ -244,14 +236,11 @@ Future<void> executorExample() async {
       maxAttempts: 3,
       retryDelay: const Duration(milliseconds: 500),
     ),
-    transform: (response) {
+    transform: (response, payload) {
       return jsonDecode(response.response.body) as Map<String, dynamic>;
     },
   );
 
   final retryIsolateData = await fetchRetryIsolate.get('/get');
   print('Request executed with retry+isolate: ${retryIsolateData['url']}');
-
-  fetchIsolate.dispose();
-  fetchRetryIsolate.dispose();
 }

@@ -50,7 +50,7 @@ class Fetch<R> {
   /// [timeout] - Request timeout duration (default: 30 seconds)
   /// [interceptors] - List of interceptors (can include CacheInterceptor, DebounceInterceptor, etc.)
   /// [onError] - Global error handler for all errors
-  /// [transform] - Function to transform responses
+  /// [transform] - Function to transform responses (receives response and payload)
   /// [executor] - Request executor for platform-specific execution strategies
   Fetch({
     Uri? base,
@@ -80,14 +80,9 @@ class Fetch<R> {
   /// Global error handler
   final void Function(FetchException error)? onError;
 
-  /// Function to transform responses
-  final FutureOr<R> Function(FetchResponse response)? transform;
-
-  /// Stream controller for fetch events
-  final _onFetchController = StreamController<R>.broadcast();
-
-  /// Stream of fetch events
-  Stream<R> get onFetch => _onFetchController.stream;
+  /// Function to transform responses (receives response and payload)
+  final FutureOr<R> Function(FetchResponse response, FetchPayload payload)?
+      transform;
 
   /// Performs a GET request.
   ///
@@ -110,7 +105,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -135,7 +130,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -163,7 +158,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -191,7 +186,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -219,7 +214,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -247,7 +242,7 @@ class Fetch<R> {
       queryParams: queryParams,
       headers: headers,
       cancelToken: cancelToken,
-      methodInterceptors: interceptors,
+      interceptors: interceptors,
     );
   }
 
@@ -326,11 +321,7 @@ class Fetch<R> {
         );
       }
 
-      return FetchResponse(
-        response,
-        payload: payload,
-        retryMethod: _runMethod,
-      );
+      return FetchResponse(response);
     } on FetchException {
       rethrow;
     } catch (e, stackTrace) {
@@ -384,7 +375,7 @@ class Fetch<R> {
     Object? body,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
-    List<Interceptor> methodInterceptors = const [],
+    List<Interceptor> interceptors = const [],
   }) async {
     /// Create URI
     final Uri uri;
@@ -421,29 +412,27 @@ class Fetch<R> {
     );
 
     try {
-      // Request interceptors - can skip request or modify payload
+      // Request interceptors - can modify payload or throw SkipRequest
       final allInterceptors = <Interceptor>[
+        ...this.interceptors,
         ...interceptors,
-        ...methodInterceptors,
       ];
 
-      FetchResponse? response;
-      for (final interceptor in allInterceptors) {
-        final result = await interceptor.onRequest(payload);
-        if (result is SkipRequest) {
-          response = result.response;
-          break;
-        } else if (result is ContinueRequest) {
-          payload = result.payload;
+      FetchResponse? skipResponse;
+      try {
+        for (final interceptor in allInterceptors) {
+          payload = await interceptor.onRequest(payload);
         }
+      } on SkipRequest catch (skip) {
+        skipResponse = skip.response;
       }
 
       final stopwatch = Stopwatch()..start();
 
       // Execute request if not skipped (e.g., by cache)
       final FetchResponse fetchResponse;
-      if (response != null) {
-        fetchResponse = response;
+      if (skipResponse != null) {
+        fetchResponse = skipResponse;
       } else {
         fetchResponse = await executor.execute(
           payload,
@@ -454,7 +443,8 @@ class Fetch<R> {
       // Response interceptors
       var processedResponse = fetchResponse;
       for (final interceptor in allInterceptors) {
-        processedResponse = await interceptor.onResponse(processedResponse);
+        processedResponse =
+            await interceptor.onResponse(processedResponse, payload);
       }
 
       stopwatch.stop();
@@ -462,15 +452,13 @@ class Fetch<R> {
       // Transform
       final result = transform == null
           ? processedResponse as R
-          : await transform!(processedResponse);
-
-      _onFetchController.add(result);
+          : await transform!(processedResponse, payload);
 
       return result;
     } on FetchException catch (error) {
       final allInterceptors = <Interceptor>[
         ...this.interceptors,
-        ...methodInterceptors,
+        ...interceptors,
       ];
       // Error interceptors
       for (final interceptor in allInterceptors) {
@@ -492,7 +480,7 @@ class Fetch<R> {
       // Error interceptors
       final allInterceptors = <Interceptor>[
         ...this.interceptors,
-        ...methodInterceptors,
+        ...interceptors,
       ];
       for (final interceptor in allInterceptors) {
         await interceptor.onError(fetchError);
@@ -503,13 +491,5 @@ class Fetch<R> {
 
       throw fetchError;
     }
-  }
-
-  /// Disposes the fetch instance and cleans up resources.
-  ///
-  /// This method should be called when the fetch instance is no longer needed
-  /// to prevent memory leaks.
-  void dispose() {
-    _onFetchController.close();
   }
 }

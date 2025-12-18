@@ -4,30 +4,24 @@ import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
 import 'package:fetch/src/utils/exception.dart';
 
-/// Result from interceptor processing
-sealed class InterceptorResult {}
-
-/// Continue with the request
-class ContinueRequest extends InterceptorResult {
-  ContinueRequest(this.payload);
-  final FetchPayload payload;
-}
-
-/// Skip the request and return this response immediately
-class SkipRequest extends InterceptorResult {
+/// Thrown to skip the HTTP request and return a cached/mock response
+class SkipRequest implements Exception {
   SkipRequest(this.response);
   final FetchResponse response;
 }
 
 /// Abstract Interceptor class
 abstract class Interceptor {
-  /// Called before request is sent
-  /// Can return modified payload, or skip the request entirely
-  FutureOr<InterceptorResult> onRequest(FetchPayload payload) =>
-      ContinueRequest(payload);
+  /// Called before request is sent.
+  /// Return modified payload or throw [SkipRequest] to skip the request.
+  FutureOr<FetchPayload> onRequest(FetchPayload payload) => payload;
 
   /// Called after response is received
-  FutureOr<FetchResponse> onResponse(FetchResponse response) => response;
+  FutureOr<FetchResponse> onResponse(
+    FetchResponse response,
+    FetchPayload payload,
+  ) =>
+      response;
 
   /// Called when an error occurs
   FutureOr<void> onError(FetchException error) {}
@@ -41,7 +35,7 @@ class LogInterceptor extends Interceptor {
   final bool logResponse;
 
   @override
-  InterceptorResult onRequest(FetchPayload payload) {
+  FetchPayload onRequest(FetchPayload payload) {
     if (logRequest) {
       print('→ ${payload.method} ${payload.uri}');
       if (payload.headers?.isNotEmpty ?? false) {
@@ -51,14 +45,13 @@ class LogInterceptor extends Interceptor {
         print('  Body: ${payload.body}');
       }
     }
-    return ContinueRequest(payload);
+    return payload;
   }
 
   @override
-  FetchResponse onResponse(FetchResponse response) {
+  FetchResponse onResponse(FetchResponse response, FetchPayload payload) {
     if (logResponse) {
-      print(
-          '← ${response.response.statusCode} ${response.response.request?.url}');
+      print('← ${response.response.statusCode} ${payload.uri}');
     }
     return response;
   }
@@ -76,19 +69,17 @@ class AuthInterceptor extends Interceptor {
   final FutureOr<String?> Function() getToken;
 
   @override
-  Future<InterceptorResult> onRequest(FetchPayload payload) async {
+  Future<FetchPayload> onRequest(FetchPayload payload) async {
     final token = await getToken();
     if (token != null) {
-      return ContinueRequest(
-        payload.copyWith(
-          headers: {
-            ...?payload.headers,
-            'Authorization': 'Bearer $token',
-          },
-        ),
+      return payload.copyWith(
+        headers: {
+          ...?payload.headers,
+          'Authorization': 'Bearer $token',
+        },
       );
     }
-    return ContinueRequest(payload);
+    return payload;
   }
 }
 
@@ -109,9 +100,9 @@ class DebounceInterceptor extends Interceptor {
   final Map<String, Completer<void>> _completers;
 
   @override
-  Future<InterceptorResult> onRequest(FetchPayload payload) async {
+  Future<FetchPayload> onRequest(FetchPayload payload) async {
     if (duration == Duration.zero) {
-      return ContinueRequest(payload);
+      return payload;
     }
 
     final key = payload.uri.toString();
@@ -148,12 +139,8 @@ class DebounceInterceptor extends Interceptor {
     });
 
     // Wait for either completion or cancellation
-    try {
-      await completer.future;
-      return ContinueRequest(payload);
-    } catch (e) {
-      rethrow;
-    }
+    await completer.future;
+    return payload;
   }
 
   /// Clear all debounce state
@@ -187,9 +174,9 @@ class ThrottleInterceptor extends Interceptor {
   final Map<String, DateTime> _lastExecuted;
 
   @override
-  InterceptorResult onRequest(FetchPayload payload) {
+  FetchPayload onRequest(FetchPayload payload) {
     if (duration == Duration.zero) {
-      return ContinueRequest(payload);
+      return payload;
     }
 
     final key = payload.uri.toString();
@@ -211,7 +198,7 @@ class ThrottleInterceptor extends Interceptor {
     // Update last execution time
     _lastExecuted[key] = now;
 
-    return ContinueRequest(payload);
+    return payload;
   }
 
   /// Clear all throttle state
@@ -248,9 +235,9 @@ class CacheInterceptor extends Interceptor {
   }
 
   @override
-  InterceptorResult onRequest(FetchPayload payload) {
+  FetchPayload onRequest(FetchPayload payload) {
     if (duration == Duration.zero) {
-      return ContinueRequest(payload);
+      return payload;
     }
 
     final key = _getCacheKey(payload.uri);
@@ -258,14 +245,14 @@ class CacheInterceptor extends Interceptor {
 
     // Return cached response if available and not expired
     if (cached != null && !cached.isExpired) {
-      return SkipRequest(cached.response);
+      throw SkipRequest(cached.response);
     }
 
-    return ContinueRequest(payload);
+    return payload;
   }
 
   @override
-  FetchResponse onResponse(FetchResponse response) {
+  FetchResponse onResponse(FetchResponse response, FetchPayload payload) {
     if (duration == Duration.zero) {
       return response;
     }
@@ -276,7 +263,7 @@ class CacheInterceptor extends Interceptor {
     }
 
     // Cache the response
-    final key = _getCacheKey(response.payload.uri);
+    final key = _getCacheKey(payload.uri);
     _cache[key] = _CacheEntry(response, duration);
 
     return response;

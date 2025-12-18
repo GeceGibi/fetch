@@ -32,16 +32,21 @@ class FetchException implements Exception {
   FetchException({
     required this.payload,
     required this.type,
+    String? message,
     this.error,
     this.stackTrace,
     this.statusCode,
-  });
+  }) : _message = message;
 
   /// Request payload containing uri, method, headers, body
   final FetchPayload payload;
 
   /// Error type
   final FetchExceptionType type;
+
+  /// Custom error message (returns message, error string, or type name)
+  String get message => _message ?? error?.toString() ?? type.name;
+  final String? _message;
 
   /// Original error (if any)
   final Object? error;
@@ -55,9 +60,6 @@ class FetchException implements Exception {
   /// Request URI
   Uri get uri => payload.uri;
 
-  /// Error message
-  String get message => error?.toString() ?? type.toString();
-
   @override
   String toString() {
     final buffer = StringBuffer('FetchException: $type')
@@ -65,6 +67,9 @@ class FetchException implements Exception {
       ..write('\nMethod: ${payload.method}');
     if (statusCode != null) {
       buffer.write('\nStatus: $statusCode');
+    }
+    if (_message != null) {
+      buffer.write('\nMessage: $_message');
     }
     if (payload.headers?.isNotEmpty ?? false) {
       buffer.write('\nHeaders: ${payload.headers}');

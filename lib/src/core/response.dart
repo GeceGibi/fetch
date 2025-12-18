@@ -1,20 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fetch/src/core/payload.dart';
 import 'package:http/http.dart' as http;
 
-/// Type alias for HTTP method function signature
-typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
-
 class FetchResponse {
-  FetchResponse(
-    this.response, {
-    required this.payload,
-    this.elapsed,
-    FetchMethod? retryMethod,
-  }) : _retryMethod = retryMethod;
-
+  FetchResponse(this.response, {this.elapsed});
   final http.Response response;
 
   /// Whether the response indicates a successful HTTP status.
@@ -26,48 +16,6 @@ class FetchResponse {
 
   /// Request duration (time taken to complete the request)
   Duration? elapsed;
-
-  /// Original request payload
-  final FetchPayload payload;
-
-  /// Internal: Method to call for retry
-  final FetchMethod? _retryMethod;
-
-  /// Retries the request with optional payload modification.
-  ///
-  /// [onRetry] - Optional callback to modify the payload before retrying.
-  ///             Receives the original payload and returns a modified payload.
-  ///             If not provided, retries with the original payload.
-  ///
-  /// Returns a new FetchResponse with the retry result.
-  /// Throws [UnsupportedError] if retry is not available (e.g., response from cache).
-  ///
-  /// Example:
-  /// ```dart
-  /// // Retry with original payload
-  /// await response.retry();
-  ///
-  /// // Retry with modified payload
-  /// await response.retry((payload) {
-  ///   return payload.copyWith(
-  ///     headers: {'Authorization': 'Bearer new-token'},
-  ///   );
-  /// });
-  /// ```
-  Future<FetchResponse> retry([
-    FutureOr<FetchPayload> Function(FetchPayload payload)? onRetry,
-  ]) async {
-    if (_retryMethod == null) {
-      throw UnsupportedError(
-        'Retry is not available for this response. '
-        'This might be a cached response or the retry capability was not enabled.',
-      );
-    }
-
-    return _retryMethod!(
-      await onRetry?.call(payload) ?? payload,
-    );
-  }
 
   /// Converts the JSON response to a strongly-typed Map.
   ///
