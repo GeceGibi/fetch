@@ -94,14 +94,14 @@ class FetchResponse {
     return buffer.toString().trimRight();
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool includePayload = true}) {
     return {
       'statusCode': response.statusCode,
       'reasonPhrase': response.reasonPhrase,
       if (elapsed != null) 'elapsedMs': elapsed!.inMilliseconds,
       if (response.headers.isNotEmpty) 'headers': response.headers,
       if (response.body.isNotEmpty) 'body': response.body,
-      'payload': payload.toJson(),
+      if (includePayload) 'payload': payload.toJson(),
     };
   }
 }

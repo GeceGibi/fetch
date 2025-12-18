@@ -1,3 +1,9 @@
+## 8.5.2 - 2025-12-18
+
+### Improvements
+
+- **IMPROVED**: `FetchResponse.toJson()` now accepts `includePayload` parameter (default: `true`)
+
 ## 8.5.1 - 2025-12-18
 
 ### New Features
