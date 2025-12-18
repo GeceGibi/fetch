@@ -1,3 +1,5 @@
+import 'package:fetch/src/core/payload.dart';
+
 /// Fetch exception types
 enum FetchExceptionType {
   /// Request was cancelled
@@ -5,6 +7,9 @@ enum FetchExceptionType {
 
   /// Request was debounced
   debounced,
+
+  /// Request was throttled
+  throttled,
 
   /// Connection error
   connectionError,
@@ -25,101 +30,47 @@ enum FetchExceptionType {
 /// Custom exception class for Fetch operations
 class FetchException implements Exception {
   FetchException({
-    required this.message,
-    this.statusCode,
-    this.type,
-    this.data,
+    required this.payload,
+    required this.type,
+    this.error,
     this.stackTrace,
-    this.uri,
+    this.statusCode,
   });
 
-  /// Factory constructor for timeout errors
-  factory FetchException.timeout(Uri uri, Duration timeout) {
-    return FetchException(
-      message: 'Request timeout after ${timeout.inSeconds}s',
-      type: FetchExceptionType.timeout,
-      uri: uri,
-    );
-  }
-
-  /// Factory constructor for connection errors
-  factory FetchException.connectionError(Uri uri, Object error) {
-    return FetchException(
-      message: 'Connection error: $error',
-      type: FetchExceptionType.connectionError,
-      uri: uri,
-    );
-  }
-
-  /// Factory constructor for HTTP errors
-  factory FetchException.httpError(
-    int statusCode,
-    Uri uri, {
-    String? message,
-    dynamic data,
-  }) {
-    return FetchException(
-      message: message ?? 'HTTP error',
-      type: FetchExceptionType.httpError,
-      statusCode: statusCode,
-      uri: uri,
-      data: data,
-    );
-  }
-
-  /// Factory constructor for parse errors
-  factory FetchException.parseError(Object error, [StackTrace? stackTrace]) {
-    return FetchException(
-      message: 'Failed to parse response: $error',
-      type: FetchExceptionType.parseError,
-      stackTrace: stackTrace,
-    );
-  }
-
-  /// Error message
-  final String message;
+  /// Request payload containing uri, method, headers, body
+  final FetchPayload payload;
 
   /// Error type
-  final FetchExceptionType? type;
+  final FetchExceptionType type;
 
-  /// HTTP status code (if available)
-  final int? statusCode;
-
-  /// Request URI (if available)
-  final Uri? uri;
-
-  /// Response data (if available)
-  final dynamic data;
+  /// Original error (if any)
+  final Object? error;
 
   /// Stack trace
   final StackTrace? stackTrace;
 
-  /// Is this an HTTP error?
-  bool get isHttpError => type == FetchExceptionType.httpError;
+  /// HTTP status code (if available)
+  final int? statusCode;
 
-  /// Is this a timeout error?
-  bool get isTimeout => type == FetchExceptionType.timeout;
+  /// Request URI
+  Uri get uri => payload.uri;
 
-  /// Is this a connection error?
-  bool get isConnectionError => type == FetchExceptionType.connectionError;
-
-  /// Is this a client error? (4xx)
-  bool get isClientError =>
-      isHttpError &&
-      statusCode != null &&
-      statusCode! >= 400 &&
-      statusCode! < 500;
-
-  /// Is this a server error? (5xx)
-  bool get isServerError =>
-      isHttpError && statusCode != null && statusCode! >= 500;
+  /// Error message
+  String get message => error?.toString() ?? type.toString();
 
   @override
   String toString() {
-    final buffer = StringBuffer('FetchException: $message');
-    if (statusCode != null) buffer.write(' (Status: $statusCode)');
-    if (uri != null) buffer.write('\nURI: $uri');
-    if (data != null) buffer.write('\nData: $data');
+    final buffer = StringBuffer('FetchException: $type')
+      ..write('\nURI: ${payload.uri}')
+      ..write('\nMethod: ${payload.method}');
+    if (statusCode != null) {
+      buffer.write('\nStatus: $statusCode');
+    }
+    if (payload.headers?.isNotEmpty ?? false) {
+      buffer.write('\nHeaders: ${payload.headers}');
+    }
+    if (payload.body != null) buffer.write('\nBody: ${payload.body}');
+    if (error != null) buffer.write('\nError: $error');
     return buffer.toString();
   }
 }

@@ -1,3 +1,232 @@
+## 8.0.0 - 2025-12-18
+
+### Breaking Changes
+
+- **BREAKING**: Simplified `FetchException` structure
+  - Changed `uri` parameter to `payload` (FetchPayload) - now includes full request context (uri, method, headers, body)
+  - `uri` is now a getter that returns `payload.uri`
+  - Removed: `message` parameter (now computed from `error`), `statusCode`, `data`
+  - Required parameters: `payload`, `type`
+  - Optional parameters: `error`, `stackTrace`
+  - Removed factory constructors: `.timeout()`, `.connectionError()`, `.httpError()`, `.parseError()`
+  - Removed helper getters: `isHttpError`, `isTimeout`, `isConnectionError`, `isClientError`, `isServerError`
+  - Use `error.type == FetchExceptionType.xxx` instead of helper getters
+  - `toString()` now includes method, headers, and body for better debugging
+
+### Migration Guide
+
+```dart
+// Before
+throw FetchException(
+  message: 'Request cancelled',
+  type: FetchExceptionType.cancelled,
+  uri: uri,
+);
+
+if (error.isServerError) { ... }
+
+// After
+throw FetchException(
+  payload: payload,
+  type: FetchExceptionType.cancelled,
+);
+
+if (error.type == FetchExceptionType.httpError) { ... }
+
+// Access request details
+print(error.payload.method);  // GET, POST, etc.
+print(error.payload.headers); // Request headers
+print(error.payload.body);    // Request body
+```
+
+## 7.1.0 - 2025-12-18
+
+### New Features
+- **NEW**: `ThrottleInterceptor` - Limits request rate by executing only the first request within a time window
+  - Unlike debounce (which executes last), throttle executes the first request and rejects subsequent requests until the duration expires
+  - Usage: `interceptors: [ThrottleInterceptor(duration: Duration(seconds: 1))]`
+- **NEW**: `FetchExceptionType.throttled` - Exception type for throttled requests
+
+### Example
+```dart
+// Throttle - only first request executes
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    ThrottleInterceptor(duration: Duration(seconds: 1)),
+  ],
+);
+
+// First request executes, others are throttled
+for (var i = 0; i < 5; i++) {
+  fetch.get('/api/data');
+  await Future.delayed(Duration(milliseconds: 100));
+}
+```
+
+## 7.0.0 - 2025-12-18
+
+### Breaking Changes - Complete Interceptor Pipeline Architecture
+- **REMOVED**: `debounceOptions` parameter from `Fetch` constructor and HTTP methods
+  - Use `DebounceInterceptor` instead: `interceptors: [DebounceInterceptor(duration: Duration(seconds: 1))]`
+- **REMOVED**: `cacheOptions` parameter from `Fetch` constructor and HTTP methods  
+  - Use `CacheInterceptor` instead: `interceptors: [CacheInterceptor(duration: Duration(minutes: 5))]`
+- **REMOVED**: `CacheFactory` mixin from `Fetch` class
+- **REMOVED**: `clearCache()`, `clearDebounce()` methods from `Fetch` class
+  - Access these methods directly on interceptor instances
+- **REMOVED**: `ErrorInterceptor` class
+- **ADDED**: `onError` callback parameter to `Fetch` constructor for global error handling
+- **CHANGED**: Interceptor `onRequest` now returns `InterceptorResult` (either `ContinueRequest` or `SkipRequest`)
+  - This allows interceptors like `CacheInterceptor` to skip the actual HTTP request
+- **NEW**: `DebounceInterceptor` - handles request debouncing
+- **NEW**: `CacheInterceptor` - handles response caching with skip-request capability
+- **BENEFIT**: Clean pipeline architecture - request flows through interceptor chain, any interceptor can modify, skip, or fail
+
+### Migration Guide
+```dart
+// Debounce: Before (6.x)
+final fetch = Fetch<FetchResponse>(
+  debounceOptions: DebounceOptions(duration: Duration(seconds: 1)),
+);
+
+// Debounce: After (7.x)
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    DebounceInterceptor(duration: Duration(seconds: 1)),
+  ],
+);
+
+// Cache: Before (6.x)
+final fetch = Fetch<FetchResponse>(
+  cacheOptions: CacheOptions(duration: Duration(minutes: 5)),
+);
+
+// Cache: After (7.x)
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    CacheInterceptor(duration: Duration(minutes: 5)),
+  ],
+);
+
+// Error Handling: Before (6.x)
+final fetch = Fetch<FetchResponse>(
+  interceptors: [ErrorInterceptor(onErrorCallback: (e) => print(e))],
+);
+
+// Error Handling: After (7.x)
+final fetch = Fetch<FetchResponse>(
+  onError: (error) => print(error),
+);
+
+// Combine multiple interceptors - they form a pipeline
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    LogInterceptor(),
+    CacheInterceptor(duration: Duration(minutes: 5)),
+    DebounceInterceptor(duration: Duration(milliseconds: 500)),
+    AuthInterceptor(getToken: () => getToken()),
+  ],
+  onError: (error) => logError(error),
+);
+```
+
+## 6.0.0 - 2025-12-18
+
+### Breaking Changes - Moved to Interceptor/Executor Pattern
+- **REMOVED**: `retryOptions` parameter from `Fetch` constructor and all HTTP methods
+  - Use `RetryExecutor` wrapper instead: `executor: RetryExecutor(executor: DefaultExecutor(), maxAttempts: 3)`
+- **REMOVED**: `enableLogs` parameter from `Fetch` constructor and all HTTP methods
+  - Use `LogInterceptor` instead: `interceptors: [LogInterceptor()]`
+- **REMOVED**: `onError` callback parameter from `Fetch` constructor
+  - Use `ErrorInterceptor` instead: `interceptors: [ErrorInterceptor(onErrorCallback: (e) => print(e))]`
+- **REMOVED**: `FetchLog` class and `fetchLogs` list
+  - Logging is now handled by `LogInterceptor`
+- **REMOVED**: `lib/src/core/logger.dart` file
+- **NEW**: `RetryExecutor` - wraps any executor with retry logic
+- **NEW**: `ErrorInterceptor` - simple error callback interceptor
+- **BENEFIT**: Cleaner API, better separation of concerns, composable functionality
+
+### Migration Guide
+```dart
+// Retry: Before (5.x)
+final fetch = Fetch<FetchResponse>(
+  retryOptions: RetryOptions(maxAttempts: 3),
+);
+
+// Retry: After (6.x)
+final fetch = Fetch<FetchResponse>(
+  executor: RetryExecutor(
+    executor: const DefaultExecutor(),
+    maxAttempts: 3,
+    retryDelay: Duration(seconds: 1),
+  ),
+);
+
+// Logging: Before (5.x)
+final fetch = Fetch<FetchResponse>(
+  enableLogs: true,
+);
+
+// Logging: After (6.x)
+final fetch = Fetch<FetchResponse>(
+  interceptors: [LogInterceptor()],
+);
+
+// Error Handling: Before (5.x)
+final fetch = Fetch<FetchResponse>(
+  onError: (error, stackTrace) => print('Error: $error'),
+);
+
+// Error Handling: After (6.x)
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    ErrorInterceptor(onErrorCallback: (error) => print('Error: $error')),
+  ],
+);
+
+// Combine retry + isolate + logging
+final fetch = Fetch<FetchResponse>(
+  executor: RetryExecutor(
+    executor: const IsolateExecutor(),
+    maxAttempts: 3,
+  ),
+  interceptors: [
+    LogInterceptor(),
+    ErrorInterceptor(onErrorCallback: (e) => print(e)),
+  ],
+);
+```
+
+## 5.0.0 - 2025-12-18
+
+### Breaking Changes
+- **SIMPLIFIED**: `transform` moved back to `Fetch` constructor
+- **SIMPLIFIED**: `RequestExecutor` no longer handles transforms
+- **CHANGED**: `IsolateExecutor` now uses `Isolate.run` instead of `Isolate.spawn`
+- **REMOVED**: Transform parameters from executor factories
+- **BENEFIT**: Simpler API, cleaner separation of concerns
+
+### Migration Guide
+```dart
+// Before (4.x)
+final fetch = Fetch<Map<String, dynamic>>(
+  executor: RequestExecutor.direct(
+    transform: (response) => jsonDecode(response.response.body),
+  ),
+);
+
+// After (5.x)
+final fetch = Fetch<Map<String, dynamic>>(
+  transform: (response) => jsonDecode(response.response.body),
+  executor: const RequestExecutor.direct(), // optional
+);
+
+// Isolate executor - simpler with Isolate.run
+final fetchIsolate = Fetch<Map<String, dynamic>>(
+  executor: const RequestExecutor.isolate(),
+  transform: (response) => jsonDecode(response.response.body),
+);
+```
+
 ## 4.4.0 - 2025-12-18
 
 ### Improvements

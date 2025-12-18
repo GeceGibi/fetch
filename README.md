@@ -130,122 +130,87 @@ final response = await fetch.get('/users');
 
 ### Custom Headers
 
+Use interceptors to add headers globally. For example, `AuthInterceptor` adds `Authorization` automatically:
+
 ```dart
 final fetch = Fetch<FetchResponse>(
-  headerBuilder: () => {
-    'Authorization': 'Bearer your-token',
-    'Content-Type': 'application/json',
-  },
+  interceptors: [
+    AuthInterceptor(getToken: () => 'your-token'),
+  ],
 );
 ```
 
 ### Request Overriding
 
+To modify requests before sending, implement a custom interceptor:
+
 ```dart
-final fetch = Fetch<FetchResponse>(
-  override: (payload, method) async {
-    // Modify the request before sending
-    if (payload.method == 'POST') {
-      payload = payload.copyWith(
+class CustomHeaderInterceptor extends Interceptor {
+  @override
+  InterceptorResult onRequest(FetchPayload payload) {
+    return ContinueRequest(
+      payload.copyWith(
         headers: {
-          ...payload.headers ?? {},
+          ...?payload.headers,
           'X-Custom-Header': 'value',
         },
-      );
-    }
-    
-    return method(payload);
-  },
-);
-```
-
-### Logging
-
-```dart
-final fetch = Fetch<FetchResponse>(
-  enableLogs: true,
-);
-
-// Enable logging for specific requests
-final response = await fetch.get('/users', enableLogs: true);
-```
-
-### Debouncing
-
-Hızlı tekrarlayan isteklerde sadece son isteği çalıştır:
-
-```dart
-final fetch = Fetch<FetchResponse>(
-  debounceOptions: DebounceOptions(duration: Duration(milliseconds: 500)),
-);
-
-// 5 hızlı istek - sadece son çalışır
-for (var i = 0; i < 5; i++) {
-  fetch.get('/search?q=flutter');
-  await Future.delayed(Duration(milliseconds: 100));
+      ),
+    );
+  }
 }
-```
 
-### Retry Mechanism
-
-Otomatik yeniden deneme ile hata toleransı:
-
-```dart
 final fetch = Fetch<FetchResponse>(
-  retryOptions: RetryOptions(
-    maxAttempts: 3,
-    retryDelay: Duration(seconds: 1),
-    retryDelayFactor: 2.0, // Exponential backoff
-    retryIf: (error) => error.isServerError || error.isTimeout,
-  ),
+  interceptors: [CustomHeaderInterceptor()],
 );
-
-// Server hatası durumunda 3 kez dener
-await fetch.get('/api/endpoint');
 ```
 
 ### Interceptors
 
-Request/response/error için middleware:
+Interceptors allow you to intercept and modify requests, responses, and errors:
 
 ```dart
 final fetch = Fetch<FetchResponse>(
   interceptors: [
-    // Log interceptor
+    // Log all requests and responses
     LogInterceptor(),
     
-    // Auth interceptor
+    // Add authentication token to requests
     AuthInterceptor(
       getToken: () async => await storage.getToken(),
     ),
     
-    // Custom interceptor
-    MyCustomInterceptor(),
+    // Handle errors globally
+    ErrorInterceptor(
+      onErrorCallback: (error) {
+        print('Error: ${error.message}');
+        // Send to error tracking service
+      },
+    ),
   ],
 );
 ```
 
-Kendi interceptor'ınızı oluşturun:
+Create custom interceptors:
 
 ```dart
 class MyCustomInterceptor extends Interceptor {
   @override
   Future<FetchPayload> onRequest(FetchPayload payload) async {
-    // İstek öncesi
+    // Modify request before sending
     print('Sending request to ${payload.uri}');
     return payload;
   }
 
   @override
   Future<FetchResponse> onResponse(FetchResponse response) async {
-    // Response sonrası
+    // Process response before returning
     print('Received response: ${response.response.statusCode}');
     return response;
   }
 
   @override
   Future<void> onError(FetchException error) async {
-    // Hata durumunda
+    // Handle errors
     print('Error occurred: ${error.message}');
   }
 }
@@ -271,15 +236,114 @@ try {
 }
 ```
 
-Global error handler:
+Global error handler using interceptor:
 
 ```dart
 final fetch = Fetch<FetchResponse>(
-  onError: (error, stackTrace) {
-    // Tüm hatalar buraya düşer
-    logger.error(error, stackTrace);
-    showErrorDialog(error.message);
-  },
+  interceptors: [
+    ErrorInterceptor(
+      onErrorCallback: (error) {
+        // All errors come here
+        logger.error(error);
+        showErrorDialog(error.message);
+      },
+    ),
+  ],
+);
+```
+
+### Caching with CacheInterceptor
+
+Cache responses to reduce network calls:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    CacheInterceptor(
+      duration: Duration(minutes: 5),
+      strategy: CacheStrategy.fullUrl,
+    ),
+  ],
+);
+
+// First request hits the network
+await fetch.get('/users');
+
+// Second request uses cached response
+await fetch.get('/users');
+```
+
+### Debouncing with DebounceInterceptor
+
+Prevent rapid duplicate requests - only the last request executes:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    DebounceInterceptor(duration: Duration(milliseconds: 500)),
+  ],
+);
+
+// Only the last request will execute
+for (var i = 0; i < 5; i++) {
+  fetch.get('/search?q=flutter');
+  await Future.delayed(Duration(milliseconds: 100));
+}
+```
+
+### Throttling with ThrottleInterceptor
+
+Limit request rate - only the first request within the duration executes:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    ThrottleInterceptor(duration: Duration(seconds: 1)),
+  ],
+);
+
+// Only the first request will execute, others are throttled
+for (var i = 0; i < 5; i++) {
+  fetch.get('/api/data');
+  await Future.delayed(Duration(milliseconds: 100));
+}
+```
+
+### Retry with Executors
+
+Use `RetryExecutor` to add automatic retry logic:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  executor: RetryExecutor(
+    executor: const DefaultExecutor(),
+    maxAttempts: 3,
+    retryDelay: Duration(seconds: 1),
+    retryIf: (error) => error.isServerError || error.isTimeout,
+  ),
+);
+
+// Will retry up to 3 times on server errors or timeouts
+await fetch.get('/api/endpoint');
+```
+
+### Complete Pipeline Example
+
+Combine multiple interceptors and executors:
+
+```dart
+final fetch = Fetch<FetchResponse>(
+  interceptors: [
+    LogInterceptor(),
+    CacheInterceptor(duration: Duration(minutes: 5)),
+    ThrottleInterceptor(duration: Duration(seconds: 1)), // Rate limiting
+    AuthInterceptor(getToken: () => getToken()),
+  ],
+  executor: RetryExecutor(
+    executor: const IsolateExecutor(),
+    maxAttempts: 3,
+  ),
+  onError: (error) => logError(error),
 );
 ```
 
@@ -290,44 +354,72 @@ final fetch = Fetch<FetchResponse>(
 The main HTTP client class with the following constructor parameters:
 
 - `base` - Base URI for all requests
-- `headerBuilder` - Function to build headers for each request
-- `encoding` - Character encoding (default: utf8)
-- `enableLogs` - Whether to enable logging (default: true)
 - `timeout` - Request timeout duration (default: 30 seconds)
-- `cacheOptions` - Cache configuration options
-- `debounceOptions` - Debounce configuration options
-- `retryOptions` - Retry configuration options
-- `interceptors` - List of interceptors
-- `onError` - Global error handler
+- `interceptors` - List of interceptors forming the request/response pipeline
+- `onError` - Global error handler called for all errors
 - `transform` - Function to transform responses
-- `override` - Function to override requests before sending
+- `executor` - Request executor strategy (default: DefaultExecutor)
 
 ### HTTP Methods
 
-- `get(endpoint, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
-- `post(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
-- `put(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
-- `delete(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
-- `patch(endpoint, body, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
-- `head(endpoint, {queryParams, headers, cacheOptions, debounceOptions, retryOptions, enableLogs})`
+- `get(endpoint, {queryParams, headers, cancelToken})`
+- `post(endpoint, body, {queryParams, headers, cancelToken})`
+- `put(endpoint, body, {queryParams, headers, cancelToken})`
+- `delete(endpoint, body, {queryParams, headers, cancelToken})`
+- `patch(endpoint, body, {queryParams, headers, cancelToken})`
+- `head(endpoint, {queryParams, headers, cancelToken})`
 
-### CacheOptions
+### Executors
 
+**RequestExecutor** - Base interface for request execution strategies:
+- `DefaultExecutor` - Executes requests in main isolate
+- `IsolateExecutor` - Executes requests in separate isolate (not supported on web)
+- `RetryExecutor` - Wraps any executor with retry logic
+
+**RetryExecutor parameters:**
+- `executor` - The underlying executor to wrap
+- `maxAttempts` - Maximum retry attempts (default: 3)
+- `retryDelay` - Delay between retries (default: 1 second)
+- `retryIf` - Function to determine if error should be retried
+
+Example:
+```dart
+// Simple retry
+final fetch = Fetch(
+  executor: RetryExecutor(
+    executor: const DefaultExecutor(),
+    maxAttempts: 3,
+  ),
+);
+
+// Retry + Isolate
+final fetch = Fetch(
+  executor: RetryExecutor(
+    executor: const IsolateExecutor(),
+    maxAttempts: 3,
+  ),
+);
+```
+
+### Built-in Interceptors
+
+**LogInterceptor** - Logs requests and responses:
+- `logRequest` - Whether to log requests (default: true)
+- `logResponse` - Whether to log responses (default: true)
+
+**AuthInterceptor** - Adds authentication token to requests:
+- `getToken` - Function that returns the auth token
+
+**CacheInterceptor** - Caches responses to reduce network calls:
 - `duration` - How long to cache responses
 - `strategy` - Cache strategy (CacheStrategy.fullUrl or CacheStrategy.urlWithoutQuery)
 - `canCache` - Function to determine if a response can be cached
 
-### DebounceOptions
+**DebounceInterceptor** - Prevents rapid duplicate requests (only last executes):
+- `duration` - Debounce duration (each new request resets the timer)
 
-- `duration` - Debounce süresi (son çağrıdan sonra beklenecek süre)
-- `enabled` - Debounce aktif mi (duration > 0 ise aktif)
-
-### RetryOptions
-
-- `maxAttempts` - Maksimum deneme sayısı (varsayılan: 3)
-- `retryDelay` - Retry'lar arası bekleme süresi (varsayılan: 1 saniye)
-- `retryDelayFactor` - Her retry'da delay çarpanı (exponential backoff için)
-- `retryIf` - Retry yapılıp yapılmayacağını belirleyen fonksiyon
+**ThrottleInterceptor** - Limits request rate (only first executes):
+- `duration` - Throttle duration (subsequent requests within window are rejected)
 
 ### FetchException
 

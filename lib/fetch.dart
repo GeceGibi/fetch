@@ -8,31 +8,22 @@
 library fetch;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:fetch/src/core/helpers.dart';
-import 'package:fetch/src/core/logger.dart';
 import 'package:fetch/src/core/payload.dart';
 import 'package:fetch/src/core/response.dart';
-import 'package:fetch/src/features/cache.dart';
 import 'package:fetch/src/features/cancel.dart';
-import 'package:fetch/src/features/debounce.dart';
 import 'package:fetch/src/features/executor.dart';
 import 'package:fetch/src/features/interceptor.dart';
-import 'package:fetch/src/features/retry.dart';
 import 'package:fetch/src/utils/exception.dart';
 import 'package:http/http.dart' as http;
 
 export 'src/core/helpers.dart';
-export 'src/core/logger.dart';
 export 'src/core/payload.dart';
 export 'src/core/response.dart';
-export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
-export 'src/features/debounce.dart';
 export 'src/features/executor.dart';
 export 'src/features/interceptor.dart';
-export 'src/features/retry.dart';
 export 'src/utils/exception.dart';
 
 /// A comprehensive HTTP client with caching, logging, and request capabilities.
@@ -52,34 +43,23 @@ export 'src/utils/exception.dart';
 ///
 /// final response = await fetch.get('/users');
 /// ```
-class Fetch<R> with CacheFactory {
+class Fetch<R> {
   /// Creates a new Fetch instance.
   ///
   /// [base] - Base URI for all requests (optional)
-  /// [headerBuilder] - Function to build headers for each request
-  /// [encoding] - Character encoding for requests/responses (default: utf8)
-  /// [enableLogs] - Whether to enable request/response logging
   /// [timeout] - Request timeout duration (default: 30 seconds)
-  /// [cacheOptions] - Cache configuration options
-  /// [debounceOptions] - Debounce configuration options
-  /// [retryOptions] - Retry configuration options
-  /// [interceptors] - List of interceptors
-  /// [onError] - Global error handler
+  /// [interceptors] - List of interceptors (can include CacheInterceptor, DebounceInterceptor, etc.)
+  /// [onError] - Global error handler for all errors
+  /// [transform] - Function to transform responses
   /// [executor] - Request executor for platform-specific execution strategies
   Fetch({
     Uri? base,
-    this.headerBuilder,
-    this.encoding = utf8,
     this.timeout = const Duration(seconds: 30),
-    this.cacheOptions = const CacheOptions(),
-    this.debounceOptions = const DebounceOptions.disabled(),
-    this.retryOptions = const RetryOptions.disabled(),
     this.interceptors = const [],
     this.onError,
+    this.transform,
     RequestExecutor? executor,
-    bool enableLogs = true,
-  })  : executor = executor ?? DefaultExecutor(),
-        _enableLogs = enableLogs {
+  }) : executor = executor ?? const DefaultExecutor() {
     if (base != null) {
       this.base = base;
     }
@@ -91,80 +71,29 @@ class Fetch<R> with CacheFactory {
   /// Request timeout duration
   final Duration timeout;
 
-  /// Character encoding for requests/responses
-  final Encoding encoding;
-
   /// Request executor for platform-specific execution strategies
   final RequestExecutor executor;
-
-  /// Cache configuration options
-  final CacheOptions cacheOptions;
-
-  /// Debounce configuration options
-  final DebounceOptions debounceOptions;
-
-  /// Retry configuration options
-  final RetryOptions retryOptions;
 
   /// Interceptors
   final List<Interceptor> interceptors;
 
   /// Global error handler
-  final void Function(FetchException error, StackTrace stackTrace)? onError;
+  final void Function(FetchException error)? onError;
 
-  /// Debounce manager
-  final _debounceManager = DebounceManager();
-
-  /// Function to build headers for each request
-  final FutureOr<FetchHeaders> Function()? headerBuilder;
+  /// Function to transform responses
+  final FutureOr<R> Function(FetchResponse response)? transform;
 
   /// Stream controller for fetch events
   final _onFetchController = StreamController<R>.broadcast();
 
-  /// List of all fetch logs for this instance
-  final fetchLogs = <FetchLog>[];
-
   /// Stream of fetch events
   Stream<R> get onFetch => _onFetchController.stream;
-
-  /// Internal logging method that handles request/response logging.
-  ///
-  /// This method creates a FetchLog entry and prints it to console.
-  /// Only called when logging is enabled.
-  ///
-  /// [response] - The HTTP response to log
-  /// [isCached] - Whether the response was retrieved from cache
-  void _onLog(
-    http.Response response,
-    Object? postBody,
-    Duration elapsed, {
-    bool isCached = false,
-  }) {
-    final fetchLog = FetchLog(
-      response,
-      elapsed: elapsed,
-      postBody: postBody,
-      isCached: isCached,
-    );
-
-    fetchLogs.add(fetchLog);
-
-    final pattern = RegExp('.{1,800}');
-    for (final match in pattern.allMatches(fetchLog.toString().trim())) {
-      // ignore: avoid_print
-      print(match.group(0));
-    }
-  }
 
   /// Performs a GET request.
   ///
   /// [endpoint] - The endpoint to request (can be full URL or relative path)
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -172,22 +101,16 @@ class Fetch<R> with CacheFactory {
     String endpoint, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) async {
     return _worker(
       'GET',
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -196,10 +119,6 @@ class Fetch<R> with CacheFactory {
   /// [endpoint] - The endpoint to request (can be full URL or relative path)
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -207,22 +126,16 @@ class Fetch<R> with CacheFactory {
     String endpoint, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) {
     return _worker(
       'HEAD',
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -232,10 +145,6 @@ class Fetch<R> with CacheFactory {
   /// [body] - The request body
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -244,11 +153,8 @@ class Fetch<R> with CacheFactory {
     Object? body, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) {
     return _worker(
       'POST',
@@ -256,11 +162,8 @@ class Fetch<R> with CacheFactory {
       body: body,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -270,10 +173,6 @@ class Fetch<R> with CacheFactory {
   /// [body] - The request body
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -282,11 +181,8 @@ class Fetch<R> with CacheFactory {
     Object? body, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) {
     return _worker(
       'PUT',
@@ -294,11 +190,8 @@ class Fetch<R> with CacheFactory {
       body: body,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -308,10 +201,6 @@ class Fetch<R> with CacheFactory {
   /// [body] - The request body
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -320,11 +209,8 @@ class Fetch<R> with CacheFactory {
     Object? body, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) {
     return _worker(
       'DELETE',
@@ -332,11 +218,8 @@ class Fetch<R> with CacheFactory {
       body: body,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -346,10 +229,6 @@ class Fetch<R> with CacheFactory {
   /// [body] - The request body
   /// [queryParams] - Optional query parameters
   /// [headers] - Optional HTTP headers
-  /// [cacheOptions] - Optional cache options for this request
-  /// [debounceOptions] - Optional debounce options for this request
-  /// [retryOptions] - Optional retry options for this request
-  /// [enableLogs] - Whether to enable logging for this request
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -358,11 +237,8 @@ class Fetch<R> with CacheFactory {
     Object? body, {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> interceptors = const [],
   }) {
     return _worker(
       'PATCH',
@@ -370,11 +246,8 @@ class Fetch<R> with CacheFactory {
       body: body,
       queryParams: queryParams,
       headers: headers,
-      cacheOptions: cacheOptions,
-      debounceOptions: debounceOptions,
-      retryOptions: retryOptions,
-      enableLogs: enableLogs,
       cancelToken: cancelToken,
+      methodInterceptors: interceptors,
     );
   }
 
@@ -389,9 +262,8 @@ class Fetch<R> with CacheFactory {
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
       throw FetchException(
-        message: 'Request cancelled',
+        payload: payload,
         type: FetchExceptionType.cancelled,
-        uri: uri,
       );
     }
 
@@ -419,16 +291,18 @@ class Fetch<R> with CacheFactory {
       final streamedResponse = await client.send(request).timeout(
         timeout,
         onTimeout: () {
-          throw FetchException.timeout(uri, timeout);
+          throw FetchException(
+            payload: payload,
+            type: FetchExceptionType.timeout,
+          );
         },
       );
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
         throw FetchException(
-          message: 'Request cancelled',
+          payload: payload,
           type: FetchExceptionType.cancelled,
-          uri: uri,
         );
       }
 
@@ -437,19 +311,18 @@ class Fetch<R> with CacheFactory {
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
         throw FetchException(
-          message: 'Request cancelled',
+          payload: payload,
           type: FetchExceptionType.cancelled,
-          uri: uri,
         );
       }
 
       // Check for HTTP errors
       if (response.statusCode >= 400) {
-        throw FetchException.httpError(
-          response.statusCode,
-          uri,
-          message: response.reasonPhrase,
-          data: response.body,
+        throw FetchException(
+          payload: payload,
+          type: FetchExceptionType.httpError,
+          error: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+          statusCode: response.statusCode,
         );
       }
 
@@ -460,18 +333,22 @@ class Fetch<R> with CacheFactory {
       );
     } on FetchException {
       rethrow;
-    } catch (e) {
+    } catch (e, stackTrace) {
       // If client was closed due to cancellation
       if (cancelToken?.isCancelled ?? false) {
         throw FetchException(
-          message: 'Request cancelled',
+          payload: payload,
           type: FetchExceptionType.cancelled,
-          uri: uri,
         );
       }
 
       // Connection error
-      throw FetchException.connectionError(uri, e);
+      throw FetchException(
+        payload: payload,
+        type: FetchExceptionType.connectionError,
+        error: e,
+        stackTrace: stackTrace,
+      );
     } finally {
       cancelToken?.removeCallback(onCancel);
       client.close();
@@ -497,10 +374,6 @@ class Fetch<R> with CacheFactory {
   /// [headers] - HTTP headers
   /// [body] - Request body
   /// [queryParams] - Query parameters
-  /// [cacheOptions] - Cache options
-  /// [debounceOptions] - Debounce options
-  /// [retryOptions] - Retry options
-  /// [enableLogs] - Whether to enable logging
   /// [cancelToken] - Optional token to cancel the request
   ///
   /// Returns a Future that completes with the transformed response.
@@ -510,188 +383,126 @@ class Fetch<R> with CacheFactory {
     required FetchHeaders headers,
     Object? body,
     Map<String, dynamic>? queryParams,
-    CacheOptions? cacheOptions,
-    DebounceOptions? debounceOptions,
-    RetryOptions? retryOptions,
-    bool? enableLogs,
     CancelToken? cancelToken,
+    List<Interceptor> methodInterceptors = const [],
   }) async {
-    try {
-      /// Create URI
-      final Uri uri;
+    /// Create URI
+    final Uri uri;
 
-      if (endpoint.startsWith('http')) {
-        final parseUri = Uri.parse(endpoint);
-        uri = parseUri.replace(
-          queryParameters: FetchHelpers.mapStringy({
-            ...parseUri.queryParameters,
-            ...?queryParams,
-          }),
-        );
-      } else {
-        uri = base.replace(
-          path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
-          queryParameters: FetchHelpers.mapStringy({
-            ...base.queryParameters,
-            ...?queryParams,
-          }),
-        );
-      }
-
-      final mergedHeaders = FetchHelpers.mergeHeaders([
-        await headerBuilder?.call() ?? {},
-        headers,
-      ]);
-
-      // Initial payload
-      var payload = FetchPayload(
-        uri: uri,
-        body: body,
-        method: method,
-        headers: mergedHeaders,
-        cancelToken: cancelToken,
+    if (endpoint.startsWith('http')) {
+      final parseUri = Uri.parse(endpoint);
+      uri = parseUri.replace(
+        queryParameters: FetchHelpers.mapStringy({
+          ...parseUri.queryParameters,
+          ...?queryParams,
+        }),
       );
+    } else {
+      uri = base.replace(
+        path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
+        queryParameters: FetchHelpers.mapStringy({
+          ...base.queryParameters,
+          ...?queryParams,
+        }),
+      );
+    }
 
-      // Request interceptors
-      for (final interceptor in interceptors) {
-        payload = await interceptor.onRequest(payload);
+    final mergedHeaders = FetchHelpers.mergeHeaders([
+      headers,
+    ]);
+
+    // Initial payload
+    var payload = FetchPayload(
+      uri: uri,
+      body: body,
+      method: method,
+      headers: mergedHeaders,
+      cancelToken: cancelToken,
+    );
+
+    try {
+      // Request interceptors - can skip request or modify payload
+      final allInterceptors = <Interceptor>[
+        ...interceptors,
+        ...methodInterceptors,
+      ];
+
+      FetchResponse? response;
+      for (final interceptor in allInterceptors) {
+        final result = await interceptor.onRequest(payload);
+        if (result is SkipRequest) {
+          response = result.response;
+          break;
+        } else if (result is ContinueRequest) {
+          payload = result.payload;
+        }
       }
-
-      // Check cache
-      final resolvedCache =
-          resolveCache(uri, cacheOptions ?? this.cacheOptions);
-      var response = resolvedCache?.response;
 
       final stopwatch = Stopwatch()..start();
 
-      // Execute request if not cached
-      final R result;
-      FetchResponse? fetchResponse;
-
-      if (response == null) {
-        final resolvedDebounce = debounceOptions ?? this.debounceOptions;
-        final resolvedRetry = retryOptions ?? this.retryOptions;
-
-        // Debounce + Retry + Transform wrapper
-        result = await _debounceManager.debounce(
-          uri.toString(),
-          resolvedDebounce,
-          () => _executeWithRetry(payload, resolvedRetry),
-        );
-
-        // Keep response for caching/logging
-        if (result is FetchResponse) {
-          fetchResponse = result;
-          cache(fetchResponse, uri, cacheOptions ?? this.cacheOptions);
-        }
+      // Execute request if not skipped (e.g., by cache)
+      final FetchResponse fetchResponse;
+      if (response != null) {
+        fetchResponse = response;
       } else {
-        // Cached response - executor will handle transform
-        var cachedResponse = response;
-        for (final interceptor in interceptors) {
-          cachedResponse = await interceptor.onResponse(cachedResponse);
-        }
-
-        fetchResponse = cachedResponse;
-        // Use executor for consistent transform handling
-        result = await executor.execute<R>(
-          payload.copyWith(),
-          (_) async => cachedResponse,
+        fetchResponse = await executor.execute(
+          payload,
+          _runMethod,
         );
+      }
+
+      // Response interceptors
+      var processedResponse = fetchResponse;
+      for (final interceptor in allInterceptors) {
+        processedResponse = await interceptor.onResponse(processedResponse);
       }
 
       stopwatch.stop();
 
-      /// Log
-      if ((enableLogs ?? this.enableLogs) && fetchResponse != null) {
-        _onLog(
-          fetchResponse.response,
-          payload.body,
-          stopwatch.elapsed,
-          isCached: resolvedCache != null,
-        );
-      }
+      // Transform
+      final result = transform == null
+          ? processedResponse as R
+          : await transform!(processedResponse);
 
       _onFetchController.add(result);
 
       return result;
-    } on FetchException catch (error, stackTrace) {
+    } on FetchException catch (error) {
+      final allInterceptors = <Interceptor>[
+        ...this.interceptors,
+        ...methodInterceptors,
+      ];
       // Error interceptors
-      for (final interceptor in interceptors) {
+      for (final interceptor in allInterceptors) {
         await interceptor.onError(error);
       }
 
       // Global error handler
-      onError?.call(error, stackTrace);
+      onError?.call(error);
 
       rethrow;
     } catch (error, stackTrace) {
       final fetchError = FetchException(
-        message: error.toString(),
+        payload: payload,
         type: FetchExceptionType.unknown,
+        error: error,
         stackTrace: stackTrace,
       );
 
       // Error interceptors
-      for (final interceptor in interceptors) {
+      final allInterceptors = <Interceptor>[
+        ...this.interceptors,
+        ...methodInterceptors,
+      ];
+      for (final interceptor in allInterceptors) {
         await interceptor.onError(fetchError);
       }
 
       // Global error handler
-      onError?.call(fetchError, stackTrace);
+      onError?.call(fetchError);
 
       throw fetchError;
     }
-  }
-
-  /// Execute request with retry logic
-  Future<R> _executeWithRetry(
-    FetchPayload payload,
-    RetryOptions options,
-  ) async {
-    var attempt = 0;
-
-    while (true) {
-      attempt++;
-
-      try {
-        return await executor.execute<R>(
-          payload,
-          _runMethod,
-        );
-      } on FetchException catch (e) {
-        final shouldRetry =
-            options.retryIf?.call(e) ?? RetryOptions.defaultRetryIf(e);
-
-        if (!shouldRetry || attempt >= options.maxAttempts) {
-          rethrow;
-        }
-
-        // Wait before retry with fixed delay
-        await Future<void>.delayed(options.retryDelay);
-      }
-    }
-  }
-
-  /// Clears the fetch logs.
-  /// Whether to enable request/response logging
-  bool _enableLogs = true;
-  bool get enableLogs => _enableLogs;
-  set enableLogs(bool value) {
-    _enableLogs = value;
-
-    if (!value) {
-      fetchLogs.clear();
-    }
-  }
-
-  /// Clears all debounce states.
-  void clearDebounce() {
-    _debounceManager.clear();
-  }
-
-  /// Clears debounce state for a specific endpoint.
-  void clearDebounceForEndpoint(String endpoint) {
-    _debounceManager.clearKey(endpoint);
   }
 
   /// Disposes the fetch instance and cleans up resources.
@@ -700,6 +511,5 @@ class Fetch<R> with CacheFactory {
   /// to prevent memory leaks.
   void dispose() {
     _onFetchController.close();
-    _debounceManager.clear();
   }
 }

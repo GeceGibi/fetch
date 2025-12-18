@@ -2,11 +2,6 @@ import 'dart:convert';
 
 import 'package:fetch/fetch.dart';
 
-// Top-level function for isolate-safe transform
-Map<String, dynamic> parseJsonResponse(FetchResponse response) {
-  return jsonDecode(response.response.body) as Map<String, dynamic>;
-}
-
 void main() async {
   // Basic usage
   await basicExample();
@@ -14,11 +9,17 @@ void main() async {
   // Debounce example
   await debounceExample();
 
+  // Throttle example
+  await throttleExample();
+
   // Retry example
   await retryExample();
 
   // Interceptor example
   await interceptorExample();
+
+  // Error handling example
+  await errorHandlingExample();
 
   // Cache example
   await cacheExample();
@@ -50,7 +51,9 @@ Future<void> debounceExample() async {
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    debounceOptions: const DebounceOptions(duration: Duration(seconds: 1)),
+    interceptors: [
+      DebounceInterceptor(duration: const Duration(seconds: 1)),
+    ],
   );
 
   print('Sending 5 rapid requests (only last will execute)...');
@@ -74,17 +77,48 @@ Future<void> debounceExample() async {
   fetch.dispose();
 }
 
-/// Retry on failure
+/// Throttle - only first request within duration executes
+Future<void> throttleExample() async {
+  print('\n=== Throttle Example ===');
+
+  final fetch = Fetch<FetchResponse>(
+    base: Uri.parse('https://httpbin.org'),
+    interceptors: [
+      ThrottleInterceptor(duration: const Duration(seconds: 2)),
+    ],
+  );
+
+  print('Sending 5 rapid requests (only first will execute)...');
+
+  for (var i = 1; i <= 5; i++) {
+    fetch.get('/get').then((r) {
+      print('✓ Request $i completed: ${r.response.statusCode}');
+    }).catchError((Object e) {
+      if (e is FetchException && e.type == FetchExceptionType.throttled) {
+        print('✗ Request $i throttled');
+      }
+    });
+
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  // Wait for throttle window to clear
+  await Future<void>.delayed(const Duration(seconds: 3));
+  fetch.dispose();
+}
+
+/// Retry on failure using RetryExecutor
 Future<void> retryExample() async {
   print('\n=== Retry Example ===');
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    retryOptions: RetryOptions(
+    executor: RetryExecutor(
+      executor: const DefaultExecutor(),
       maxAttempts: 3,
-      retryDelay: Duration(seconds: 1),
+      retryDelay: const Duration(seconds: 1),
       retryIf: (error) {
-        return error.isServerError;
+        return error.type == FetchExceptionType.httpError;
       },
     ),
     interceptors: [
@@ -96,8 +130,8 @@ Future<void> retryExample() async {
   try {
     await fetch.get('/status/500');
   } on FetchException catch (e) {
-    print('✗ Failed after ${fetch.retryOptions.maxAttempts} attempts');
-    print('  Error: ${e.message} (${e.statusCode})');
+    print('✗ Failed after 3 attempts');
+    print('  Error: ${e.message}');
   }
 
   fetch.dispose();
@@ -120,13 +154,37 @@ Future<void> interceptorExample() async {
   fetch.dispose();
 }
 
+/// Error handling with onError callback
+Future<void> errorHandlingExample() async {
+  print('\n=== Error Handling Example ===');
+
+  final fetch = Fetch<FetchResponse>(
+    base: Uri.parse('https://httpbin.org'),
+    onError: (error) {
+      print('✗ Global error handler: ${error.message}');
+    },
+  );
+
+  print('Attempting request to /status/404...');
+  try {
+    await fetch.get('/status/404');
+  } on FetchException catch (e) {
+    print('  Caught: ${e.message}');
+  }
+
+  fetch.dispose();
+}
+
 /// Cache responses
 Future<void> cacheExample() async {
   print('\n=== Cache Example ===');
 
   final fetch = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
-    cacheOptions: const CacheOptions(duration: Duration(seconds: 10)),
+    interceptors: [
+      CacheInterceptor(duration: const Duration(seconds: 10)),
+      LogInterceptor(logRequest: false),
+    ],
   );
 
   print('First request (not cached)');
@@ -165,31 +223,35 @@ Future<void> cancelExample() async {
 Future<void> executorExample() async {
   print('\n=== Executor Example ===');
 
-  // Isolate executor with custom transform (top-level/static function)
+  // Isolate executor - request runs in separate isolate
   final fetchIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    executor: RequestExecutor.isolate(
-      transform: parseJsonResponse, // Top-level function
-    ),
+    executor: const RequestExecutor.isolate(),
+    transform: (response) {
+      print('Transform in main isolate...');
+      return jsonDecode(response.response.body) as Map<String, dynamic>;
+    },
   );
 
   final isolateData = await fetchIsolate.get('/get');
-  print('Transform in isolate: ${isolateData['url']}');
+  print('Request executed in isolate: ${isolateData['url']}');
 
-  // Default executor with transform (main isolate)
-  final fetchDirect = Fetch<Map<String, dynamic>>(
+  // Retry + Isolate executor combination
+  final fetchRetryIsolate = Fetch<Map<String, dynamic>>(
     base: Uri.parse('https://httpbin.org'),
-    executor: RequestExecutor.direct(
-      transform: (response) {
-        print('Transform in main isolate...');
-        return jsonDecode(response.response.body) as Map<String, dynamic>;
-      },
+    executor: RetryExecutor(
+      executor: const IsolateExecutor(),
+      maxAttempts: 3,
+      retryDelay: const Duration(milliseconds: 500),
     ),
+    transform: (response) {
+      return jsonDecode(response.response.body) as Map<String, dynamic>;
+    },
   );
 
-  final directData = await fetchDirect.get('/get');
-  print('Transform in main: ${directData['url']}');
+  final retryIsolateData = await fetchRetryIsolate.get('/get');
+  print('Request executed with retry+isolate: ${retryIsolateData['url']}');
 
   fetchIsolate.dispose();
-  fetchDirect.dispose();
+  fetchRetryIsolate.dispose();
 }

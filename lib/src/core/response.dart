@@ -10,11 +10,10 @@ typedef FetchMethod = Future<FetchResponse> Function(FetchPayload payload);
 class FetchResponse {
   FetchResponse(
     this.response, {
+    required this.payload,
     this.elapsed,
-    FetchPayload? payload,
     FetchMethod? retryMethod,
-  })  : _payload = payload,
-        _retryMethod = retryMethod;
+  }) : _retryMethod = retryMethod;
 
   final http.Response response;
 
@@ -28,8 +27,8 @@ class FetchResponse {
   /// Request duration (time taken to complete the request)
   Duration? elapsed;
 
-  /// Internal: Original request payload for retry
-  final FetchPayload? _payload;
+  /// Original request payload
+  final FetchPayload payload;
 
   /// Internal: Method to call for retry
   final FetchMethod? _retryMethod;
@@ -58,15 +57,16 @@ class FetchResponse {
   Future<FetchResponse> retry([
     FutureOr<FetchPayload> Function(FetchPayload payload)? onRetry,
   ]) async {
-    if (_retryMethod == null || _payload == null) {
+    if (_retryMethod == null) {
       throw UnsupportedError(
         'Retry is not available for this response. '
         'This might be a cached response or the retry capability was not enabled.',
       );
     }
 
-    final payload = await onRetry?.call(_payload!) ?? _payload!;
-    return _retryMethod!(payload);
+    return _retryMethod!(
+      await onRetry?.call(payload) ?? payload,
+    );
   }
 
   /// Converts the JSON response to a strongly-typed Map.
