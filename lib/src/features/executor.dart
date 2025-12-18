@@ -73,11 +73,26 @@ class RetryExecutor implements RequestExecutor {
   /// Delay between retries
   final Duration retryDelay;
 
-  /// Function to determine whether to retry
-  /// If null, retries on server errors, connection errors, and timeouts
-  final bool Function(FetchException error)? retryIf;
+  /// Function to determine whether to retry on error
+  /// Can be async to refresh tokens before retry
+  /// If null, retries on network and http errors
+  ///
+  /// Example - refresh token on 401:
+  /// ```dart
+  /// RetryExecutor(
+  ///   executor: DefaultExecutor(),
+  ///   retryIf: (error) async {
+  ///     if (error.statusCode == 401) {
+  ///       await refreshToken();
+  ///       return true;
+  ///     }
+  ///     return false;
+  ///   },
+  /// )
+  /// ```
+  final FutureOr<bool> Function(FetchException error)? retryIf;
 
-  bool _shouldRetry(FetchException error) {
+  FutureOr<bool> _shouldRetry(FetchException error) {
     if (retryIf != null) {
       return retryIf!(error);
     }
@@ -99,7 +114,7 @@ class RetryExecutor implements RequestExecutor {
       try {
         return await executor.execute(payload, method);
       } on FetchException catch (e) {
-        final shouldRetry = _shouldRetry(e);
+        final shouldRetry = await _shouldRetry(e);
 
         if (!shouldRetry || attempt >= maxAttempts) {
           rethrow;

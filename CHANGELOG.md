@@ -1,3 +1,27 @@
+## 8.3.0 - 2025-12-18
+
+### Improvements
+
+- **IMPROVED**: `RetryExecutor.retryIf` now supports async callbacks (`FutureOr<bool>`)
+  - Enables token refresh before retry on 401 errors
+  - User-transparent authentication renewal
+
+### Example
+
+```dart
+RetryExecutor(
+  executor: const DefaultExecutor(),
+  maxAttempts: 2,
+  retryIf: (error) async {
+    if (error.statusCode == 401) {
+      await refreshToken(); // Refresh token silently
+      return true; // Retry with new token
+    }
+    return false;
+  },
+)
+```
+
 ## 8.2.0 - 2025-12-18
 
 ### Breaking Changes
