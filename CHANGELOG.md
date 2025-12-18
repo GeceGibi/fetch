@@ -1,3 +1,32 @@
+## 8.2.0 - 2025-12-18
+
+### Breaking Changes
+
+- **BREAKING**: Removed `uri` and `method` parameters from `FetchException`
+  - Now only accessible via `payload.uri` and `payload.method`
+  - Simplifies API since payload already contains all request info
+
+### Migration Guide
+
+```dart
+// Before
+FetchException(
+  uri: uri,
+  method: 'GET',
+  type: FetchExceptionType.http,
+);
+
+// After
+FetchException(
+  payload: payload,
+  type: FetchExceptionType.http,
+);
+
+// Access via getters (unchanged)
+error.uri     // returns payload?.uri
+error.method  // returns payload?.method
+```
+
 ## 8.1.0 - 2025-12-18
 
 ### Breaking Changes

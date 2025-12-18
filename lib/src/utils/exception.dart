@@ -21,17 +21,13 @@ enum FetchExceptionType {
 /// Custom exception class for Fetch operations
 class FetchException implements Exception {
   FetchException({
-    this.payload,
-    Uri? uri,
-    String? method,
     required this.type,
+    this.payload,
     String? message,
     this.error,
     this.stackTrace,
     this.statusCode,
-  })  : _uri = uri,
-        _method = method,
-        _message = message;
+  }) : _message = message;
 
   /// Request payload containing uri, method, headers, body (optional)
   final FetchPayload? payload;
@@ -52,15 +48,11 @@ class FetchException implements Exception {
   /// HTTP status code (if available)
   final int? statusCode;
 
-  // Private fields for minimal exception creation
-  final Uri? _uri;
-  final String? _method;
+  /// Request URI (from payload)
+  Uri? get uri => payload?.uri;
 
-  /// Request URI (from payload or direct)
-  Uri? get uri => payload?.uri ?? _uri;
-
-  /// Request method (from payload or direct)
-  String? get method => payload?.method ?? _method;
+  /// Request method (from payload)
+  String? get method => payload?.method;
 
   @override
   String toString() {
