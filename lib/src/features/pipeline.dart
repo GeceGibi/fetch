@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fetch/src/core/request.dart';
 import 'package:fetch/src/core/result.dart';
+import 'package:flutter/material.dart';
 
 /// Thrown to skip the HTTP request and return a cached/mock response
 class SkipRequest implements Exception {
@@ -23,7 +24,8 @@ abstract class FetchPipeline<T extends FetchResult> {
 }
 
 /// Request/Response logging pipeline
-class LogPipeline<T extends FetchResult> extends FetchPipeline<T> {
+class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T>
+    with ChangeNotifier {
   final List<dynamic> logs = [];
 
   bool _enabled = true;
@@ -34,27 +36,40 @@ class LogPipeline<T extends FetchResult> extends FetchPipeline<T> {
     if (!value) {
       logs.clear();
     }
+
+    notifyListeners();
   }
 
-  void _add(dynamic log) {
+  void onLog(dynamic value) {
+    logs.add(value);
+    notifyListeners();
+  }
+
+  void onLogRequest(FetchRequest request) {
     if (!enabled) {
       return;
     }
 
-    logs.add(log);
+    onLog(request);
+  }
 
-    print(log);
+  void onLogResult(FetchResult result) {
+    if (!enabled) {
+      return;
+    }
+
+    onLog(result);
   }
 
   @override
   FutureOr<FetchRequest> onRequest(FetchRequest request) {
-    _add(request);
+    onLogRequest(request);
     return request;
   }
 
   @override
   FutureOr<T> onResult(T result) {
-    _add(result);
+    onLogResult(result);
     return result;
   }
 }
