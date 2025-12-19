@@ -1,35 +1,36 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:fetch/fetch.dart';
 
 void main() async {
-  // Basic usage
-  await basicExample();
+  // // Basic usage
+  // await basicExample();
 
-  // Debounce example
-  await debounceExample();
+  // // Debounce example
+  // await debounceExample();
 
-  // Throttle example
-  await throttleExample();
+  // // Throttle example
+  // await throttleExample();
 
-  // Retry example
-  await retryExample();
+  // // Retry example
+  // await retryExample();
 
-  // Pipeline example
-  await pipelineExample();
+  // // Pipeline example
+  // await pipelineExample();
 
-  // Error handling example
-  await errorHandlingExample();
+  // // Error handling example
+  // await errorHandlingExample();
 
-  // Response validation example (business logic errors)
-  await responseValidatorExample();
+  // // Response validation example (business logic errors)
+  // await responseValidatorExample();
 
-  // Cache example
-  await cacheExample();
+  // // Cache example
+  // await cacheExample();
 
-  // Cancel example
-  await cancelExample();
+  // // Cancel example
+  // await cancelExample();
 
   // Runner example (isolate-based, not available on web)
   await runnerExample();
@@ -303,17 +304,44 @@ Future<void> runnerExample() async {
   print('\n=== Runner Example ===');
 
   // Custom runner - request execution in separate isolate
-  final fetchIsolate = Fetch<Map<String, dynamic>>(
+  final fetchIsolate = Fetch<FetchResponse>(
     base: Uri.parse('https://httpbin.org'),
     executor: Executor(
       runner: (method, payload) => Isolate.run(() => method(payload)),
+      pipelines: [
+        TestPipeline1(),
+        TestPipeline2(),
+      ],
     ),
-    transform: (response) {
-      print('Transform in main isolate...');
-      return jsonDecode(response.response.body) as Map<String, dynamic>;
-    },
   );
 
-  final isolateData = await fetchIsolate.get('/get');
-  print('Request executed in isolate: ${isolateData['url']}');
+  await fetchIsolate.get('/get');
+}
+
+class TestPipeline1 extends FetchPipeline {
+  @override
+  FutureOr<FetchResponse> onResponse(FetchResponse response) {
+    print(response.runtimeType);
+
+    return ExampleResponse(
+      response.response,
+      payload: response.payload,
+    );
+  }
+}
+
+class TestPipeline2 extends FetchPipeline<ExampleResponse> {
+  @override
+  FutureOr<ExampleResponse> onResponse(ExampleResponse response) {
+    print(response.runtimeType);
+    return response;
+  }
+}
+
+class ExampleResponse extends FetchResponse {
+  ExampleResponse(
+    super.response, {
+    required super.payload,
+    super.elapsed,
+  });
 }

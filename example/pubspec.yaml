@@ -8,3 +8,4 @@ environment:
 dependencies:
   fetch:
     path: ../
+  http: ^1.6.0

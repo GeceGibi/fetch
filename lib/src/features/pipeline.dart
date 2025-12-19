@@ -14,13 +14,13 @@ class SkipRequest implements Exception {
 ///
 /// Pipelines are executed in order for requests and responses.
 /// Each pipeline can modify the payload/response or skip the request entirely.
-abstract class FetchPipeline {
+abstract class FetchPipeline<T extends FetchResponse> {
   /// Called before request is sent.
   /// Return modified payload or throw [SkipRequest] to skip the request.
   FutureOr<FetchPayload> onRequest(FetchPayload payload) => payload;
 
   /// Called after response is received
-  FutureOr<FetchResponse> onResponse(FetchResponse response) => response;
+  FutureOr<T> onResponse(T response) => response;
 
   /// Called when an error occurs
   FutureOr<void> onError(FetchException error) {}
@@ -51,11 +51,12 @@ class LogPipeline extends FetchPipeline {
   }
 
   @override
-  FetchResponse onResponse(FetchResponse response) {
+  FutureOr<FetchResponse> onResponse(FetchResponse response) {
     if (logResponse) {
       // ignore: avoid_print
       print('← ${response.response.statusCode} ${response.payload.uri}');
     }
+
     return response;
   }
 }
@@ -237,7 +238,7 @@ class ResponseValidatorPipeline extends FetchPipeline {
   final ResponseValidator validator;
 
   @override
-  Future<FetchResponse> onResponse(FetchResponse response) async {
+  FutureOr<FetchResponse> onResponse(FetchResponse response) async {
     final errorMessage = await validator(response);
 
     if (errorMessage != null) {

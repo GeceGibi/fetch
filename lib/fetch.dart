@@ -70,14 +70,12 @@ class Fetch<R> {
   /// [timeout] - Request timeout duration (default: 30 seconds)
   /// [executor] - Request executor with pipelines and retry logic
   /// [onError] - Global error handler for all errors
-  /// [transform] - Function to transform responses (receives response and payload)
   Fetch({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
     this.executor = const Executor(),
     this.onError,
-    FutureOr<R> Function(FetchResponse response)? transform,
-  }) : transform = transform ?? ((response) => response as R) {
+  }) {
     if (base != null) {
       this.base = base;
     }
@@ -94,9 +92,6 @@ class Fetch<R> {
 
   /// Global error handler
   final void Function(FetchException error)? onError;
-
-  /// Function to transform responses (default: returns response as R)
-  final FutureOr<R> Function(FetchResponse response) transform;
 
   /// Performs a GET request.
   ///
@@ -421,7 +416,7 @@ class Fetch<R> {
       );
 
       // Transform
-      return await transform(response);
+      return response as R;
     } on FetchException catch (error) {
       onError?.call(error);
       rethrow;
