@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:fetch/src/core/payload.dart';
-import 'package:fetch/src/core/response.dart';
+import 'package:fetch/src/core/request.dart';
+import 'package:fetch/src/core/result.dart';
 import 'package:fetch/src/features/pipeline.dart';
-import 'package:fetch/src/utils/exception.dart';
+import 'package:fetch/src/features/retry.dart';
 
 /// Type alias for the method function that executes HTTP requests
-typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
+typedef ExecutorMethod<R extends FetchResult> =
+    Future<R> Function(FetchRequest request);
 
 /// Type alias for custom runner (e.g., isolate execution)
 ///
@@ -15,10 +16,8 @@ typedef ExecutorMethod = Future<FetchResponse> Function(FetchPayload payload);
 /// // Run in isolate
 /// final runner = (method, payload) => Isolate.run(() => method(payload));
 /// ```
-typedef Runner = Future<FetchResponse> Function(
-  ExecutorMethod method,
-  FetchPayload payload,
-);
+typedef Runner<R extends FetchResult> =
+    Future<R> Function(ExecutorMethod<R> method, FetchRequest request);
 
 /// Request executor that orchestrates pipelines, execution, and retry logic.
 ///
@@ -39,115 +38,94 @@ typedef Runner = Future<FetchResponse> Function(
 ///   retryIf: (e) => e.statusCode != null && e.statusCode! >= 500,
 /// );
 /// ```
-class Executor {
+class Executor<R extends FetchResult> {
   /// Creates a new Executor.
   ///
   /// [pipelines] - List of pipelines to run on each request
   /// [runner] - Custom runner for execution (e.g., isolate). If null, runs directly.
-  /// [maxAttempts] - Maximum retry attempts including initial (default: 1 = no retry)
-  /// [retryDelay] - Delay between retries (default: 1 second)
-  /// [retryIf] - Function to determine if request should be retried
   const Executor({
+    this.retry = const FetchRetry(),
     this.pipelines = const [],
     this.runner,
-    this.maxAttempts = 1,
-    this.retryDelay = const Duration(seconds: 1),
-    this.retryIf,
   });
 
+  final FetchRetry retry;
+
   /// Pipelines to run on each request
-  final List<FetchPipeline> pipelines;
+  final List<FetchPipeline<R>> pipelines;
 
   /// Custom runner for execution (e.g., for isolate-based execution)
   /// If null, the method is called directly
-  final Runner? runner;
-
-  /// Maximum retry attempts (includes initial attempt)
-  /// Set to 1 for no retry, 2 for one retry, etc.
-  final int maxAttempts;
-
-  /// Delay between retry attempts
-  final Duration retryDelay;
-
-  /// Function to determine if request should be retried on error.
-  /// Can be async (e.g., to refresh token before retry).
-  /// Return true to retry, false to throw error.
-  final FutureOr<bool> Function(FetchException error)? retryIf;
+  final Runner<R>? runner;
 
   /// Executes the request through pipelines.
   ///
-  /// [payload] - Initial request payload
+  /// [request] - Initial request payload
   /// [method] - The method to run the actual HTTP request
   /// [pipelines] - Additional pipelines for this specific request
   ///
   /// Returns the processed response after all pipelines have run.
-  Future<FetchResponse> execute(
-    FetchPayload payload, {
-    required ExecutorMethod method,
-    List<FetchPipeline> pipelines = const [],
+  Future<R> execute(
+    FetchRequest request, {
+    required ExecutorMethod<R> method,
+    List<FetchPipeline<R>> pipelines = const [],
   }) async {
     final pipes = [...this.pipelines, ...pipelines];
 
-    var attempt = 0;
-
-    while (true) {
-      attempt++;
-
-      try {
-        return await _executeOnce(payload, method, pipes);
-      } on FetchException catch (error) {
-        // Check if should retry
-        if (attempt < maxAttempts && retryIf != null) {
-          final shouldRetry = await retryIf!(error);
-          if (shouldRetry) {
-            await Future<void>.delayed(retryDelay);
-            // Loop continues → pipelines will re-run (important for token refresh)
-            continue;
-          }
-        }
-
-        // Run error pipelines before rethrowing
-        for (final pipeline in pipes) {
-          await pipeline.onError(error);
-        }
-
-        rethrow;
+    try {
+      return retry.retry<R>(() => _executeOnce(request, method, pipes));
+    } on FetchResultError catch (error) {
+      for (final pipeline in pipes) {
+        await pipeline.onResult(error as R);
       }
+
+      rethrow;
+    } catch (error, stackTrace) {
+      final fetchException = FetchResultError.custom(
+        request: request,
+        stackTrace: stackTrace,
+        message: error.toString(),
+      );
+
+      for (final pipeline in pipes) {
+        await pipeline.onResult(fetchException as R);
+      }
+
+      throw fetchException;
     }
   }
 
   /// Executes a single attempt through pipelines and runner.
-  Future<FetchResponse> _executeOnce(
-    FetchPayload payload,
-    ExecutorMethod method,
-    List<FetchPipeline> pipelines,
+  Future<R> _executeOnce(
+    FetchRequest request,
+    ExecutorMethod<R> method,
+    List<FetchPipeline<R>> pipelines,
   ) async {
-    var currentPayload = payload;
-
+    var currentRequest = request;
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest
-    FetchResponse? skipResponse;
+    R? skipResponse;
     try {
       for (final pipeline in pipelines) {
-        currentPayload = await pipeline.onRequest(currentPayload);
+        currentRequest = await pipeline.onRequest(currentRequest);
       }
     } on SkipRequest catch (skip) {
-      skipResponse = skip.response;
+      skipResponse = skip.result as R;
     }
 
     // 2. Execute request (or use skip response from cache/etc)
-    final FetchResponse response;
+    final R response;
     if (skipResponse != null) {
       response = skipResponse;
     } else if (runner != null) {
-      response = await runner!(method, currentPayload);
+      response = await runner!(method, currentRequest);
     } else {
-      response = await method(currentPayload);
+      response = await method(currentRequest);
     }
 
     // 3. Post-response pipelines (same order)
     var processedResponse = response;
     for (final pipeline in pipelines) {
-      processedResponse = await pipeline.onResponse(processedResponse);
+      processedResponse = await pipeline.onResult(processedResponse);
     }
 
     return processedResponse;

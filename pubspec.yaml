@@ -1,9 +1,9 @@
 
 name: fetch
-version: 10.2.0
+version: 11.0.0
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
 
 dependencies:
   flutter:

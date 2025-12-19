@@ -1,84 +1,79 @@
 import 'dart:async';
 
-import 'package:fetch/src/core/payload.dart';
-import 'package:fetch/src/core/response.dart';
-import 'package:fetch/src/utils/exception.dart';
+import 'package:fetch/src/core/request.dart';
+import 'package:fetch/src/core/result.dart';
 
 /// Thrown to skip the HTTP request and return a cached/mock response
 class SkipRequest implements Exception {
-  SkipRequest(this.response);
-  final FetchResponse response;
+  SkipRequest(this.result);
+  final FetchResult result;
 }
 
 /// Abstract FetchPipeline class for request/response processing
 ///
 /// Pipelines are executed in order for requests and responses.
 /// Each pipeline can modify the payload/response or skip the request entirely.
-abstract class FetchPipeline<T extends FetchResponse> {
+abstract class FetchPipeline<T extends FetchResult> {
   /// Called before request is sent.
   /// Return modified payload or throw [SkipRequest] to skip the request.
-  FutureOr<FetchPayload> onRequest(FetchPayload payload) => payload;
+  FutureOr<FetchRequest> onRequest(FetchRequest request) => request;
 
   /// Called after response is received
-  FutureOr<T> onResponse(T response) => response;
-
-  /// Called when an error occurs
-  FutureOr<void> onError(FetchException error) {}
+  FutureOr<T> onResult(T result) => result;
 }
 
 /// Request/Response logging pipeline
-class LogPipeline extends FetchPipeline {
-  LogPipeline({this.logRequest = true, this.logResponse = true});
+class LogPipeline<T extends FetchResult> extends FetchPipeline<T> {
+  final List<dynamic> logs = [];
 
-  final bool logRequest;
-  final bool logResponse;
+  bool _enabled = true;
+  bool get enabled => _enabled;
+  set enabled(bool value) {
+    _enabled = value;
 
-  @override
-  FetchPayload onRequest(FetchPayload payload) {
-    if (logRequest) {
-      // ignore: avoid_print
-      print('→ ${payload.method} ${payload.uri}');
-      if (payload.headers?.isNotEmpty ?? false) {
-        // ignore: avoid_print
-        print('  Headers: ${payload.headers}');
-      }
-      if (payload.body != null) {
-        // ignore: avoid_print
-        print('  Body: ${payload.body}');
-      }
+    if (!value) {
+      logs.clear();
     }
-    return payload;
+  }
+
+  void _add(dynamic log) {
+    if (!enabled) {
+      return;
+    }
+
+    logs.add(log);
+
+    print(log);
   }
 
   @override
-  FutureOr<FetchResponse> onResponse(FetchResponse response) {
-    if (logResponse) {
-      // ignore: avoid_print
-      print('← ${response.response.statusCode} ${response.payload.uri}');
-    }
+  FutureOr<FetchRequest> onRequest(FetchRequest request) {
+    _add(request);
+    return request;
+  }
 
-    return response;
+  @override
+  FutureOr<T> onResult(T result) {
+    _add(result);
+    return result;
   }
 }
 
 /// Auth token pipeline
-class AuthPipeline extends FetchPipeline {
+class AuthPipeline<T extends FetchResult> extends FetchPipeline<T> {
   AuthPipeline({required this.getToken});
 
   final FutureOr<String?> Function() getToken;
 
   @override
-  Future<FetchPayload> onRequest(FetchPayload payload) async {
+  FutureOr<FetchRequest> onRequest(FetchRequest request) async {
     final token = await getToken();
     if (token != null) {
-      return payload.copyWith(
-        headers: {
-          ...?payload.headers,
-          'Authorization': 'Bearer $token',
-        },
+      return request.copyWith(
+        headers: {...?request.headers, 'Authorization': 'Bearer $token'},
       );
     }
-    return payload;
+    return request;
   }
 }
 
@@ -87,19 +82,19 @@ class AuthPipeline extends FetchPipeline {
 /// Prevents rapid duplicate requests by debouncing them.
 /// Only the last request within the debounce duration will execute.
 /// Each new request resets the timer, so early requests are cancelled.
-class DebouncePipeline extends FetchPipeline {
+class DebouncePipeline<T extends FetchResult> extends FetchPipeline<T> {
   DebouncePipeline({required this.duration});
 
   final Duration duration;
   final Map<String, _DebounceState> _states = {};
 
   @override
-  Future<FetchPayload> onRequest(FetchPayload payload) async {
+  FutureOr<FetchRequest> onRequest(FetchRequest request) async {
     if (duration == Duration.zero) {
-      return payload;
+      return request;
     }
 
-    final key = payload.uri.toString();
+    final key = request.uri.toString();
 
     // Cancel previous request if exists
     final previous = _states[key];
@@ -107,10 +102,7 @@ class DebouncePipeline extends FetchPipeline {
       previous.timer.cancel();
       if (!previous.completer.isCompleted) {
         previous.completer.completeError(
-          FetchException(
-            payload: payload,
-            type: FetchExceptionType.debounced,
-          ),
+          FetchResultError.debounced(request: request),
         );
       }
     }
@@ -126,7 +118,7 @@ class DebouncePipeline extends FetchPipeline {
     _states[key] = _DebounceState(timer, completer);
 
     await completer.future;
-    return payload;
+    return request;
   }
 
   /// Clear all debounce state
@@ -149,19 +141,19 @@ class DebouncePipeline extends FetchPipeline {
 /// Prevents rapid duplicate requests by throttling them.
 /// Only the first request within the throttle duration will execute.
 /// Subsequent requests within the duration will be rejected.
-class ThrottlePipeline extends FetchPipeline {
+class ThrottlePipeline<T extends FetchResult> extends FetchPipeline<T> {
   ThrottlePipeline({required this.duration}) : _lastExecuted = {};
 
   final Duration duration;
   final Map<String, DateTime> _lastExecuted;
 
   @override
-  FetchPayload onRequest(FetchPayload payload) {
+  FutureOr<FetchRequest> onRequest(FetchRequest request) {
     if (duration == Duration.zero) {
-      return payload;
+      return request;
     }
 
-    final key = payload.uri.toString();
+    final key = request.uri.toString();
     final now = DateTime.now();
 
     // Check if there's a recent request
@@ -170,17 +162,14 @@ class ThrottlePipeline extends FetchPipeline {
       final elapsed = now.difference(lastExecution);
       if (elapsed < duration) {
         // Throw throttle exception
-        throw FetchException(
-          payload: payload,
-          type: FetchExceptionType.throttled,
-        );
+        throw FetchResultError.throttled(request: request);
       }
     }
 
     // Update last execution time
     _lastExecuted[key] = now;
 
-    return payload;
+    return request;
   }
 
   /// Clear all throttle state
@@ -205,7 +194,7 @@ class _DebounceState {
 ///
 /// Returns error message if validation fails, null if valid.
 /// Receives the response and can inspect status code, body, etc.
-typedef ResponseValidator = FutureOr<String?> Function(FetchResponse response);
+typedef ResponseValidator = FutureOr<String?> Function(FetchResult result);
 
 /// Response validation pipeline for business logic errors
 ///
@@ -231,26 +220,24 @@ typedef ResponseValidator = FutureOr<String?> Function(FetchResponse response);
 ///   ),
 /// );
 /// ```
-class ResponseValidatorPipeline extends FetchPipeline {
+class ResponseValidatorPipeline<T extends FetchResult>
+    extends FetchPipeline<T> {
   ResponseValidatorPipeline({required this.validator});
 
   /// Validator function that returns error message if invalid, null if valid
   final ResponseValidator validator;
 
   @override
-  FutureOr<FetchResponse> onResponse(FetchResponse response) async {
-    final errorMessage = await validator(response);
+  FutureOr<T> onResult(T result) async {
+    final errorMessage = await validator(result);
 
     if (errorMessage != null) {
-      throw FetchException(
-        type: FetchExceptionType.custom,
-        payload: response.payload,
+      throw FetchResultError.custom(
+        request: result.request,
         message: errorMessage,
-        statusCode: response.response.statusCode,
-        responseBody: response.response.body,
       );
     }
 
-    return response;
+    return result;
   }
 }

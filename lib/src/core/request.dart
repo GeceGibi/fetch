@@ -5,7 +5,7 @@ import 'package:fetch/src/features/cancel.dart';
 ///
 /// This class encapsulates all the necessary information for making an HTTP request
 /// including the URI, method, headers, and body.
-class FetchPayload {
+class FetchRequest {
   /// Creates a new FetchPayload instance.
   ///
   /// [uri] - The target URI for the request
@@ -13,7 +13,7 @@ class FetchPayload {
   /// [headers] - Optional HTTP headers
   /// [body] - Optional request body
   /// [cancelToken] - Optional token for cancelling the request
-  FetchPayload({
+  FetchRequest({
     required this.uri,
     required this.method,
     this.headers,
@@ -39,14 +39,14 @@ class FetchPayload {
   /// Creates a copy of this FetchPayload with the given fields replaced by new values.
   ///
   /// Returns a new FetchPayload instance with updated values.
-  FetchPayload copyWith({
+  FetchRequest copyWith({
     Uri? uri,
     String? method,
     Object? body,
     FetchHeaders? headers,
     CancelToken? cancelToken,
   }) {
-    return FetchPayload(
+    return FetchRequest(
       uri: uri ?? this.uri,
       body: body ?? this.body,
       method: method ?? this.method,

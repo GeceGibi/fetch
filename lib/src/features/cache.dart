@@ -1,5 +1,5 @@
-import 'package:fetch/src/core/payload.dart';
-import 'package:fetch/src/core/response.dart';
+import 'package:fetch/src/core/request.dart';
+import 'package:fetch/src/core/result.dart';
 import 'package:fetch/src/features/pipeline.dart';
 
 /// Defines the caching strategy for HTTP requests.
@@ -23,7 +23,7 @@ class CachePipeline extends FetchPipeline {
 
   final Duration duration;
   final CacheStrategy strategy;
-  final bool Function(FetchResponse response)? canCache;
+  final bool Function(FetchResult result)? canCache;
   final Map<Uri, _CacheEntry> _cache;
 
   Uri _getCacheKey(Uri uri) {
@@ -34,38 +34,42 @@ class CachePipeline extends FetchPipeline {
   }
 
   @override
-  FetchPayload onRequest(FetchPayload payload) {
+  FetchRequest onRequest(FetchRequest request) {
     if (duration == Duration.zero) {
-      return payload;
+      return request;
     }
 
-    final key = _getCacheKey(payload.uri);
+    final key = _getCacheKey(request.uri);
     final cached = _cache[key];
 
     // Return cached response if available and not expired
     if (cached != null && !cached.isExpired) {
-      throw SkipRequest(cached.response);
+      throw SkipRequest(cached.result);
     }
 
-    return payload;
+    return request;
   }
 
   @override
-  FetchResponse onResponse(FetchResponse response) {
+  FetchResult onResult(FetchResult result) {
+    if (result is FetchResultError) {
+      return result;
+    }
+
     if (duration == Duration.zero) {
-      return response;
+      return result;
     }
 
     // Check if response can be cached
-    if (canCache != null && !canCache!(response)) {
-      return response;
+    if (canCache != null && !canCache!(result)) {
+      return result;
     }
 
     // Cache the response
-    final key = _getCacheKey(response.payload.uri);
-    _cache[key] = _CacheEntry(response, duration);
+    final key = _getCacheKey(result.request.uri);
+    _cache[key] = _CacheEntry(result as FetchResultSuccess, duration);
 
-    return response;
+    return result;
   }
 
   /// Clear all cached responses
@@ -81,9 +85,9 @@ class CachePipeline extends FetchPipeline {
 }
 
 class _CacheEntry {
-  _CacheEntry(this.response, this.duration) : date = DateTime.now();
+  _CacheEntry(this.result, this.duration) : date = DateTime.now();
 
-  final FetchResponse response;
+  final FetchResultSuccess result;
   final Duration duration;
   final DateTime date;
 

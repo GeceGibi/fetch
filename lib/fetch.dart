@@ -10,22 +10,21 @@ library fetch;
 import 'dart:async';
 
 import 'package:fetch/src/core/helpers.dart';
-import 'package:fetch/src/core/payload.dart';
-import 'package:fetch/src/core/response.dart';
+import 'package:fetch/src/core/request.dart';
+import 'package:fetch/src/core/result.dart';
 import 'package:fetch/src/features/cancel.dart';
 import 'package:fetch/src/features/executor.dart';
 import 'package:fetch/src/features/pipeline.dart';
-import 'package:fetch/src/utils/exception.dart';
 import 'package:http/http.dart' as http;
 
 export 'src/core/helpers.dart';
-export 'src/core/payload.dart';
-export 'src/core/response.dart';
+export 'src/core/request.dart';
+export 'src/core/result.dart';
 export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
 export 'src/features/executor.dart';
 export 'src/features/pipeline.dart';
-export 'src/utils/exception.dart';
+export 'src/features/retry.dart';
 
 /// A comprehensive HTTP client with caching, logging, and request capabilities.
 ///
@@ -63,7 +62,7 @@ export 'src/utils/exception.dart';
 ///
 /// final response = await fetch.get('/users');
 /// ```
-class Fetch<R> {
+class Fetch<R extends FetchResultSuccess> {
   /// Creates a new Fetch instance.
   ///
   /// [base] - Base URI for all requests (optional)
@@ -91,7 +90,7 @@ class Fetch<R> {
   final Executor executor;
 
   /// Global error handler
-  final void Function(FetchException error)? onError;
+  final void Function(FetchResultError error)? onError;
 
   /// Performs a GET request.
   ///
@@ -106,7 +105,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) async {
     return _worker(
       'GET',
@@ -131,7 +130,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'HEAD',
@@ -158,7 +157,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'POST',
@@ -186,7 +185,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'PUT',
@@ -214,7 +213,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'DELETE',
@@ -242,7 +241,7 @@ class Fetch<R> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<FetchPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'PATCH',
@@ -257,38 +256,35 @@ class Fetch<R> {
 
   /// Executes the HTTP request using the http package.
   ///
-  /// [payload] - The request payload containing all necessary information
+  /// [request] - The request payload containing all necessary information
   ///
   /// Returns a Future that completes with the HTTP response.
-  Future<FetchResponse> _runMethod(FetchPayload payload) async {
-    final FetchPayload(:uri, :method, :body, :headers, :cancelToken) = payload;
+  Future<FetchResult> _runMethod(FetchRequest request) async {
+    final FetchRequest(:uri, :method, :body, :headers, :cancelToken) = request;
 
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
-      throw FetchException(
-        payload: payload,
-        type: FetchExceptionType.cancelled,
-      );
+      throw FetchResultError.cancelled(request: request);
     }
 
-    final client = http.Client();
-    final request = http.Request(method, uri);
+    final httpClient = http.Client();
+    final httpRequest = http.Request(method, uri);
 
     if (headers != null) {
-      request.headers.addAll(headers);
+      httpRequest.headers.addAll(headers);
     }
 
     // Add cancel callback to close client immediately
-    void onCancel() => client.close();
+    void onCancel() => httpClient.close();
     cancelToken?.addCallback(onCancel);
 
     if (body != null) {
       if (body is String) {
-        request.body = body;
+        httpRequest.body = body;
       } else if (body is List) {
-        request.bodyBytes = body.cast<int>();
+        httpRequest.bodyBytes = body.cast<int>();
       } else if (body is Map) {
-        request.bodyFields = body.cast<String, String>();
+        httpRequest.bodyFields = body.cast<String, String>();
       } else {
         throw ArgumentError('Invalid request body "$body".');
       }
@@ -296,57 +292,48 @@ class Fetch<R> {
 
     try {
       // Start the request
-      final streamedResponse = await client.send(request).timeout(
-        timeout,
-        onTimeout: () {
-          throw FetchException(
-            payload: payload,
-            type: FetchExceptionType.network,
-            message: 'Request timeout',
+      final streamedResponse = await httpClient
+          .send(httpRequest)
+          .timeout(
+            timeout,
+            onTimeout: () {
+              throw FetchResultError.network(
+                request: request,
+                message: 'Request timeout',
+              );
+            },
           );
-        },
-      );
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException(
-          payload: payload,
-          type: FetchExceptionType.cancelled,
-        );
+        throw FetchResultError.cancelled(request: request);
       }
 
       final response = await http.Response.fromStream(streamedResponse);
 
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException(
-          payload: payload,
-          type: FetchExceptionType.cancelled,
-        );
+        throw FetchResultError.cancelled(request: request);
       }
 
-      return FetchResponse(response, payload: payload);
-    } on FetchException {
+      return FetchResultSuccess(response: response, request: request);
+    } on FetchResultError {
       rethrow;
     } catch (e, stackTrace) {
       // If client was closed due to cancellation
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException(
-          payload: payload,
-          type: FetchExceptionType.cancelled,
-        );
+        throw FetchResultError.cancelled(request: request);
       }
 
       // Connection error
-      throw FetchException(
-        payload: payload,
-        type: FetchExceptionType.network,
-        error: e,
+      throw FetchResultError.network(
+        request: request,
+        message: e.toString(),
         stackTrace: stackTrace,
       );
     } finally {
       cancelToken?.removeCallback(onCancel);
-      client.close();
+      httpClient.close();
     }
   }
 
@@ -398,8 +385,8 @@ class Fetch<R> {
       );
     }
 
-    // Create payload
-    final payload = FetchPayload(
+    // Create request
+    final request = FetchRequest(
       uri: uri,
       body: body,
       method: method,
@@ -410,23 +397,23 @@ class Fetch<R> {
     try {
       // Execute through executor (pipelines handle validation)
       final response = await executor.execute(
-        payload,
+        request,
         method: _runMethod,
         pipelines: pipelines,
       );
 
       // Transform
       return response as R;
-    } on FetchException catch (error) {
+    } on FetchResultError catch (error) {
       onError?.call(error);
       rethrow;
     } catch (error, stackTrace) {
-      final fetchError = FetchException(
-        payload: payload,
-        type: FetchExceptionType.network,
-        error: error,
+      final fetchError = FetchResultError.network(
+        request: request,
+        message: error.toString(),
         stackTrace: stackTrace,
       );
+
       onError?.call(fetchError);
       throw fetchError;
     }
