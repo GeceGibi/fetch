@@ -53,7 +53,7 @@ class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T>
     onLog(request);
   }
 
-  void onLogResult(FetchResult result) {
+  void onLogResult(T result) {
     if (!enabled) {
       return;
     }
