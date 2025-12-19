@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:fetch/fetch.dart';
 
 void main() async {
-  // await basicExample();
-  await retryExample();
+  await basicExample();
+  // await retryExample();
 }
 
 /// Basic GET request
@@ -14,7 +14,7 @@ Future<void> basicExample() async {
     base: Uri.parse('https://httpbin.org'),
   );
   final result = await fetch.get('/get');
-  print('Status: ${result.response.statusCode}');
+  print('Status: ${result.toJson()}');
 }
 
 /// Debounce - only last request executes
