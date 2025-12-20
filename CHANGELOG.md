@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2025-12-20
+
+### Fixed
+- Further improved `toCurl` character escaping by using single quotes for headers and URL to prevent shell interpretation issues.
+- Fixed `toJson` in `ViaResult` to correctly handle null-aware response properties.
+- Added `response` object to `ViaException` in `ViaResponseValidatorPipeline` for better debugging.
+
 ## [1.2.1] - 2025-12-20
 
 ### Fixed

@@ -86,8 +86,9 @@ class ViaRequest {
     final buffer = StringBuffer('curl -X $method');
 
     headers?.forEach((key, value) {
-      final escapedValue = value.replaceAll('"', r'\"');
-      buffer.write(' -H "$key: $escapedValue"');
+      final header = '$key: $value';
+      final escapedHeader = header.replaceAll("'", r"'\''");
+      buffer.write(" -H '$escapedHeader'");
     });
 
     if (body != null) {
@@ -104,7 +105,8 @@ class ViaRequest {
       buffer.write(" -d '$escapedBody'");
     }
 
-    buffer.write(' "$uri"');
+    final escapedUri = uri.toString().replaceAll("'", r"'\''");
+    buffer.write(" '$escapedUri'");
     return buffer.toString();
   }
 }

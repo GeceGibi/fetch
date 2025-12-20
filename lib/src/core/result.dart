@@ -87,7 +87,7 @@ class ViaResult {
   Map<String, dynamic> toJson() {
     return {
       'isSuccess': isSuccess,
-      'elapsed': elapsed?.inMilliseconds,
+      'elapsed': ?elapsed?.inMilliseconds,
       'request': request.toJson(),
       'statusCode': response.statusCode,
       'headers': response.headers,
