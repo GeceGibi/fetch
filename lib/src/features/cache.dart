@@ -2,34 +2,47 @@ import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
 import 'package:via/src/features/pipeline.dart';
 
-/// Defines the caching strategy for HTTP requests.
+/// Caching strategy for HTTP requests.
 enum CacheStrategy {
-  /// Cache key from URL without query parameters
+  /// Use URL without query parameters as the cache key.
   urlWithoutQuery,
 
-  /// Cache key from full URL including query parameters
+  /// Use the full URL including query parameters as the cache key.
   fullUrl,
 }
 
-/// Cache pipeline
+/// A pipeline that caches successful GET responses.
 ///
-/// Caches responses based on the configured strategy and duration.
-class CachePipeline<R extends ViaResult> extends ViaPipeline<R> {
-  CachePipeline({
+/// Responses are stored in memory and returned for subsequent requests 
+/// to the same URL until the [duration] expires.
+class ViaCachePipeline<R extends ViaResult> extends ViaPipeline<R> {
+  ViaCachePipeline({
     required this.duration,
     this.strategy = CacheStrategy.fullUrl,
+    this.maxEntries = 100,
     this.canCache,
   }) : _cache = {};
 
+  /// How long each response should remain in the cache.
   final Duration duration;
-  final CacheStrategy strategy;
-  final bool Function(ViaResult result)? canCache;
-  final Map<Uri, _CacheEntry> _cache;
 
-  Uri _getCacheKey(Uri uri) {
+  /// The strategy used to generate cache keys.
+  final CacheStrategy strategy;
+
+  /// Maximum number of items to keep in memory (FIFO).
+  final int maxEntries;
+
+  /// Optional callback to decide if a specific result should be cached.
+  final bool Function(ViaResult result)? canCache;
+  
+  final Map<String, _CacheEntry> _cache;
+
+  String _getCacheKey(ViaRequest request) {
+    final ViaRequest(:uri, :method) = request;
+
     return switch (strategy) {
-      CacheStrategy.urlWithoutQuery => uri.replace(query: ''),
-      CacheStrategy.fullUrl => uri,
+      CacheStrategy.urlWithoutQuery => '$method:${uri.replace(query: '')}',
+      CacheStrategy.fullUrl => '$method:$uri',
     };
   }
 
@@ -39,7 +52,7 @@ class CachePipeline<R extends ViaResult> extends ViaPipeline<R> {
       return request;
     }
 
-    final key = _getCacheKey(request.uri);
+    final key = _getCacheKey(request);
     final cached = _cache[key];
 
     // Return cached response if available and not expired
@@ -62,7 +75,13 @@ class CachePipeline<R extends ViaResult> extends ViaPipeline<R> {
     }
 
     // Cache the response
-    final key = _getCacheKey(result.request.uri);
+    final key = _getCacheKey(result.request);
+
+    // Memory management: Remove oldest entry if limit reached
+    if (_cache.length >= maxEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+
     _cache[key] = _CacheEntry(result, duration);
 
     return result;
@@ -74,8 +93,8 @@ class CachePipeline<R extends ViaResult> extends ViaPipeline<R> {
   }
 
   /// Clear cached response for specific URI
-  void clearCacheFor(Uri uri) {
-    final key = _getCacheKey(uri);
+  void clearCacheFor(ViaRequest request) {
+    final key = _getCacheKey(request);
     _cache.remove(key);
   }
 }

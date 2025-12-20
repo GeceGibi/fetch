@@ -134,6 +134,7 @@ enum ViaError {
   }
 }
 
+/// Exception thrown by Via during request or response processing.
 class ViaException implements Exception {
   ViaException({
     required this.request,
@@ -143,6 +144,7 @@ class ViaException implements Exception {
     this.type = .custom,
   });
 
+  /// Request was explicitly cancelled by the user.
   ViaException.cancelled({
     required this.request,
     this.response,
@@ -151,6 +153,7 @@ class ViaException implements Exception {
   }) : type = .cancelled,
        message = message ?? ViaError.cancelled.name;
 
+  /// Request was skipped due to debouncing.
   ViaException.debounced({
     required this.request,
     this.response,
@@ -159,6 +162,7 @@ class ViaException implements Exception {
   }) : type = .debounced,
        message = message ?? ViaError.debounced.name;
 
+  /// Request was rejected due to throttling.
   ViaException.throttled({
     required this.request,
     this.response,
@@ -167,6 +171,7 @@ class ViaException implements Exception {
   }) : type = .throttled,
        message = message ?? ViaError.throttled.name;
 
+  /// Error occurred at the network layer (e.g., timeout, connection lost).
   ViaException.network({
     required this.request,
     this.response,
@@ -175,6 +180,7 @@ class ViaException implements Exception {
   }) : type = .network,
        message = message ?? ViaError.network.name;
 
+  /// HTTP error response (e.g., 4xx or 5xx status codes).
   ViaException.http({
     required this.request,
     this.response,
@@ -183,6 +189,7 @@ class ViaException implements Exception {
   }) : type = .http,
        message = message ?? ViaError.http.name;
 
+  /// Custom error defined by pipelines or [ViaExecutor.errorIf].
   ViaException.custom({
     required this.request,
     this.response,

@@ -39,25 +39,16 @@ export 'src/features/retry.dart';
 ///
 /// Example usage:
 /// ```dart
-/// final via = Via<ViaResponse>(
+/// final via = Via<ViaResult>(
 ///   base: Uri.parse('https://api.example.com'),
-///   executor: Executor(
+///   executor: ViaExecutor(
 ///     pipelines: [
-///       LogPipeline(),
-///       AuthPipeline(getToken: () => token),
-///       // Validate responses for business logic errors
-///       ResponseValidatorPipeline(
-///         validator: (response) {
-///           final json = jsonDecode(response.response.body);
-///           if (json['success'] == false) {
-///             return json['message']; // Return error message
-///           }
-///           return null; // Valid response
-///         },
+///       ViaLoggerPipeline(),
+///       ViaAuthPipeline(getToken: () => token),
+///       ViaResponseValidatorPipeline(
+///         validator: (result) => result.isSuccess ? null : 'Error',
 ///       ),
 ///     ],
-///     maxAttempts: 3,
-///     retryIf: (e) => e.statusCode == 401,
 ///   ),
 /// );
 ///
@@ -70,16 +61,27 @@ class Via<R extends ViaResult> {
   /// [timeout] - Request timeout duration (default: 30 seconds)
   /// [executor] - Request executor with pipelines and retry logic
   /// [onError] - Global error handler for all errors
+  /// [client] - Optional custom HTTP client to reuse
   Via({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
     this.executor = const ViaExecutor(),
     this.onError,
-  }) {
+    http.Client? client,
+  }) : _customClient = client {
     if (base != null) {
       this.base = base;
     }
   }
+
+  /// Global shared client for performance (connection pooling)
+  static final http.Client _defaultClient = http.Client();
+
+  /// Custom client if provided
+  final http.Client? _customClient;
+
+  /// Returns the client to use for this instance
+  http.Client get _client => _customClient ?? _defaultClient;
 
   /// Base URI for all requests
   Uri base = Uri();
@@ -268,7 +270,9 @@ class Via<R extends ViaResult> {
       throw ViaException.cancelled(request: request);
     }
 
-    final httpClient = http.Client();
+    // For requests with cancellation, we use a fresh client to allow closing it.
+    // For standard requests, we reuse the shared client for connection pooling.
+    final httpClient = cancelToken != null ? http.Client() : _client;
     final httpRequest = http.Request(method, uri);
 
     if (headers != null) {
@@ -334,7 +338,10 @@ class Via<R extends ViaResult> {
       );
     } finally {
       cancelToken?.removeCallback(onCancel);
-      httpClient.close();
+      // Only close the client if it was a temporary one created for cancellation
+      if (cancelToken != null) {
+        httpClient.close();
+      }
     }
   }
 

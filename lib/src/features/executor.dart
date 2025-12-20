@@ -29,13 +29,9 @@ typedef Runner<R extends ViaResult> =
 ///
 /// Example:
 /// ```dart
-/// final executor = Executor(
-///   pipelines: [
-///     LogPipeline(),
-///     AuthPipeline(getToken: () => token),
-///   ],
-///   maxAttempts: 3,
-///   retryIf: (e) => e.statusCode != null && e.statusCode! >= 500,
+/// final executor = ViaExecutor(
+///   pipelines: [ViaLoggerPipeline()],
+///   errorIf: (result) => result.response.statusCode >= 400,
 /// );
 /// ```
 class ViaExecutor<R extends ViaResult> {
@@ -47,6 +43,7 @@ class ViaExecutor<R extends ViaResult> {
     this.retry = const ViaRetry(),
     this.pipelines = const [],
     this.runner,
+    this.errorIf = _defaultErrorIf,
   });
 
   final ViaRetry retry;
@@ -57,6 +54,14 @@ class ViaExecutor<R extends ViaResult> {
   /// Custom runner for execution (e.g., for isolate-based execution)
   /// If null, the method is called directly
   final Runner<R>? runner;
+
+  /// Optional validation logic to treat a successful network response as an error.
+  /// Should return true if the result should be treated as an error,
+  /// or false if the result is valid.
+  /// Defaults to checking [ViaResult.isSuccess] (non-2xx status codes).
+  final FutureOr<bool> Function(R result) errorIf;
+
+  static bool _defaultErrorIf(ViaResult result) => !result.isSuccess;
 
   /// Executes the request through pipelines.
   ///
@@ -133,6 +138,15 @@ class ViaExecutor<R extends ViaResult> {
     var processedResponse = response;
     for (final pipeline in pipelines) {
       processedResponse = await pipeline.onResult(processedResponse);
+    }
+
+    // 4. Custom validation
+    if (await errorIf(processedResponse)) {
+      throw ViaException.http(
+        request: currentRequest,
+        response: processedResponse.response,
+        message: processedResponse.response.reasonPhrase ?? 'ErrorIfValidation',
+      );
     }
 
     return processedResponse;
