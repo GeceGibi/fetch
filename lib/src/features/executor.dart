@@ -74,14 +74,14 @@ class Executor<R extends FetchResult> {
 
     try {
       return retry.retry<R>(() => _executeOnce(request, method, pipes));
-    } on FetchResultError catch (error) {
+    } on FetchException catch (error) {
       for (final pipeline in pipes) {
         await pipeline.onResult(error as R);
       }
 
       rethrow;
     } catch (error, stackTrace) {
-      final fetchException = FetchResultError.custom(
+      final fetchException = FetchException.custom(
         request: request,
         stackTrace: stackTrace,
         message: error.toString(),
@@ -114,25 +114,20 @@ class Executor<R extends FetchResult> {
 
     // 2. Execute request (or use skip response from cache/etc)
     final R response;
+    final stopWatch = Stopwatch()..start();
 
     /// skip request execution and use cached response
     if (skipResponse != null) {
       response = skipResponse;
     }
     /// real request execution
-    else {
-      final stopWatch = Stopwatch()..start();
-
-      if (runner != null) {
-        response = await runner!(method, currentRequest)
-          ..elapsed = stopWatch.elapsed;
-      } else {
-        response = await method(currentRequest)
-          ..elapsed = stopWatch.elapsed;
-      }
-
-      stopWatch.stop();
+    else if (runner != null) {
+      response = await runner!(method, currentRequest);
+    } else {
+      response = await method(currentRequest);
     }
+
+    response.elapsed = stopWatch.elapsed;
 
     // 3. Post-response pipelines (same order)
     var processedResponse = response;

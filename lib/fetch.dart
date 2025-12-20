@@ -62,7 +62,7 @@ export 'src/features/retry.dart';
 ///
 /// final response = await fetch.get('/users');
 /// ```
-class Fetch<R extends FetchResultSuccess> {
+class Fetch<R extends FetchResult> {
   /// Creates a new Fetch instance.
   ///
   /// [base] - Base URI for all requests (optional)
@@ -90,7 +90,7 @@ class Fetch<R extends FetchResultSuccess> {
   final Executor executor;
 
   /// Global error handler
-  final void Function(FetchResultError error)? onError;
+  final void Function(FetchException error)? onError;
 
   /// Performs a GET request.
   ///
@@ -264,7 +264,7 @@ class Fetch<R extends FetchResultSuccess> {
 
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
-      throw FetchResultError.cancelled(request: request);
+      throw FetchException.cancelled(request: request);
     }
 
     final httpClient = http.Client();
@@ -297,7 +297,7 @@ class Fetch<R extends FetchResultSuccess> {
           .timeout(
             timeout,
             onTimeout: () {
-              throw FetchResultError.network(
+              throw FetchException.network(
                 request: request,
                 message: 'Request timeout',
               );
@@ -306,27 +306,27 @@ class Fetch<R extends FetchResultSuccess> {
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchResultError.cancelled(request: request);
+        throw FetchException.cancelled(request: request);
       }
 
       final response = await http.Response.fromStream(streamedResponse);
 
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchResultError.cancelled(request: request);
+        throw FetchException.cancelled(request: request);
       }
 
-      return FetchResultSuccess(response: response, request: request);
-    } on FetchResultError {
+      return FetchResult(response: response, request: request);
+    } on FetchException {
       rethrow;
     } catch (e, stackTrace) {
       // If client was closed due to cancellation
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchResultError.cancelled(request: request);
+        throw FetchException.cancelled(request: request);
       }
 
       // Connection error
-      throw FetchResultError.network(
+      throw FetchException.network(
         request: request,
         message: e.toString(),
         stackTrace: stackTrace,
@@ -404,11 +404,11 @@ class Fetch<R extends FetchResultSuccess> {
 
       // Transform
       return response as R;
-    } on FetchResultError catch (error) {
+    } on FetchException catch (error) {
       onError?.call(error);
       rethrow;
     } catch (error, stackTrace) {
-      final fetchError = FetchResultError.network(
+      final fetchError = FetchException.network(
         request: request,
         message: error.toString(),
         stackTrace: stackTrace,

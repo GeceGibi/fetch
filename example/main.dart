@@ -4,13 +4,13 @@ import 'package:fetch/fetch.dart';
 
 void main() async {
   await basicExample();
-  // await retryExample();
+  await retryExample();
 }
 
 /// Basic GET request
 Future<void> basicExample() async {
   print('\n=== Basic Example ===');
-  final fetch = Fetch<FetchResultSuccess>(
+  final fetch = Fetch<FetchResult>(
     base: Uri.parse('https://httpbin.org'),
   );
   final result = await fetch.get('/get');
@@ -21,7 +21,7 @@ Future<void> basicExample() async {
 Future<void> debounceExample() async {
   print('\n=== Debounce Example ===');
 
-  final fetch = Fetch<FetchResultSuccess>(
+  final fetch = Fetch<FetchResult>(
     base: Uri.parse('https://httpbin.org'),
     executor: Executor(
       pipelines: [
@@ -37,7 +37,7 @@ Future<void> debounceExample() async {
     final request = fetch.get('/get').then((r) {
       print('✓ Request $i completed: ${r.response.statusCode}');
     }).catchError((Object e) {
-      if (e is FetchResultError && e.type == FetchError.debounced) {
+      if (e is FetchException && e.type == FetchError.debounced) {
         print('✗ Request $i debounced');
       }
     });
@@ -54,7 +54,7 @@ Future<void> debounceExample() async {
 Future<void> throttleExample() async {
   print('\n=== Throttle Example ===');
 
-  final fetch = Fetch<FetchResultSuccess>(
+  final fetch = Fetch<FetchResult>(
     base: Uri.parse('https://httpbin.org'),
     executor: Executor(
       pipelines: [
@@ -69,7 +69,7 @@ Future<void> throttleExample() async {
     fetch.get('/get').then((r) {
       print('✓ Request $i completed: ${r.response.statusCode}');
     }).catchError((Object e) {
-      if (e is FetchResultError && e.type == FetchError.throttled) {
+      if (e is FetchException && e.type == FetchError.throttled) {
         print('✗ Request $i throttled');
       }
     });
@@ -89,7 +89,7 @@ Future<void> retryExample() async {
     base: Uri.parse('https://api.gece.dev'),
     executor: Executor(
       pipelines: [
-        // ThrowPipeline(),
+        ThrowPipeline(),
       ],
       retry: FetchRetry(
         maxAttempts: 3,
@@ -104,7 +104,7 @@ Future<void> retryExample() async {
   try {
     final result = await fetch.get('/info');
     print(result.toJson());
-  } on FetchResultError catch (e) {
+  } on FetchException catch (e) {
     print('✗ Failed after 3 attempts');
     print('  Error: ${e.toJson()}');
   }
@@ -115,7 +115,7 @@ class ThrowPipeline extends FetchPipeline<FetchResult> {
   FutureOr<FetchResult> onResult(FetchResult result) async {
     await Future<void>.delayed(const Duration(seconds: 1));
 
-    throw FetchResultError.custom(
+    throw FetchException.custom(
       request: result.request,
       message: 'Forced error',
     );

@@ -8,23 +8,13 @@ import 'package:http/http.dart' as http;
 ///
 /// This is the base class for all HTTP result types in the Fetch library.
 /// It contains the original request, success status, and optional timing info.
-sealed class FetchResult {
+class FetchResult {
   /// Creates a new FetchResult.
   ///
   /// [request] - The original HTTP request object.
   /// [isSuccess] - True if the HTTP status code is 2xx, otherwise false.
   /// [elapsed] - Optional duration for the request (in milliseconds).
-  FetchResult({required this.request, required this.isSuccess});
-
-  /// Factory constructor for a successful HTTP result.
-  ///
-  /// [request] - The original HTTP request.
-  /// [response] - The HTTP response object.
-  /// [elapsed] - Optional duration for the request.
-  factory FetchResult.success({
-    required FetchRequest request,
-    required http.Response response,
-  }) = FetchResultSuccess;
+  FetchResult({required this.request, required this.response});
 
   /// The original HTTP request that produced this result.
   final FetchRequest request;
@@ -32,44 +22,20 @@ sealed class FetchResult {
   /// True if the HTTP response status code is in the 2xx range.
   ///
   /// Indicates whether the request was considered successful by HTTP standards.
-  final bool isSuccess;
+  bool get isSuccess {
+    final http.Response(:statusCode) = response;
+    return statusCode >= 200 && statusCode <= 299;
+  }
 
   /// The duration of the HTTP request, if available.
   ///
   /// This is the time taken from request start to response completion.
   Duration? elapsed;
 
-  @override
-  String toString() {
-    return 'FetchResult(isSuccess: $isSuccess, request: $request, elapsed: $elapsed)';
-  }
-
-  /// Converts this result to a JSON-serializable map.
-  Map<String, dynamic> toJson() {
-    return {
-      'isSuccess': isSuccess,
-      'elapsed': elapsed?.inMilliseconds,
-      'request': request.toJson(),
-    };
-  }
-}
-
-class FetchResultSuccess implements FetchResult {
-  FetchResultSuccess({required this.request, required this.response});
-
+  /// Raw HTTP response associated with this result.
+  ///
+  /// Only available in FetchResult
   final http.Response response;
-
-  @override
-  Duration? elapsed;
-
-  @override
-  bool get isSuccess {
-    final http.Response(:statusCode) = response;
-    return statusCode >= 200 && statusCode <= 299;
-  }
-
-  @override
-  final FetchRequest request;
 
   /// Converts the JSON response to a strongly-typed Map.
   ///
@@ -118,12 +84,6 @@ class FetchResultSuccess implements FetchResult {
     return jsonBody.cast<E>();
   }
 
-  @override
-  String toString() {
-    return 'FetchResultSuccess(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, response: $response)';
-  }
-
-  @override
   Map<String, dynamic> toJson() {
     return {
       'isSuccess': isSuccess,
@@ -133,6 +93,11 @@ class FetchResultSuccess implements FetchResult {
       'headers': response.headers,
       'body': response.body,
     };
+  }
+
+  @override
+  String toString() {
+    return 'FetchResultSuccess(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, response: $response)';
   }
 }
 
@@ -168,8 +133,8 @@ enum FetchError {
   }
 }
 
-class FetchResultError implements FetchResult, Exception {
-  FetchResultError({
+class FetchException implements Exception {
+  FetchException({
     required this.request,
     this.response,
     this.stackTrace,
@@ -177,7 +142,7 @@ class FetchResultError implements FetchResult, Exception {
     this.type = .custom,
   });
 
-  FetchResultError.cancelled({
+  FetchException.cancelled({
     required this.request,
     this.response,
     this.stackTrace,
@@ -185,7 +150,7 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .cancelled,
        message = message ?? FetchError.cancelled.name;
 
-  FetchResultError.debounced({
+  FetchException.debounced({
     required this.request,
     this.response,
     this.stackTrace,
@@ -193,7 +158,7 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .debounced,
        message = message ?? FetchError.debounced.name;
 
-  FetchResultError.throttled({
+  FetchException.throttled({
     required this.request,
     this.response,
     this.stackTrace,
@@ -201,7 +166,7 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .throttled,
        message = message ?? FetchError.throttled.name;
 
-  FetchResultError.network({
+  FetchException.network({
     required this.request,
     this.response,
     this.stackTrace,
@@ -209,7 +174,7 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .network,
        message = message ?? FetchError.network.name;
 
-  FetchResultError.http({
+  FetchException.http({
     required this.request,
     this.response,
     this.stackTrace,
@@ -217,7 +182,7 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .http,
        message = message ?? FetchError.http.name;
 
-  FetchResultError.custom({
+  FetchException.custom({
     required this.request,
     this.response,
     this.stackTrace,
@@ -225,34 +190,19 @@ class FetchResultError implements FetchResult, Exception {
   }) : type = .custom,
        message = message ?? FetchError.custom.name;
 
-  final StackTrace? stackTrace;
+  final FetchRequest request;
   final FetchError type;
   final String message;
 
   final http.Response? response;
-
-  @override
-  Duration? elapsed;
-
-  @override
-  final bool isSuccess = false;
-
-  @override
-  final FetchRequest request;
+  final StackTrace? stackTrace;
 
   @override
   String toString() {
-    return 'FetchResultError(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, type: $type, message: $message)';
+    return 'FetchResultError(request: $request, type: $type, message: $message)';
   }
 
-  @override
   Map<String, dynamic> toJson() {
-    return {
-      'isSuccess': isSuccess,
-      'elapsed': elapsed?.inMilliseconds,
-      'request': request.toJson(),
-      'type': type.name,
-      'message': message,
-    };
+    return {'request': request.toJson(), 'type': type.name, 'message': message};
   }
 }

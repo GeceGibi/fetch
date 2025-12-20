@@ -52,10 +52,6 @@ class CachePipeline extends FetchPipeline {
 
   @override
   FetchResult onResult(FetchResult result) {
-    if (result is FetchResultError) {
-      return result;
-    }
-
     if (duration == Duration.zero) {
       return result;
     }
@@ -67,7 +63,7 @@ class CachePipeline extends FetchPipeline {
 
     // Cache the response
     final key = _getCacheKey(result.request.uri);
-    _cache[key] = _CacheEntry(result as FetchResultSuccess, duration);
+    _cache[key] = _CacheEntry(result, duration);
 
     return result;
   }
@@ -87,7 +83,7 @@ class CachePipeline extends FetchPipeline {
 class _CacheEntry {
   _CacheEntry(this.result, this.duration) : date = DateTime.now();
 
-  final FetchResultSuccess result;
+  final FetchResult result;
   final Duration duration;
   final DateTime date;
 

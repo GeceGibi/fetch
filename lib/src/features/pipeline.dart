@@ -112,7 +112,7 @@ class DebouncePipeline<T extends FetchResult> extends FetchPipeline<T> {
       previous.timer.cancel();
       if (!previous.completer.isCompleted) {
         previous.completer.completeError(
-          FetchResultError.debounced(request: request),
+          FetchException.debounced(request: request),
         );
       }
     }
@@ -172,7 +172,7 @@ class ThrottlePipeline<T extends FetchResult> extends FetchPipeline<T> {
       final elapsed = now.difference(lastExecution);
       if (elapsed < duration) {
         // Throw throttle exception
-        throw FetchResultError.throttled(request: request);
+        throw FetchException.throttled(request: request);
       }
     }
 
@@ -242,7 +242,7 @@ class ResponseValidatorPipeline<T extends FetchResult>
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {
-      throw FetchResultError.custom(
+      throw FetchException.custom(
         request: result.request,
         message: errorMessage,
       );

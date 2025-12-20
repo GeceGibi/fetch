@@ -10,10 +10,10 @@ class FetchRetry {
   });
 
   final int maxAttempts;
-  final FutureOr<bool> Function(FetchResultError error, int attempt) retryIf;
+  final FutureOr<bool> Function(FetchException error, int attempt) retryIf;
   final Duration retryDelay;
 
-  static bool _defaultRetryIf(FetchResultError error, int attempt) {
+  static bool _defaultRetryIf(FetchException error, int attempt) {
     return error.type == FetchError.network ||
         (error.response?.statusCode != null &&
             error.response!.statusCode >= 500);
@@ -27,7 +27,7 @@ class FetchRetry {
 
       try {
         return await action();
-      } on FetchResultError catch (error) {
+      } on FetchException catch (error) {
         final shouldRetry = await retryIf(error, attempt);
 
         if (attempt < maxAttempts && shouldRetry) {
