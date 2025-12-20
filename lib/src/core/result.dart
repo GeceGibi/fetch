@@ -37,7 +37,7 @@ sealed class FetchResult {
   /// The duration of the HTTP request, if available.
   ///
   /// This is the time taken from request start to response completion.
-  final List<Duration> elapsed = [];
+  Duration? elapsed;
 
   @override
   String toString() {
@@ -48,7 +48,7 @@ sealed class FetchResult {
   Map<String, dynamic> toJson() {
     return {
       'isSuccess': isSuccess,
-      'elapsed': elapsed.map((e) => e.inMilliseconds).toList(),
+      'elapsed': elapsed?.inMilliseconds,
       'request': request.toJson(),
     };
   }
@@ -60,7 +60,7 @@ class FetchResultSuccess implements FetchResult {
   final http.Response response;
 
   @override
-  final List<Duration> elapsed = [];
+  Duration? elapsed;
 
   @override
   bool get isSuccess {
@@ -127,7 +127,7 @@ class FetchResultSuccess implements FetchResult {
   Map<String, dynamic> toJson() {
     return {
       'isSuccess': isSuccess,
-      'elapsed': elapsed.map((e) => e.inMilliseconds).toList(),
+      'elapsed': elapsed?.inMilliseconds,
       'request': request.toJson(),
       'statusCode': response.statusCode,
       'headers': response.headers,
@@ -172,7 +172,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError({
     required this.request,
     this.response,
-
     this.stackTrace,
     this.message = 'Fetch Error',
     this.type = .custom,
@@ -181,7 +180,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.cancelled({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .cancelled,
@@ -190,7 +188,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.debounced({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .debounced,
@@ -199,7 +196,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.throttled({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .throttled,
@@ -208,7 +204,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.network({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .network,
@@ -217,7 +212,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.http({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .http,
@@ -226,7 +220,6 @@ class FetchResultError implements FetchResult, Exception {
   FetchResultError.custom({
     required this.request,
     this.response,
-
     this.stackTrace,
     String? message,
   }) : type = .custom,
@@ -239,7 +232,7 @@ class FetchResultError implements FetchResult, Exception {
   final http.Response? response;
 
   @override
-  final List<Duration> elapsed = [];
+  Duration? elapsed;
 
   @override
   final bool isSuccess = false;
@@ -256,7 +249,7 @@ class FetchResultError implements FetchResult, Exception {
   Map<String, dynamic> toJson() {
     return {
       'isSuccess': isSuccess,
-      'elapsed': elapsed.map((e) => e.inMilliseconds).toList(),
+      'elapsed': elapsed?.inMilliseconds,
       'request': request.toJson(),
       'type': type.name,
       'message': message,

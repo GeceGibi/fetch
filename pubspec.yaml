@@ -1,6 +1,6 @@
 
 name: fetch
-version: 11.0.3
+version: 11.1.0
 
 environment:
   sdk: ">=3.10.0 <4.0.0"

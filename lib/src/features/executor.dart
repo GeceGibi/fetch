@@ -114,12 +114,24 @@ class Executor<R extends FetchResult> {
 
     // 2. Execute request (or use skip response from cache/etc)
     final R response;
+
+    /// skip request execution and use cached response
     if (skipResponse != null) {
       response = skipResponse;
-    } else if (runner != null) {
-      response = await runner!(method, currentRequest);
-    } else {
-      response = await method(currentRequest);
+    }
+    /// real request execution
+    else {
+      final stopWatch = Stopwatch()..start();
+
+      if (runner != null) {
+        response = await runner!(method, currentRequest)
+          ..elapsed = stopWatch.elapsed;
+      } else {
+        response = await method(currentRequest)
+          ..elapsed = stopWatch.elapsed;
+      }
+
+      stopWatch.stop();
     }
 
     // 3. Post-response pipelines (same order)

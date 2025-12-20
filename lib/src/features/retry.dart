@@ -21,34 +21,23 @@ class FetchRetry {
 
   Future<R> retry<R extends FetchResult>(Future<R> Function() action) async {
     var attempt = 0;
-    final stopWatch = Stopwatch();
-    final elapsed = <Duration>[];
 
     while (true) {
       attempt++;
-      stopWatch.start();
 
       try {
-        final result = await action();
-        result.elapsed.add(stopWatch.elapsed);
-        return result;
+        return await action();
       } on FetchResultError catch (error) {
-        elapsed.add(stopWatch.elapsed);
-
         final shouldRetry = await retryIf(error, attempt);
 
         if (attempt < maxAttempts && shouldRetry) {
           await Future<void>.delayed(retryDelay);
-          stopWatch.reset();
+
           continue;
         }
 
-        error.elapsed.addAll(elapsed);
-
         // ignore: use_rethrow_when_possible
         throw error;
-      } finally {
-        stopWatch.stop();
       }
     }
   }
