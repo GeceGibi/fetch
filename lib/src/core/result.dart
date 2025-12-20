@@ -1,23 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fetch/src/core/request.dart';
 import 'package:http/http.dart' as http;
+import 'package:via/src/core/request.dart';
 
 /// Represents the result of an HTTP request, including metadata and status.
 ///
-/// This is the base class for all HTTP result types in the Fetch library.
+/// This is the base class for all HTTP result types in the Via library.
 /// It contains the original request, success status, and optional timing info.
-class FetchResult {
+class ViaResult {
   /// Creates a new FetchResult.
   ///
   /// [request] - The original HTTP request object.
   /// [isSuccess] - True if the HTTP status code is 2xx, otherwise false.
   /// [elapsed] - Optional duration for the request (in milliseconds).
-  FetchResult({required this.request, required this.response});
+  ViaResult({required this.request, required this.response});
 
   /// The original HTTP request that produced this result.
-  final FetchRequest request;
+  final ViaRequest request;
 
   /// True if the HTTP response status code is in the 2xx range.
   ///
@@ -97,12 +97,12 @@ class FetchResult {
 
   @override
   String toString() {
-    return 'FetchResultSuccess(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, response: $response)';
+    return 'ViaResult(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, response: $response)';
   }
 }
 
-/// Fetch exception types
-enum FetchError {
+/// Via exception types
+enum ViaError {
   /// Request was cancelled
   cancelled,
 
@@ -119,7 +119,8 @@ enum FetchError {
   http,
 
   /// Custom error (extracted from response body, business logic errors)
-  custom;
+  custom
+  ;
 
   String get name {
     return switch (this) {
@@ -133,65 +134,65 @@ enum FetchError {
   }
 }
 
-class FetchException implements Exception {
-  FetchException({
+class ViaException implements Exception {
+  ViaException({
     required this.request,
     this.response,
     this.stackTrace,
-    this.message = 'Fetch Error',
+    this.message = 'Via Error',
     this.type = .custom,
   });
 
-  FetchException.cancelled({
+  ViaException.cancelled({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .cancelled,
-       message = message ?? FetchError.cancelled.name;
+       message = message ?? ViaError.cancelled.name;
 
-  FetchException.debounced({
+  ViaException.debounced({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .debounced,
-       message = message ?? FetchError.debounced.name;
+       message = message ?? ViaError.debounced.name;
 
-  FetchException.throttled({
+  ViaException.throttled({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .throttled,
-       message = message ?? FetchError.throttled.name;
+       message = message ?? ViaError.throttled.name;
 
-  FetchException.network({
+  ViaException.network({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .network,
-       message = message ?? FetchError.network.name;
+       message = message ?? ViaError.network.name;
 
-  FetchException.http({
+  ViaException.http({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .http,
-       message = message ?? FetchError.http.name;
+       message = message ?? ViaError.http.name;
 
-  FetchException.custom({
+  ViaException.custom({
     required this.request,
     this.response,
     this.stackTrace,
     String? message,
   }) : type = .custom,
-       message = message ?? FetchError.custom.name;
+       message = message ?? ViaError.custom.name;
 
-  final FetchRequest request;
-  final FetchError type;
+  final ViaRequest request;
+  final ViaError type;
   final String message;
 
   final http.Response? response;
@@ -199,10 +200,17 @@ class FetchException implements Exception {
 
   @override
   String toString() {
-    return 'FetchResultError(request: $request, type: $type, message: $message)';
+    return 'ViaException(request: $request, type: $type, message: $message)';
   }
 
   Map<String, dynamic> toJson() {
-    return {'request': request.toJson(), 'type': type.name, 'message': message};
+    return {
+      'request': request.toJson(),
+      'type': type.name,
+      'message': message,
+      'statusCode': ?response?.statusCode,
+      'headers': ?response?.headers,
+      'body': ?response?.body,
+    };
   }
 }

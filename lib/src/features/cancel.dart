@@ -5,7 +5,7 @@
 /// Example:
 /// ```dart
 /// final cancelToken = CancelToken();
-/// fetch.get('/users', cancelToken: cancelToken);
+/// via.get('/users', cancelToken: cancelToken);
 ///
 /// // Cancel the request
 /// cancelToken.cancel();

@@ -1,19 +1,19 @@
-import 'package:fetch/src/core/helpers.dart';
-import 'package:fetch/src/features/cancel.dart';
+import 'package:via/src/core/helpers.dart';
+import 'package:via/src/features/cancel.dart';
 
 /// Represents the payload for an HTTP request.
 ///
 /// This class encapsulates all the necessary information for making an HTTP request
 /// including the URI, method, headers, and body.
-class FetchRequest {
-  /// Creates a new FetchPayload instance.
+class ViaRequest {
+  /// Creates a new ViaRequest instance.
   ///
   /// [uri] - The target URI for the request
   /// [method] - The HTTP method (GET, POST, PUT, DELETE, etc.)
   /// [headers] - Optional HTTP headers
   /// [body] - Optional request body
   /// [cancelToken] - Optional token for cancelling the request
-  FetchRequest({
+  ViaRequest({
     required this.uri,
     required this.method,
     this.headers,
@@ -36,17 +36,17 @@ class FetchRequest {
   /// Optional cancel token
   final CancelToken? cancelToken;
 
-  /// Creates a copy of this FetchPayload with the given fields replaced by new values.
+  /// Creates a copy of this ViaRequest with the given fields replaced by new values.
   ///
-  /// Returns a new FetchPayload instance with updated values.
-  FetchRequest copyWith({
+  /// Returns a new ViaRequest instance with updated values.
+  ViaRequest copyWith({
     Uri? uri,
     String? method,
     Object? body,
     FetchHeaders? headers,
     CancelToken? cancelToken,
   }) {
-    return FetchRequest(
+    return ViaRequest(
       uri: uri ?? this.uri,
       body: body ?? this.body,
       method: method ?? this.method,

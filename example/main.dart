@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:fetch/fetch.dart';
+import 'package:via/via.dart';
 
 void main() async {
   await basicExample();
@@ -10,10 +10,10 @@ void main() async {
 /// Basic GET request
 Future<void> basicExample() async {
   print('\n=== Basic Example ===');
-  final fetch = Fetch<FetchResult>(
+  final via = Via<ViaResult>(
     base: Uri.parse('https://httpbin.org'),
   );
-  final result = await fetch.get('/get');
+  final result = await via.get('/get');
   print('Status: ${result.toJson()}');
 }
 
@@ -21,9 +21,9 @@ Future<void> basicExample() async {
 Future<void> debounceExample() async {
   print('\n=== Debounce Example ===');
 
-  final fetch = Fetch<FetchResult>(
+  final via = Via<ViaResult>(
     base: Uri.parse('https://httpbin.org'),
-    executor: Executor(
+    executor: ViaExecutor(
       pipelines: [
         DebouncePipeline(duration: Duration(seconds: 1)),
       ],
@@ -34,10 +34,10 @@ Future<void> debounceExample() async {
 
   Future<void>? lastRequest;
   for (var i = 1; i <= 5; i++) {
-    final request = fetch.get('/get').then((r) {
+    final request = via.get('/get').then((r) {
       print('✓ Request $i completed: ${r.response.statusCode}');
     }).catchError((Object e) {
-      if (e is FetchException && e.type == FetchError.debounced) {
+      if (e is ViaException && e.type == ViaError.debounced) {
         print('✗ Request $i debounced');
       }
     });
@@ -54,9 +54,9 @@ Future<void> debounceExample() async {
 Future<void> throttleExample() async {
   print('\n=== Throttle Example ===');
 
-  final fetch = Fetch<FetchResult>(
+  final via = Via<ViaResult>(
     base: Uri.parse('https://httpbin.org'),
-    executor: Executor(
+    executor: ViaExecutor(
       pipelines: [
         ThrottlePipeline(duration: Duration(seconds: 2)),
       ],
@@ -66,10 +66,10 @@ Future<void> throttleExample() async {
   print('Sending 5 rapid requests (only first will execute)...');
 
   for (var i = 1; i <= 5; i++) {
-    fetch.get('/get').then((r) {
+    via.get('/get').then((r) {
       print('✓ Request $i completed: ${r.response.statusCode}');
     }).catchError((Object e) {
-      if (e is FetchException && e.type == FetchError.throttled) {
+      if (e is ViaException && e.type == ViaError.throttled) {
         print('✗ Request $i throttled');
       }
     });
@@ -85,9 +85,9 @@ Future<void> throttleExample() async {
 Future<void> retryExample() async {
   print('\n=== Retry Example ===');
 
-  final fetch = Fetch(
+  final via = Via(
     base: Uri.parse('https://api.gece.dev'),
-    executor: Executor(
+    executor: ViaExecutor(
       pipelines: [
         ThrowPipeline(),
       ],
@@ -102,20 +102,20 @@ Future<void> retryExample() async {
   );
 
   try {
-    final result = await fetch.get('/info');
+    final result = await via.get('/info');
     print(result.toJson());
-  } on FetchException catch (e) {
+  } on ViaException catch (e) {
     print('✗ Failed after 3 attempts');
     print('  Error: ${e.toJson()}');
   }
 }
 
-class ThrowPipeline extends FetchPipeline<FetchResult> {
+class ThrowPipeline extends ViaPipeline<ViaResult> {
   @override
-  FutureOr<FetchResult> onResult(FetchResult result) async {
+  FutureOr<ViaResult> onResult(ViaResult result) async {
     await Future<void>.delayed(const Duration(seconds: 1));
 
-    throw FetchException.custom(
+    throw ViaException.custom(
       request: result.request,
       message: 'Forced error',
     );

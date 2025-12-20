@@ -1,13 +1,13 @@
 import 'dart:async';
 
-import 'package:fetch/src/core/request.dart';
-import 'package:fetch/src/core/result.dart';
-import 'package:fetch/src/features/pipeline.dart';
-import 'package:fetch/src/features/retry.dart';
+import 'package:via/src/core/request.dart';
+import 'package:via/src/core/result.dart';
+import 'package:via/src/features/pipeline.dart';
+import 'package:via/src/features/retry.dart';
 
 /// Type alias for the method function that executes HTTP requests
-typedef ExecutorMethod<R extends FetchResult> =
-    Future<R> Function(FetchRequest request);
+typedef ExecutorMethod<R extends ViaResult> =
+    Future<R> Function(ViaRequest request);
 
 /// Type alias for custom runner (e.g., isolate execution)
 ///
@@ -16,8 +16,8 @@ typedef ExecutorMethod<R extends FetchResult> =
 /// // Run in isolate
 /// final runner = (method, payload) => Isolate.run(() => method(payload));
 /// ```
-typedef Runner<R extends FetchResult> =
-    Future<R> Function(ExecutorMethod<R> method, FetchRequest request);
+typedef Runner<R extends ViaResult> =
+    Future<R> Function(ExecutorMethod<R> method, ViaRequest request);
 
 /// Request executor that orchestrates pipelines, execution, and retry logic.
 ///
@@ -38,12 +38,12 @@ typedef Runner<R extends FetchResult> =
 ///   retryIf: (e) => e.statusCode != null && e.statusCode! >= 500,
 /// );
 /// ```
-class Executor<R extends FetchResult> {
+class ViaExecutor<R extends ViaResult> {
   /// Creates a new Executor.
   ///
   /// [pipelines] - List of pipelines to run on each request
   /// [runner] - Custom runner for execution (e.g., isolate). If null, runs directly.
-  const Executor({
+  const ViaExecutor({
     this.retry = const FetchRetry(),
     this.pipelines = const [],
     this.runner,
@@ -52,7 +52,7 @@ class Executor<R extends FetchResult> {
   final FetchRetry retry;
 
   /// Pipelines to run on each request
-  final List<FetchPipeline<R>> pipelines;
+  final List<ViaPipeline<R>> pipelines;
 
   /// Custom runner for execution (e.g., for isolate-based execution)
   /// If null, the method is called directly
@@ -66,40 +66,40 @@ class Executor<R extends FetchResult> {
   ///
   /// Returns the processed response after all pipelines have run.
   Future<R> execute(
-    FetchRequest request, {
+    ViaRequest request, {
     required ExecutorMethod<R> method,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) async {
     final pipes = [...this.pipelines, ...pipelines];
 
     try {
       return retry.retry<R>(() => _executeOnce(request, method, pipes));
-    } on FetchException catch (error) {
+    } on ViaException catch (error) {
       for (final pipeline in pipes) {
         pipeline.onError(error);
       }
 
       rethrow;
     } catch (error, stackTrace) {
-      final fetchException = FetchException.custom(
+      final viaException = ViaException.custom(
         request: request,
         stackTrace: stackTrace,
         message: error.toString(),
       );
 
       for (final pipeline in pipes) {
-        pipeline.onError(fetchException);
+        pipeline.onError(viaException);
       }
 
-      throw fetchException;
+      throw viaException;
     }
   }
 
   /// Executes a single attempt through pipelines and runner.
   Future<R> _executeOnce(
-    FetchRequest request,
+    ViaRequest request,
     ExecutorMethod<R> method,
-    List<FetchPipeline<R>> pipelines,
+    List<ViaPipeline<R>> pipelines,
   ) async {
     var currentRequest = request;
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest

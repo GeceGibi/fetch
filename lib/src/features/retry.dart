@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:fetch/src/core/result.dart';
+import 'package:via/src/core/result.dart';
 
 class FetchRetry {
   const FetchRetry({
@@ -10,16 +10,16 @@ class FetchRetry {
   });
 
   final int maxAttempts;
-  final FutureOr<bool> Function(FetchException error, int attempt) retryIf;
+  final FutureOr<bool> Function(ViaException error, int attempt) retryIf;
   final Duration retryDelay;
 
-  static bool _defaultRetryIf(FetchException error, int attempt) {
-    return error.type == FetchError.network ||
+  static bool _defaultRetryIf(ViaException error, int attempt) {
+    return error.type == ViaError.network ||
         (error.response?.statusCode != null &&
             error.response!.statusCode >= 500);
   }
 
-  Future<R> retry<R extends FetchResult>(Future<R> Function() action) async {
+  Future<R> retry<R extends ViaResult>(Future<R> Function() action) async {
     var attempt = 0;
 
     while (true) {
@@ -27,7 +27,7 @@ class FetchRetry {
 
       try {
         return await action();
-      } on FetchException catch (error) {
+      } on ViaException catch (error) {
         final shouldRetry = await retryIf(error, attempt);
 
         if (attempt < maxAttempts && shouldRetry) {

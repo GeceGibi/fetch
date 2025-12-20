@@ -5,16 +5,17 @@
 /// This library provides a modern, type-safe HTTP client with built-in caching,
 /// logging, and response transformation capabilities. It's designed to be easy
 /// to use while providing powerful features for production applications.
-library fetch;
+library via;
 
 import 'dart:async';
 
-import 'package:fetch/src/core/helpers.dart';
-import 'package:fetch/src/core/request.dart';
-import 'package:fetch/src/core/result.dart';
-import 'package:fetch/src/features/cancel.dart';
-import 'package:fetch/src/features/executor.dart';
-import 'package:fetch/src/features/pipeline.dart';
+import 'package:via/src/core/helpers.dart';
+import 'package:via/src/core/request.dart';
+import 'package:via/src/core/result.dart';
+import 'package:via/src/features/cancel.dart';
+import 'package:via/src/features/executor.dart';
+import 'package:via/src/features/pipeline.dart';
+
 import 'package:http/http.dart' as http;
 
 export 'src/core/helpers.dart';
@@ -38,7 +39,7 @@ export 'src/features/retry.dart';
 ///
 /// Example usage:
 /// ```dart
-/// final fetch = Fetch<FetchResponse>(
+/// final via = Via<ViaResponse>(
 ///   base: Uri.parse('https://api.example.com'),
 ///   executor: Executor(
 ///     pipelines: [
@@ -60,19 +61,19 @@ export 'src/features/retry.dart';
 ///   ),
 /// );
 ///
-/// final response = await fetch.get('/users');
+/// final response = await via.get('/users');
 /// ```
-class Fetch<R extends FetchResult> {
-  /// Creates a new Fetch instance.
+class Via<R extends ViaResult> {
+  /// Creates a new Via instance.
   ///
   /// [base] - Base URI for all requests (optional)
   /// [timeout] - Request timeout duration (default: 30 seconds)
   /// [executor] - Request executor with pipelines and retry logic
   /// [onError] - Global error handler for all errors
-  Fetch({
+  Via({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
-    this.executor = const Executor(),
+    this.executor = const ViaExecutor(),
     this.onError,
   }) {
     if (base != null) {
@@ -87,10 +88,10 @@ class Fetch<R extends FetchResult> {
   final Duration timeout;
 
   /// Request executor (pipelines, runner, retry)
-  final Executor executor;
+  final ViaExecutor<R> executor;
 
   /// Global error handler
-  final void Function(FetchException error)? onError;
+  final void Function(ViaException error)? onError;
 
   /// Performs a GET request.
   ///
@@ -105,7 +106,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) async {
     return _worker(
       'GET',
@@ -130,7 +131,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'HEAD',
@@ -157,7 +158,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'POST',
@@ -185,7 +186,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'PUT',
@@ -213,7 +214,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'DELETE',
@@ -241,7 +242,7 @@ class Fetch<R extends FetchResult> {
     Map<String, dynamic>? queryParams,
     FetchHeaders headers = const {},
     CancelToken? cancelToken,
-    List<FetchPipeline<R>> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) {
     return _worker(
       'PATCH',
@@ -259,12 +260,12 @@ class Fetch<R extends FetchResult> {
   /// [request] - The request payload containing all necessary information
   ///
   /// Returns a Future that completes with the HTTP response.
-  Future<FetchResult> _runMethod(FetchRequest request) async {
-    final FetchRequest(:uri, :method, :body, :headers, :cancelToken) = request;
+  Future<R> _runMethod(ViaRequest request) async {
+    final ViaRequest(:uri, :method, :body, :headers, :cancelToken) = request;
 
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
-      throw FetchException.cancelled(request: request);
+      throw ViaException.cancelled(request: request);
     }
 
     final httpClient = http.Client();
@@ -297,7 +298,7 @@ class Fetch<R extends FetchResult> {
           .timeout(
             timeout,
             onTimeout: () {
-              throw FetchException.network(
+              throw ViaException.network(
                 request: request,
                 message: 'Request timeout',
               );
@@ -306,27 +307,27 @@ class Fetch<R extends FetchResult> {
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException.cancelled(request: request);
+        throw ViaException.cancelled(request: request);
       }
 
       final response = await http.Response.fromStream(streamedResponse);
 
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException.cancelled(request: request);
+        throw ViaException.cancelled(request: request);
       }
 
-      return FetchResult(response: response, request: request);
-    } on FetchException {
+      return ViaResult(response: response, request: request) as R;
+    } on ViaException {
       rethrow;
     } catch (e, stackTrace) {
       // If client was closed due to cancellation
       if (cancelToken?.isCancelled ?? false) {
-        throw FetchException.cancelled(request: request);
+        throw ViaException.cancelled(request: request);
       }
 
       // Connection error
-      throw FetchException.network(
+      throw ViaException.network(
         request: request,
         message: e.toString(),
         stackTrace: stackTrace,
@@ -362,7 +363,7 @@ class Fetch<R extends FetchResult> {
     Object? body,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
-    List<FetchPipeline> pipelines = const [],
+    List<ViaPipeline<R>> pipelines = const [],
   }) async {
     // Create URI
     final Uri uri;
@@ -386,7 +387,7 @@ class Fetch<R extends FetchResult> {
     }
 
     // Create request
-    final request = FetchRequest(
+    final request = ViaRequest(
       uri: uri,
       body: body,
       method: method,
@@ -403,12 +404,12 @@ class Fetch<R extends FetchResult> {
       );
 
       // Transform
-      return response as R;
-    } on FetchException catch (error) {
+      return response;
+    } on ViaException catch (error) {
       onError?.call(error);
       rethrow;
     } catch (error, stackTrace) {
-      final fetchError = FetchException.network(
+      final fetchError = ViaException.network(
         request: request,
         message: error.toString(),
         stackTrace: stackTrace,

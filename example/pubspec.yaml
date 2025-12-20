@@ -1,11 +1,11 @@
 name: fetch_example
-description: Example usage of the fetch package
+description: Example usage of the via package
 publish_to: none
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
-  fetch:
+  via:
     path: ../
   http: ^1.6.0

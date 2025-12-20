@@ -1,32 +1,32 @@
 import 'dart:async';
 
-import 'package:fetch/src/core/request.dart';
-import 'package:fetch/src/core/result.dart';
+import 'package:via/src/core/request.dart';
+import 'package:via/src/core/result.dart';
 
 /// Thrown to skip the HTTP request and return a cached/mock response
 class SkipRequest implements Exception {
   SkipRequest(this.result);
-  final FetchResult result;
+  final ViaResult result;
 }
 
 /// Abstract FetchPipeline class for request/response processing
 ///
 /// Pipelines are executed in order for requests and responses.
 /// Each pipeline can modify the payload/response or skip the request entirely.
-abstract class FetchPipeline<T extends FetchResult> {
+abstract class ViaPipeline<T extends ViaResult> {
   /// Called before request is sent.
   /// Return modified payload or throw [SkipRequest] to skip the request.
-  FutureOr<FetchRequest> onRequest(FetchRequest request) => request;
+  FutureOr<ViaRequest> onRequest(ViaRequest request) => request;
 
   /// Called after response is received
   FutureOr<T> onResult(T result) => result;
 
   /// Called when an error occurs during request/response processing
-  void onError(FetchException error) {}
+  void onError(ViaException error) {}
 }
 
 /// Request/Response logging pipeline
-class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T> {
+class LoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
   final List<dynamic> logs = [];
 
   bool _enabled = true;
@@ -44,7 +44,7 @@ class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T> {
   }
 
   @override
-  FutureOr<FetchRequest> onRequest(FetchRequest request) {
+  FutureOr<ViaRequest> onRequest(ViaRequest request) {
     if (enabled) {
       onLog(request);
     }
@@ -62,7 +62,7 @@ class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T> {
   }
 
   @override
-  void onError(FetchException error) {
+  void onError(ViaException error) {
     if (!enabled) {
       return;
     }
@@ -72,13 +72,13 @@ class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T> {
 }
 
 /// Auth token pipeline
-class AuthPipeline<T extends FetchResult> extends FetchPipeline<T> {
+class AuthPipeline<T extends ViaResult> extends ViaPipeline<T> {
   AuthPipeline({required this.getToken});
 
   final FutureOr<String?> Function() getToken;
 
   @override
-  FutureOr<FetchRequest> onRequest(FetchRequest request) async {
+  FutureOr<ViaRequest> onRequest(ViaRequest request) async {
     final token = await getToken();
     if (token != null) {
       return request.copyWith(
@@ -94,14 +94,14 @@ class AuthPipeline<T extends FetchResult> extends FetchPipeline<T> {
 /// Prevents rapid duplicate requests by debouncing them.
 /// Only the last request within the debounce duration will execute.
 /// Each new request resets the timer, so early requests are cancelled.
-class DebouncePipeline<T extends FetchResult> extends FetchPipeline<T> {
+class DebouncePipeline<T extends ViaResult> extends ViaPipeline<T> {
   DebouncePipeline({required this.duration});
 
   final Duration duration;
   final Map<String, _DebounceState> _states = {};
 
   @override
-  FutureOr<FetchRequest> onRequest(FetchRequest request) async {
+  FutureOr<ViaRequest> onRequest(ViaRequest request) async {
     if (duration == Duration.zero) {
       return request;
     }
@@ -114,7 +114,7 @@ class DebouncePipeline<T extends FetchResult> extends FetchPipeline<T> {
       previous.timer.cancel();
       if (!previous.completer.isCompleted) {
         previous.completer.completeError(
-          FetchException.debounced(request: request),
+          ViaException.debounced(request: request),
         );
       }
     }
@@ -153,14 +153,14 @@ class DebouncePipeline<T extends FetchResult> extends FetchPipeline<T> {
 /// Prevents rapid duplicate requests by throttling them.
 /// Only the first request within the throttle duration will execute.
 /// Subsequent requests within the duration will be rejected.
-class ThrottlePipeline<T extends FetchResult> extends FetchPipeline<T> {
+class ThrottlePipeline<T extends ViaResult> extends ViaPipeline<T> {
   ThrottlePipeline({required this.duration}) : _lastExecuted = {};
 
   final Duration duration;
   final Map<String, DateTime> _lastExecuted;
 
   @override
-  FutureOr<FetchRequest> onRequest(FetchRequest request) {
+  FutureOr<ViaRequest> onRequest(ViaRequest request) {
     if (duration == Duration.zero) {
       return request;
     }
@@ -174,7 +174,7 @@ class ThrottlePipeline<T extends FetchResult> extends FetchPipeline<T> {
       final elapsed = now.difference(lastExecution);
       if (elapsed < duration) {
         // Throw throttle exception
-        throw FetchException.throttled(request: request);
+        throw ViaException.throttled(request: request);
       }
     }
 
@@ -206,7 +206,7 @@ class _DebounceState {
 ///
 /// Returns error message if validation fails, null if valid.
 /// Receives the response and can inspect status code, body, etc.
-typedef ResponseValidator = FutureOr<String?> Function(FetchResult result);
+typedef ResponseValidator = FutureOr<String?> Function(ViaResult result);
 
 /// Response validation pipeline for business logic errors
 ///
@@ -216,7 +216,7 @@ typedef ResponseValidator = FutureOr<String?> Function(FetchResult result);
 ///
 /// Example:
 /// ```dart
-/// final fetch = Fetch<FetchResponse>(
+/// final via = Via<ViaResponse>(
 ///   executor: Executor(
 ///     pipelines: [
 ///       ResponseValidatorPipeline(
@@ -232,8 +232,7 @@ typedef ResponseValidator = FutureOr<String?> Function(FetchResult result);
 ///   ),
 /// );
 /// ```
-class ResponseValidatorPipeline<T extends FetchResult>
-    extends FetchPipeline<T> {
+class ResponseValidatorPipeline<T extends ViaResult> extends ViaPipeline<T> {
   ResponseValidatorPipeline({required this.validator});
 
   /// Validator function that returns error message if invalid, null if valid
@@ -244,7 +243,7 @@ class ResponseValidatorPipeline<T extends FetchResult>
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {
-      throw FetchException.custom(
+      throw ViaException.custom(
         request: result.request,
         message: errorMessage,
       );

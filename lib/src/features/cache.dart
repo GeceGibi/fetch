@@ -1,6 +1,6 @@
-import 'package:fetch/src/core/request.dart';
-import 'package:fetch/src/core/result.dart';
-import 'package:fetch/src/features/pipeline.dart';
+import 'package:via/src/core/request.dart';
+import 'package:via/src/core/result.dart';
+import 'package:via/src/features/pipeline.dart';
 
 /// Defines the caching strategy for HTTP requests.
 enum CacheStrategy {
@@ -14,7 +14,7 @@ enum CacheStrategy {
 /// Cache pipeline
 ///
 /// Caches responses based on the configured strategy and duration.
-class CachePipeline<R extends FetchResult> extends FetchPipeline<R> {
+class CachePipeline<R extends ViaResult> extends ViaPipeline<R> {
   CachePipeline({
     required this.duration,
     this.strategy = CacheStrategy.fullUrl,
@@ -23,7 +23,7 @@ class CachePipeline<R extends FetchResult> extends FetchPipeline<R> {
 
   final Duration duration;
   final CacheStrategy strategy;
-  final bool Function(FetchResult result)? canCache;
+  final bool Function(ViaResult result)? canCache;
   final Map<Uri, _CacheEntry> _cache;
 
   Uri _getCacheKey(Uri uri) {
@@ -34,7 +34,7 @@ class CachePipeline<R extends FetchResult> extends FetchPipeline<R> {
   }
 
   @override
-  FetchRequest onRequest(FetchRequest request) {
+  ViaRequest onRequest(ViaRequest request) {
     if (duration == Duration.zero) {
       return request;
     }
@@ -83,7 +83,7 @@ class CachePipeline<R extends FetchResult> extends FetchPipeline<R> {
 class _CacheEntry {
   _CacheEntry(this.result, this.duration) : date = DateTime.now();
 
-  final FetchResult result;
+  final ViaResult result;
   final Duration duration;
   final DateTime date;
 
