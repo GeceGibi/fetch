@@ -14,7 +14,7 @@ enum CacheStrategy {
 /// Cache pipeline
 ///
 /// Caches responses based on the configured strategy and duration.
-class CachePipeline extends FetchPipeline {
+class CachePipeline<R extends FetchResult> extends FetchPipeline<R> {
   CachePipeline({
     required this.duration,
     this.strategy = CacheStrategy.fullUrl,
@@ -51,7 +51,7 @@ class CachePipeline extends FetchPipeline {
   }
 
   @override
-  FetchResult onResult(FetchResult result) {
+  R onResult(R result) {
     if (duration == Duration.zero) {
       return result;
     }
