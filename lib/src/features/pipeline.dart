@@ -263,6 +263,7 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
     if (errorMessage != null) {
       throw ViaException.custom(
         request: result.request,
+        response: result.response,
         message: errorMessage,
       );
     }
