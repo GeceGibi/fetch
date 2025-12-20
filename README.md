@@ -37,7 +37,7 @@ void main() async {
 
 ### 🛠️ Pipeline Architecture
 Use pipelines for logging, authentication, and more. 
-- **`ViaLoggerPipeline`**: Silent by default. Records history in `logs` list. Override `onLog` for custom printing.
+- **`ViaLoggerPipeline`**: Silent by default. Records history in `logs` list with `maxEntries` limit. Override `onLog` for custom printing.
 - **`ViaCachePipeline`**: In-memory caching with `maxEntries` (FIFO) to prevent memory leaks.
 
 ```dart

@@ -30,7 +30,10 @@ abstract class ViaPipeline<T extends ViaResult> {
 /// By default, it records events in the [logs] list.
 /// Override [onLog] to perform real-time logging (e.g., print to console).
 class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
-  ViaLoggerPipeline({bool enabled = true}) : _enabled = enabled;
+  ViaLoggerPipeline({
+    bool enabled = true,
+    this.maxEntries = 100,
+  }) : _enabled = enabled;
 
   bool _enabled;
 
@@ -42,6 +45,9 @@ class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
     if (!value) logs.clear();
   }
 
+  /// Maximum number of events to keep in the [logs] list.
+  final int maxEntries;
+
   /// History of captured events.
   /// 
   /// Each entry can be one of the following types:
@@ -50,30 +56,32 @@ class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
   /// - [ViaException]: Recorded when a request fails or is rejected by a pipeline.
   final List<Object> logs = [];
 
+  void _addLog(Object event) {
+    if (!enabled) return;
+    
+    if (logs.length >= maxEntries && maxEntries > 0) {
+      logs.removeAt(0);
+    }
+    
+    logs.add(event);
+    onLog(event);
+  }
+
   @override
   ViaRequest onRequest(ViaRequest request) {
-    if (enabled) {
-      logs.add(request);
-      onLog(request);
-    }
+    _addLog(request);
     return request;
   }
 
   @override
   T onResult(T result) {
-    if (enabled) {
-      logs.add(result);
-      onLog(result);
-    }
+    _addLog(result);
     return result;
   }
 
   @override
   void onError(ViaException error) {
-    if (enabled) {
-      logs.add(error);
-      onLog(error);
-    }
+    _addLog(error);
   }
 
   /// Hook for real-time logging. Override this to handle events as they occur.
