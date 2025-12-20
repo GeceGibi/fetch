@@ -74,8 +74,8 @@ class FetchRequest {
     return {
       'uri': uri.toString(),
       'method': method,
-      if (headers != null && headers!.isNotEmpty) 'headers': headers,
-      if (body != null) 'body': body,
+      'headers': headers,
+      'body': ?body,
     };
   }
 }
