@@ -86,16 +86,22 @@ class ViaRequest {
     final buffer = StringBuffer('curl -X $method');
 
     headers?.forEach((key, value) {
-      buffer.write(' -H "$key: $value"');
+      final escapedValue = value.replaceAll('"', r'\"');
+      buffer.write(' -H "$key: $escapedValue"');
     });
 
     if (body != null) {
-      switch (body) {
-        case final String s:
-          buffer.write(" -d '$s'");
-        case final Map<dynamic, dynamic> m:
-          buffer.write(" -d '${jsonEncode(m)}'");
+      String data;
+      if (body is String) {
+        data = body! as String;
+      } else if (body is Map || body is List) {
+        data = jsonEncode(body);
+      } else {
+        data = body.toString();
       }
+
+      final escapedBody = data.replaceAll("'", r"'\''");
+      buffer.write(" -d '$escapedBody'");
     }
 
     buffer.write(' "$uri"');

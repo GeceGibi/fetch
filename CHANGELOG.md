@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-12-20
+
+### Fixed
+- Fixed `toJson` and `toCurl` implementations in `ViaRequest`.
+- Improved cURL command generation with better character escaping for terminal compatibility.
+- Fixed `ViaException` JSON serialization by correcting null-aware syntax.
+- Adopted modern Dart null-aware map entries syntax (`?variable`) for cleaner metadata.
+
 ## [1.2.0] - 2025-12-20
 
 ### Changed
