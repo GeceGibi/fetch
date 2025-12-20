@@ -13,13 +13,15 @@ class SkipRequest implements Exception {
 ///
 /// Pipelines are executed in order for requests and responses.
 /// Each pipeline can modify the payload/response or skip the request entirely.
-abstract class ViaPipeline<T extends ViaResult> {
+abstract class ViaPipeline {
+  const ViaPipeline();
+
   /// Called before request is sent.
   /// Return modified request or throw [SkipRequest] to skip execution.
   FutureOr<ViaRequest> onRequest(ViaRequest request) => request;
 
   /// Called after response is received.
-  FutureOr<T> onResult(covariant ViaResult result) => result as T;
+  FutureOr<ViaResult> onResult(ViaResult result) => result;
 
   /// Called when an error occurs during processing.
   void onError(ViaException error) {}
@@ -29,7 +31,7 @@ abstract class ViaPipeline<T extends ViaResult> {
 ///
 /// By default, it records events in the [logs] list.
 /// Override [onLog] to perform real-time logging (e.g., print to console).
-class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
+class ViaLoggerPipeline extends ViaPipeline {
   ViaLoggerPipeline({
     bool enabled = true,
     this.maxEntries = 100,
@@ -74,7 +76,7 @@ class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
   }
 
   @override
-  T onResult(covariant T result) {
+  ViaResult onResult(ViaResult result) {
     _addLog(result);
     return result;
   }
@@ -89,7 +91,7 @@ class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
 }
 
 /// Auth token pipeline
-class ViaAuthPipeline<T extends ViaResult> extends ViaPipeline<T> {
+class ViaAuthPipeline extends ViaPipeline {
   ViaAuthPipeline({required this.getToken});
 
   final FutureOr<String?> Function() getToken;
@@ -111,7 +113,7 @@ class ViaAuthPipeline<T extends ViaResult> extends ViaPipeline<T> {
 /// Prevents rapid duplicate requests by debouncing them.
 /// Only the last request within the debounce duration will execute.
 /// Each new request resets the timer, so early requests are cancelled.
-class ViaDebouncePipeline<T extends ViaResult> extends ViaPipeline<T> {
+class ViaDebouncePipeline extends ViaPipeline {
   ViaDebouncePipeline({required this.duration});
 
   final Duration duration;
@@ -170,7 +172,7 @@ class ViaDebouncePipeline<T extends ViaResult> extends ViaPipeline<T> {
 /// Prevents rapid duplicate requests by throttling them.
 /// Only the first request within the throttle duration will execute.
 /// Subsequent requests within the duration will be rejected.
-class ViaThrottlePipeline<T extends ViaResult> extends ViaPipeline<T> {
+class ViaThrottlePipeline extends ViaPipeline {
   ViaThrottlePipeline({required this.duration}) : _lastExecuted = {};
 
   final Duration duration;
@@ -248,14 +250,14 @@ typedef ResponseValidator = FutureOr<String?> Function(ViaResult result);
 ///   ),
 /// );
 /// ```
-class ViaResponseValidatorPipeline<T extends ViaResult> extends ViaPipeline<T> {
+class ViaResponseValidatorPipeline extends ViaPipeline {
   ViaResponseValidatorPipeline({required this.validator});
 
   /// Validator function that returns error message if invalid, null if valid
   final ResponseValidator validator;
 
   @override
-  FutureOr<T> onResult(covariant T result) async {
+  FutureOr<ViaResult> onResult(ViaResult result) async {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {

@@ -2,15 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2025-12-20
-
-### Added
-- Enhanced `ViaPipeline` result transformation with `covariant` support.
-- Improved custom `ViaResult` subclasses support via pipeline-based type conversion.
+## [1.2.0] - 2025-12-20
 
 ### Changed
-- `ViaPipeline.onResult` now accepts `covariant ViaResult` to allow type narrowing in custom pipelines.
-- Internal execution flow now allows late casting to the generic result type `R`.
+- Refactored `ViaPipeline` to be non-generic for better flexibility and simplicity.
+- Removed generic requirements from all built-in pipelines (`ViaLoggerPipeline`, `ViaCachePipeline`, etc.).
+- Simplified custom result transformation by removing `covariant` complexity in favor of standard inheritance.
+
+## [1.1.0] - 2025-12-20
 
 ## [1.0.0] - 2025-12-20
 

@@ -108,7 +108,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) async {
     return _worker(
       'GET',
@@ -133,7 +133,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
       'HEAD',
@@ -160,7 +160,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
       'POST',
@@ -188,7 +188,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
       'PUT',
@@ -216,7 +216,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
       'DELETE',
@@ -244,7 +244,7 @@ class Via<R extends ViaResult> {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
       'PATCH',
@@ -370,7 +370,7 @@ class Via<R extends ViaResult> {
     Object? body,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) async {
     // Create URI
     final Uri uri;

@@ -49,7 +49,7 @@ class ViaExecutor<R extends ViaResult> {
   final ViaRetry retry;
 
   /// Pipelines to run on each request
-  final List<ViaPipeline<R>> pipelines;
+  final List<ViaPipeline> pipelines;
 
   /// Custom runner for execution (e.g., for isolate-based execution)
   /// If null, the method is called directly
@@ -73,7 +73,7 @@ class ViaExecutor<R extends ViaResult> {
   Future<R> execute(
     ViaRequest request, {
     required ExecutorMethod<R> method,
-    List<ViaPipeline<R>> pipelines = const [],
+    List<ViaPipeline> pipelines = const [],
   }) async {
     final pipes = [...this.pipelines, ...pipelines];
 
@@ -104,17 +104,17 @@ class ViaExecutor<R extends ViaResult> {
   Future<R> _executeOnce(
     ViaRequest request,
     ExecutorMethod<R> method,
-    List<ViaPipeline<R>> pipelines,
+    List<ViaPipeline> pipelines,
   ) async {
     var currentRequest = request;
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest
-    R? skipResponse;
+    ViaResult? skipResponse;
     try {
       for (final pipeline in pipelines) {
         currentRequest = await pipeline.onRequest(currentRequest);
       }
     } on SkipRequest catch (skip) {
-      skipResponse = skip.result as R;
+      skipResponse = skip.result;
     }
 
     // 2. Execute request (or use skip response from cache/etc)

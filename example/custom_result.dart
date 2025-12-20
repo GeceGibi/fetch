@@ -13,11 +13,10 @@ class MyApiResponse extends ViaResult {
 }
 
 /// 2. Create a Pipeline that works with your Custom Result
-class MyResponsePipeline extends ViaPipeline<MyApiResponse> {
+class MyResponsePipeline extends ViaPipeline {
   @override
   FutureOr<MyApiResponse> onResult(ViaResult result) {
     print('Processing MyApiResponse in pipeline...');
-
 
     return MyApiResponse(
       request: result.request,

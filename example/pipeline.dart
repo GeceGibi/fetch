@@ -18,7 +18,7 @@ void main() async {
   await via.get('/get');
 }
 
-class AppConfigPipeline extends ViaPipeline<ViaResult> {
+class AppConfigPipeline extends ViaPipeline {
   @override
   FutureOr<ViaRequest> onRequest(ViaRequest request) {
     // Values are embedded directly inside for a project-specific config

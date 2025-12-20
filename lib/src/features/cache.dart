@@ -15,7 +15,7 @@ enum CacheStrategy {
 ///
 /// Responses are stored in memory and returned for subsequent requests 
 /// to the same URL until the [duration] expires.
-class ViaCachePipeline<R extends ViaResult> extends ViaPipeline<R> {
+class ViaCachePipeline extends ViaPipeline {
   ViaCachePipeline({
     required this.duration,
     this.strategy = CacheStrategy.fullUrl,
@@ -64,7 +64,7 @@ class ViaCachePipeline<R extends ViaResult> extends ViaPipeline<R> {
   }
 
   @override
-  R onResult(covariant R result) {
+  ViaResult onResult(ViaResult result) {
     if (duration == Duration.zero) {
       return result;
     }
