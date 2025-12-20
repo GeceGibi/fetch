@@ -7,7 +7,7 @@ import 'package:via/src/features/retry.dart';
 
 /// Type alias for the method function that executes HTTP requests
 typedef ExecutorMethod<R extends ViaResult> =
-    Future<R> Function(ViaRequest request);
+    Future<ViaResult> Function(ViaRequest request);
 
 /// Type alias for custom runner (e.g., isolate execution)
 ///
@@ -17,7 +17,7 @@ typedef ExecutorMethod<R extends ViaResult> =
 /// final runner = (method, payload) => Isolate.run(() => method(payload));
 /// ```
 typedef Runner<R extends ViaResult> =
-    Future<R> Function(ExecutorMethod<R> method, ViaRequest request);
+    Future<ViaResult> Function(ExecutorMethod<R> method, ViaRequest request);
 
 /// Request executor that orchestrates pipelines, execution, and retry logic.
 ///
@@ -118,7 +118,7 @@ class ViaExecutor<R extends ViaResult> {
     }
 
     // 2. Execute request (or use skip response from cache/etc)
-    final R response;
+    final ViaResult response;
     final stopWatch = Stopwatch()..start();
 
     /// skip request execution and use cached response
@@ -141,14 +141,15 @@ class ViaExecutor<R extends ViaResult> {
     }
 
     // 4. Custom validation
-    if (await errorIf(processedResponse)) {
+    final finalResult = processedResponse as R;
+    if (await errorIf(finalResult)) {
       throw ViaException.http(
         request: currentRequest,
-        response: processedResponse.response,
-        message: processedResponse.response.reasonPhrase ?? 'ErrorIfValidation',
+        response: finalResult.response,
+        message: finalResult.response.reasonPhrase ?? 'ErrorIfValidation',
       );
     }
 
-    return processedResponse;
+    return finalResult;
   }
 }

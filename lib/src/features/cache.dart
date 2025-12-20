@@ -64,7 +64,7 @@ class ViaCachePipeline<R extends ViaResult> extends ViaPipeline<R> {
   }
 
   @override
-  R onResult(R result) {
+  R onResult(covariant R result) {
     if (duration == Duration.zero) {
       return result;
     }

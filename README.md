@@ -77,7 +77,7 @@ cancelToken.cancel();
 ```
 
 ### 💎 Custom Result Types
-Extend `ViaResult` to create your own type-safe response models.
+Extend `ViaResult` and use a transformation pipeline to create your own type-safe response models.
 
 ```dart
 class MyResponse extends ViaResult {
@@ -85,8 +85,23 @@ class MyResponse extends ViaResult {
   bool get hasError => response.body.contains('error');
 }
 
-// Initialize with your custom type
-final via = Via<MyResponse>(executor: ViaExecutor(errorIf: (r) => r.hasError));
+class MyResponsePipeline extends ViaPipeline<MyResponse> {
+  @override
+  MyResponse onResult(ViaResult result) => MyResponse(
+    request: result.request, 
+    response: result.response,
+  );
+}
+
+// Initialize with your custom type and its transformation pipeline
+final via = Via<MyResponse>(
+  executor: ViaExecutor(
+    pipelines: [MyResponsePipeline()],
+  ),
+);
+
+final result = await via.get('/data');
+print('Has Error: ${result.hasError}');
 ```
 
 ---

@@ -15,15 +15,14 @@ class MyApiResponse extends ViaResult {
 /// 2. Create a Pipeline that works with your Custom Result
 class MyResponsePipeline extends ViaPipeline<MyApiResponse> {
   @override
-  FutureOr<MyApiResponse> onResult(MyApiResponse result) {
+  FutureOr<MyApiResponse> onResult(ViaResult result) {
     print('Processing MyApiResponse in pipeline...');
-    
-    // You can manipulate the result here
-    if (result.hasError) {
-      print('Warning: Response contains an error string!');
-    }
-    
-    return result;
+
+
+    return MyApiResponse(
+      request: result.request,
+      response: result.response,
+    );
   }
 }
 

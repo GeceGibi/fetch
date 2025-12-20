@@ -19,7 +19,7 @@ abstract class ViaPipeline<T extends ViaResult> {
   FutureOr<ViaRequest> onRequest(ViaRequest request) => request;
 
   /// Called after response is received.
-  FutureOr<T> onResult(T result) => result;
+  FutureOr<T> onResult(covariant ViaResult result) => result as T;
 
   /// Called when an error occurs during processing.
   void onError(ViaException error) {}
@@ -74,7 +74,7 @@ class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
   }
 
   @override
-  T onResult(T result) {
+  T onResult(covariant T result) {
     _addLog(result);
     return result;
   }
@@ -255,7 +255,7 @@ class ViaResponseValidatorPipeline<T extends ViaResult> extends ViaPipeline<T> {
   final ResponseValidator validator;
 
   @override
-  FutureOr<T> onResult(T result) async {
+  FutureOr<T> onResult(covariant T result) async {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {

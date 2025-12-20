@@ -262,7 +262,7 @@ class Via<R extends ViaResult> {
   /// [request] - The request payload containing all necessary information
   ///
   /// Returns a Future that completes with the HTTP response.
-  Future<R> _runMethod(ViaRequest request) async {
+  Future<ViaResult> _runMethod(ViaRequest request) async {
     final ViaRequest(:uri, :method, :body, :headers, :cancelToken) = request;
 
     // Check if cancelled before starting
@@ -321,7 +321,7 @@ class Via<R extends ViaResult> {
         throw ViaException.cancelled(request: request);
       }
 
-      return ViaResult(response: response, request: request) as R;
+      return ViaResult(response: response, request: request);
     } on ViaException {
       rethrow;
     } catch (e, stackTrace) {
