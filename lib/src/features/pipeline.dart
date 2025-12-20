@@ -20,6 +20,9 @@ abstract class FetchPipeline<T extends FetchResult> {
 
   /// Called after response is received
   FutureOr<T> onResult(T result) => result;
+
+  /// Called when an error occurs during request/response processing
+  void onError(FetchException error) {}
 }
 
 /// Request/Response logging pipeline
@@ -40,32 +43,31 @@ class LoggerPipeline<T extends FetchResult> extends FetchPipeline<T> {
     logs.add(value);
   }
 
-  void onLogRequest(FetchRequest request) {
-    if (!enabled) {
-      return;
-    }
-
-    onLog(request);
-  }
-
-  void onLogResult(T result) {
-    if (!enabled) {
-      return;
-    }
-
-    onLog(result);
-  }
-
   @override
   FutureOr<FetchRequest> onRequest(FetchRequest request) {
-    onLogRequest(request);
+    if (enabled) {
+      onLog(request);
+    }
+
     return request;
   }
 
   @override
   FutureOr<T> onResult(T result) {
-    onLogResult(result);
+    if (enabled) {
+      onLog(result);
+    }
+
     return result;
+  }
+
+  @override
+  void onError(FetchException error) {
+    if (!enabled) {
+      return;
+    }
+
+    onLog(error);
   }
 }
 

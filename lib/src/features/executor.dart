@@ -76,7 +76,7 @@ class Executor<R extends FetchResult> {
       return retry.retry<R>(() => _executeOnce(request, method, pipes));
     } on FetchException catch (error) {
       for (final pipeline in pipes) {
-        await pipeline.onResult(error as R);
+        pipeline.onError(error);
       }
 
       rethrow;
@@ -88,7 +88,7 @@ class Executor<R extends FetchResult> {
       );
 
       for (final pipeline in pipes) {
-        await pipeline.onResult(fetchException as R);
+        pipeline.onError(fetchException);
       }
 
       throw fetchException;
