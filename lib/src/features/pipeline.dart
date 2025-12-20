@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
@@ -26,91 +25,59 @@ abstract class ViaPipeline<T extends ViaResult> {
   void onError(ViaException error) {}
 }
 
-/// Request/Response logging pipeline
+/// Simple pipeline for logging request, result, and error events.
+///
+/// By default, it records events in the [logs] list.
+/// Override [onLog] to perform real-time logging (e.g., print to console).
 class ViaLoggerPipeline<T extends ViaResult> extends ViaPipeline<T> {
-  ViaLoggerPipeline({
-    this.includeCurl = true,
-    this.includeResponse = true,
-    this.onLog,
-  });
+  ViaLoggerPipeline({bool enabled = true}) : _enabled = enabled;
 
-  /// Whether to include cURL command in logs
-  final bool includeCurl;
+  bool _enabled;
 
-  /// Whether to include response body in logs
-  final bool includeResponse;
+  /// Whether logging is currently enabled.
+  bool get enabled => _enabled;
 
-  /// Custom log handler (defaults to print)
-  final void Function(String message)? onLog;
-
-  void _log(String message) {
-    if (onLog != null) {
-      onLog!(message);
-    } else {
-      // ignore: avoid_print
-      print(message);
-    }
+  set enabled(bool value) {
+    _enabled = value;
+    if (!value) logs.clear();
   }
 
+  /// History of captured events.
+  /// 
+  /// Each entry can be one of the following types:
+  /// - [ViaRequest]: Recorded when a request is about to be sent.
+  /// - [ViaResult]: Recorded when a successful response is received.
+  /// - [ViaException]: Recorded when a request fails or is rejected by a pipeline.
+  final List<Object> logs = [];
+
   @override
-  FutureOr<ViaRequest> onRequest(ViaRequest request) {
-    _log('--- HTTP Request ---');
-    _log('${request.method} ${request.uri}');
-
-    if (request.headers?.isNotEmpty ?? false) {
-      _log('Headers: ${request.headers}');
+  ViaRequest onRequest(ViaRequest request) {
+    if (enabled) {
+      logs.add(request);
+      onLog(request);
     }
-
-    if (includeCurl) {
-      _log('cURL: ${_toCurl(request)}');
-    }
-
     return request;
   }
 
   @override
-  FutureOr<T> onResult(T result) {
-    _log('--- HTTP Response ---');
-    _log('Status: ${result.response.statusCode} (${result.isSuccess ? 'Success' : 'Failure'})');
-    _log('Elapsed: ${result.elapsed?.inMilliseconds}ms');
-
-    if (includeResponse) {
-      _log('Body: ${result.response.body}');
+  T onResult(T result) {
+    if (enabled) {
+      logs.add(result);
+      onLog(result);
     }
-
     return result;
   }
 
   @override
   void onError(ViaException error) {
-    _log('--- HTTP Error ---');
-    _log('Type: ${error.type.name}');
-    _log('Message: ${error.message}');
-    if (error.response != null) {
-      _log('Status: ${error.response!.statusCode}');
-      _log('Body: ${error.response!.body}');
+    if (enabled) {
+      logs.add(error);
+      onLog(error);
     }
   }
 
-  String _toCurl(ViaRequest request) {
-    final components = ['curl -X ${request.method}'];
-
-    request.headers?.forEach((key, value) {
-      components.add('-H "$key: $value"');
-    });
-
-    if (request.body != null) {
-      if (request.body is String) {
-        components.add('-d \'${request.body}\'');
-      } else if (request.body is Map) {
-        components.add('-d \'${jsonEncode(request.body)}\'');
-      }
-    }
-
-    components.add('"${request.uri}"');
-
-    return components.join(' ');
-  }
+  /// Hook for real-time logging. Override this to handle events as they occur.
+  void onLog(Object event) {}
 }
 
 /// Auth token pipeline

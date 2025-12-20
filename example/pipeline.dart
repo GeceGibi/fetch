@@ -9,7 +9,7 @@ void main() async {
         // Using our project-specific config pipeline
         AppConfigPipeline(),
         // Built-in logger with cURL support
-        ViaLoggerPipeline(includeCurl: true),
+        ViaLoggerPipeline(),
       ],
     ),
   );

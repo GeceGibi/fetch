@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:via/src/core/helpers.dart';
 import 'package:via/src/features/cancel.dart';
 
@@ -77,5 +79,26 @@ class ViaRequest {
       'headers': headers,
       'body': ?body,
     };
+  }
+
+  /// Generates a cURL command representation of the request.
+  String toCurl() {
+    final buffer = StringBuffer('curl -X $method');
+
+    headers?.forEach((key, value) {
+      buffer.write(' -H "$key: $value"');
+    });
+
+    if (body != null) {
+      switch (body) {
+        case final String s:
+          buffer.write(" -d '$s'");
+        case final Map<dynamic, dynamic> m:
+          buffer.write(" -d '${jsonEncode(m)}'");
+      }
+    }
+
+    buffer.write(' "$uri"');
+    return buffer.toString();
   }
 }

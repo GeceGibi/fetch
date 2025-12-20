@@ -23,13 +23,9 @@ dependencies:
 import 'package:via/via.dart';
 
 void main() async {
-  // 1. Initialize Via
   final via = Via(base: Uri.parse('https://api.example.com'));
-
-  // 2. Simple GET request
   final result = await via.get('/users/1');
   
-  // 3. Type-safe JSON parsing
   final user = await result.asMap<String, dynamic>();
   print('User Name: ${user['name']}');
 }
@@ -40,49 +36,48 @@ void main() async {
 ## 🔥 Key Features
 
 ### 🛠️ Pipeline Architecture
-Use pipelines for logging, authentication, and more.
+Use pipelines for logging, authentication, and more. 
+- **`ViaLoggerPipeline`**: Silent by default. Records history in `logs` list. Override `onLog` for custom printing.
+- **`ViaCachePipeline`**: In-memory caching with `maxEntries` (FIFO) to prevent memory leaks.
 
 ```dart
 final via = Via(
-  base: Uri.parse('https://api.example.com'),
   executor: ViaExecutor(
     pipelines: [
       ViaLoggerPipeline(),
-      ViaAuthPipeline(getToken: () => 'YOUR_TOKEN'),
+      ViaCachePipeline(duration: Duration(minutes: 5), maxEntries: 100),
     ],
   ),
 );
 ```
 
 ### 🛡️ Retry Logic
-Automatic retry on network failures. By default, any status code outside the 200-299 range is treated as an error, triggering the retry mechanism. You can customize this behavior using `errorIf`.
+Automatic retry on failures. By default, any status code outside 200-299 triggers the retry mechanism. Customize this with `errorIf`.
 
 ```dart
 final via = Via(
   executor: ViaExecutor(
-    // Custom logic: Treat 404 as a success, but others as errors
-    errorIf: (result) => result.response.statusCode != 404 && !result.isSuccess,
-    retry: ViaRetry(
-      maxAttempts: 3,
-      retryIf: (error, attempt) => true,
-    ),
+    // Default errorIf treats non-2xx as errors
+    errorIf: (result) => !result.isSuccess, 
+    retry: ViaRetry(maxAttempts: 3),
   ),
 );
 ```
 
-### 🛑 Request Cancellation
-Easily cancel ongoing requests.
+### 🛑 Request Cancellation & cURL
+Easily cancel requests or convert them to cURL commands for debugging.
 
 ```dart
-final cancelToken = CancelToken();
-via.get('/large-data', cancelToken: cancelToken);
+final request = ViaRequest(uri: Uri.parse('...'), method: 'GET');
+print(request.toCurl()); // Returns: curl -X GET "..."
 
-// Cancel later
+final cancelToken = CancelToken();
+via.get('/data', cancelToken: cancelToken);
 cancelToken.cancel();
 ```
 
 ### 💎 Custom Result Types
-Extend `ViaResult` to create your own type-safe response models and manipulate them in pipelines.
+Extend `ViaResult` to create your own type-safe response models.
 
 ```dart
 class MyResponse extends ViaResult {
@@ -90,17 +85,8 @@ class MyResponse extends ViaResult {
   bool get hasError => response.body.contains('error');
 }
 
-class MyPipeline extends ViaPipeline<MyResponse> {
-  @override
-  MyResponse onResult(MyResponse result) {
-    // Access custom properties in pipelines
-    if (result.hasError) print('Error detected!');
-    return result;
-  }
-}
-
 // Initialize with your custom type
-final via = Via<MyResponse>(executor: ViaExecutor(pipelines: [MyPipeline()]));
+final via = Via<MyResponse>(executor: ViaExecutor(errorIf: (r) => r.hasError));
 ```
 
 ---
