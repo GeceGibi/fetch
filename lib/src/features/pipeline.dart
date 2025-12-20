@@ -9,7 +9,7 @@ class SkipRequest implements Exception {
   final ViaResult result;
 }
 
-/// Abstract FetchPipeline class for request/response processing
+/// Abstract ViaPipeline class for request/response processing
 ///
 /// Pipelines are executed in order for requests and responses.
 /// Each pipeline can modify the payload/response or skip the request entirely.

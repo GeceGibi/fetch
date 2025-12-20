@@ -1,11 +1,11 @@
 /// Type alias for HTTP headers map
-typedef FetchHeaders = Map<String, String>;
+typedef ViaHeaders = Map<String, String>;
 
 /// Utility class providing helper methods for HTTP operations.
 ///
 /// This class contains static methods for common HTTP-related operations
 /// such as header merging and type conversion.
-class FetchHelpers {
+class ViaHelpers {
   /// Merges multiple header maps into a single map.
   ///
   /// This method combines multiple header maps, with later maps taking
@@ -17,12 +17,12 @@ class FetchHelpers {
   ///
   /// Example:
   /// ```dart
-  /// final merged = FetchHelpers.mergeHeaders([
+  /// final merged = ViaHelpers.mergeHeaders([
   ///   {'content-type': 'application/json'},
   ///   {'authorization': 'Bearer token'},
   /// ]);
   /// ```
-  static FetchHeaders mergeHeaders(List<Map<Object?, Object?>> headers) {
+  static ViaHeaders mergeHeaders(List<Map<Object?, Object?>> headers) {
     final output = <String, String>{};
 
     for (final head in headers) {
@@ -42,7 +42,7 @@ class FetchHelpers {
   ///
   /// Example:
   /// ```dart
-  /// final stringMap = FetchHelpers.mapStringy({
+  /// final stringMap = ViaHelpers.mapStringy({
   ///   'key1': 'value1',
   ///   'key2': 123,
   ///   'key3': true,

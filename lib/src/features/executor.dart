@@ -44,12 +44,12 @@ class ViaExecutor<R extends ViaResult> {
   /// [pipelines] - List of pipelines to run on each request
   /// [runner] - Custom runner for execution (e.g., isolate). If null, runs directly.
   const ViaExecutor({
-    this.retry = const FetchRetry(),
+    this.retry = const ViaRetry(),
     this.pipelines = const [],
     this.runner,
   });
 
-  final FetchRetry retry;
+  final ViaRetry retry;
 
   /// Pipelines to run on each request
   final List<ViaPipeline<R>> pipelines;

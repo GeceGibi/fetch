@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:via/src/core/result.dart';
 
-class FetchRetry {
-  const FetchRetry({
+class ViaRetry {
+  const ViaRetry({
     this.maxAttempts = 1,
     this.retryIf = _defaultRetryIf,
     this.retryDelay = const Duration(seconds: 2),

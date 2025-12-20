@@ -104,7 +104,7 @@ class Via<R extends ViaResult> {
   Future<R> get(
     String endpoint, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) async {
@@ -129,7 +129,7 @@ class Via<R extends ViaResult> {
   Future<R> head(
     String endpoint, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) {
@@ -156,7 +156,7 @@ class Via<R extends ViaResult> {
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) {
@@ -184,7 +184,7 @@ class Via<R extends ViaResult> {
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) {
@@ -212,7 +212,7 @@ class Via<R extends ViaResult> {
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) {
@@ -240,7 +240,7 @@ class Via<R extends ViaResult> {
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
-    FetchHeaders headers = const {},
+    ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline<R>> pipelines = const [],
   }) {
@@ -359,7 +359,7 @@ class Via<R extends ViaResult> {
   Future<R> _worker(
     String method, {
     required String endpoint,
-    required FetchHeaders headers,
+    required ViaHeaders headers,
     Object? body,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
@@ -371,7 +371,7 @@ class Via<R extends ViaResult> {
     if (endpoint.startsWith('http')) {
       final parseUri = Uri.parse(endpoint);
       uri = parseUri.replace(
-        queryParameters: FetchHelpers.mapStringy({
+        queryParameters: ViaHelpers.mapStringy({
           ...parseUri.queryParameters,
           ...?queryParams,
         }),
@@ -379,7 +379,7 @@ class Via<R extends ViaResult> {
     } else {
       uri = base.replace(
         path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
-        queryParameters: FetchHelpers.mapStringy({
+        queryParameters: ViaHelpers.mapStringy({
           ...base.queryParameters,
           ...?queryParams,
         }),
@@ -409,14 +409,14 @@ class Via<R extends ViaResult> {
       onError?.call(error);
       rethrow;
     } catch (error, stackTrace) {
-      final fetchError = ViaException.network(
+      final viaError = ViaException.network(
         request: request,
         message: error.toString(),
         stackTrace: stackTrace,
       );
 
-      onError?.call(fetchError);
-      throw fetchError;
+      onError?.call(viaError);
+      throw viaError;
     }
   }
 }

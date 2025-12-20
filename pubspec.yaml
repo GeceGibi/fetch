@@ -1,6 +1,8 @@
 
 name: via
-version: 11.3.2
+description: A modern, type-safe HTTP client library for Dart/Flutter applications.
+version: 1.0.0+1
+repository: https://github.com/GeceGibi/via
 
 environment:
   sdk: ">=3.10.0 <4.0.0"

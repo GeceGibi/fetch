@@ -31,7 +31,7 @@ class ViaRequest {
   final Object? body;
 
   /// Optional HTTP headers
-  final FetchHeaders? headers;
+  final ViaHeaders? headers;
 
   /// Optional cancel token
   final CancelToken? cancelToken;
@@ -43,7 +43,7 @@ class ViaRequest {
     Uri? uri,
     String? method,
     Object? body,
-    FetchHeaders? headers,
+    ViaHeaders? headers,
     CancelToken? cancelToken,
   }) {
     return ViaRequest(

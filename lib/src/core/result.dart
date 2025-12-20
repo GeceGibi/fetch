@@ -9,7 +9,7 @@ import 'package:via/src/core/request.dart';
 /// This is the base class for all HTTP result types in the Via library.
 /// It contains the original request, success status, and optional timing info.
 class ViaResult {
-  /// Creates a new FetchResult.
+  /// Creates a new ViaResult.
   ///
   /// [request] - The original HTTP request object.
   /// [isSuccess] - True if the HTTP status code is 2xx, otherwise false.
@@ -34,7 +34,7 @@ class ViaResult {
 
   /// Raw HTTP response associated with this result.
   ///
-  /// Only available in FetchResult
+  /// Only available in ViaResult
   final http.Response response;
 
   /// Converts the JSON response to a strongly-typed Map.

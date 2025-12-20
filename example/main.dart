@@ -91,7 +91,7 @@ Future<void> retryExample() async {
       pipelines: [
         ThrowPipeline(),
       ],
-      retry: FetchRetry(
+      retry: ViaRetry(
         maxAttempts: 3,
         retryIf: (error, attempt) async {
           print('Attempt $attempt failed: ${error.message}, retrying...');
