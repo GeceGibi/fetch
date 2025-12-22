@@ -1,24 +1,49 @@
-import 'package:via/via.dart';
+import 'basic.dart' as basic;
+import 'cache_debounce.dart' as cache;
+import 'cancel.dart' as cancel;
+import 'custom_result.dart' as custom;
+import 'isolate.dart' as isolate;
+import 'logs.dart' as logs;
+import 'pipeline.dart' as pipeline;
+import 'retry.dart' as retry;
 
 void main() async {
-  // Simple initialization
-  final via = Via(base: Uri.parse('https://api.example.com'));
+  print('=========================================');
+  print('🚀 RUNNING ALL VIA EXAMPLES');
+  print('=========================================\n');
 
-  // Quick Start Example
-  print('Welcome to Via! Check the example/ folder for more detailed tests:');
-  print('- example/basic.dart: Simple GET/POST');
-  print('- example/logs.dart: Professional logging with cURL');
-  print('- example/retry.dart: Retry mechanism');
-  print('- example/pipeline.dart: Custom pipelines');
-  print('- example/isolate.dart: Background execution');
-  print('- example/cache_debounce.dart: Performance features');
-  print('- example/cancel.dart: Request cancellation');
-  print('- example/custom_result.dart: Custom response models');
+  print('1. BASIC REQUESTS');
+  await basic.main();
+  print('\n-----------------------------------------\n');
 
-  try {
-    final result = await via.get('/users/1');
-    print('User: ${result.response.body}');
-  } catch (e) {
-    print('Check out the examples above to see Via in action!');
-  }
+  print('2. LOGGING');
+  await logs.main();
+  print('\n-----------------------------------------\n');
+
+  print('3. RETRY MECHANISM');
+  await retry.main();
+  print('\n-----------------------------------------\n');
+
+  print('4. PIPELINES');
+  await pipeline.main();
+  print('\n-----------------------------------------\n');
+
+  print('5. CACHE & DEBOUNCE');
+  await cache.main();
+  print('\n-----------------------------------------\n');
+
+  print('6. REQUEST CANCELLATION');
+  await cancel.main();
+  print('\n-----------------------------------------\n');
+
+  print('7. CUSTOM RESULT MODELS');
+  await custom.main();
+  print('\n-----------------------------------------\n');
+
+  print('8. ISOLATE EXECUTION');
+  await isolate.main();
+  
+  print('\n=========================================');
+  print('✅ ALL EXAMPLES COMPLETED SUCCESSFULLY');
+  print('=========================================');
 }

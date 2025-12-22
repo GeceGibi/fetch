@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'package:via/via.dart';
 
-void main() async {
+Future<void> main() async {
   final via = Via<ViaResult>(
     base: Uri.parse('https://httpbin.org'),
     executor: ViaExecutor(

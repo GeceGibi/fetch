@@ -25,7 +25,7 @@ class MyResponsePipeline extends ViaPipeline {
   }
 }
 
-void main() async {
+Future<void> main() async {
   // 3. Initialize Via with your Custom Result type
   final via = Via<MyApiResponse>(
     base: Uri.parse('https://httpbin.org'),

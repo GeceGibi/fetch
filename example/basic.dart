@@ -1,6 +1,6 @@
 import 'package:via/via.dart';
 
-void main() async {
+Future<void> main() async {
   // Simple initialization
   final via = Via(base: Uri.parse('https://httpbin.org'));
 

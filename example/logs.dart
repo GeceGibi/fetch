@@ -18,7 +18,7 @@ class MyPrettyLogger extends ViaLoggerPipeline {
   }
 }
 
-void main() async {
+Future<void> main() async {
   print('--- [1] Silent Logging (History only) ---');
   final silentLogger = ViaLoggerPipeline();
   final viaSilent = Via(

@@ -1,15 +1,27 @@
 import 'dart:async';
 import 'package:via/via.dart';
 
-void main() async {
+class AppLogger extends ViaLoggerPipeline {
+  @override
+  void onLog(Object event) {
+    if (event is ViaRequest) {
+      print('🚀 Request: ${event.method} ${event.uri}');
+      print('💻 cURL: ${event.toCurl()}');
+    } else if (event is ViaResult) {
+      print('✅ Result: ${event.response.statusCode} (${event.elapsed?.inMilliseconds}ms)');
+    }
+  }
+}
+
+Future<void> main() async {
   final via = Via(
     base: Uri.parse('https://httpbin.org'),
     executor: ViaExecutor(
       pipelines: [
         // Using our project-specific config pipeline
         AppConfigPipeline(),
-        // Built-in logger with cURL support
-        ViaLoggerPipeline(),
+        // Custom logger
+        AppLogger(),
       ],
     ),
   );

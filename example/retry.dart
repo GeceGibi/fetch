@@ -1,6 +1,6 @@
 import 'package:via/via.dart';
 
-void main() async {
+Future<void> main() async {
   final via = Via(
     base: Uri.parse('https://httpbin.org'),
     executor: ViaExecutor(
@@ -9,7 +9,7 @@ void main() async {
       // This automatically triggers the retry mechanism for 500, 404, etc.
       retry: ViaRetry(
         maxAttempts: 3,
-        retryDelay: Duration(seconds: 1),
+        retryDelay: const Duration(seconds: 1),
         retryIf: (error, attempt) {
           print('⚠️ Attempt $attempt failed: ${error.message}. Retrying...');
           return true; // Retry on every error

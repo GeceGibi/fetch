@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 - Internal cleanup: Removed redundant generic type parameters from `ViaExecutor` and `ViaRetry`.
 - Simplified internal execution flow by centralizing type casting in the `Via` class.
 - Improved code maintainability by reducing generic boilerplate in core feature classes.
+- Updated all examples to support sequential execution via `Future<void> main()`.
+- Improved `example/main.dart` to act as a comprehensive test runner for all features.
+- Enhanced `example/pipeline.dart` with a custom logger for better visibility.
 
 ## [1.2.2] - 2025-12-20
 
