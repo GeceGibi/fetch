@@ -5,18 +5,17 @@
 /// This library provides a modern, type-safe HTTP client with built-in caching,
 /// logging, and response transformation capabilities. It's designed to be easy
 /// to use while providing powerful features for production applications.
-library via;
+library;
 
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:via/src/core/helpers.dart';
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
 import 'package:via/src/features/cancel.dart';
 import 'package:via/src/features/executor.dart';
 import 'package:via/src/features/pipeline.dart';
-
-import 'package:http/http.dart' as http;
 
 export 'src/core/helpers.dart';
 export 'src/core/request.dart';
@@ -90,7 +89,7 @@ class Via<R extends ViaResult> {
   final Duration timeout;
 
   /// Request executor (pipelines, runner, retry)
-  final ViaExecutor<R> executor;
+  final ViaExecutor executor;
 
   /// Global error handler
   final void Function(ViaException error)? onError;
@@ -411,7 +410,7 @@ class Via<R extends ViaResult> {
       );
 
       // Transform
-      return response;
+      return response as R;
     } on ViaException catch (error) {
       onError?.call(error);
       rethrow;

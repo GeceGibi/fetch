@@ -5,9 +5,14 @@ import 'package:via/src/core/result.dart';
 import 'package:via/src/features/pipeline.dart';
 import 'package:via/src/features/retry.dart';
 
+Future<ViaResult> _defaultRunner(
+  ExecutorMethod method,
+  ViaRequest request,
+) =>
+    method(request);
+
 /// Type alias for the method function that executes HTTP requests
-typedef ExecutorMethod<R extends ViaResult> =
-    Future<ViaResult> Function(ViaRequest request);
+typedef ExecutorMethod = Future<ViaResult> Function(ViaRequest request);
 
 /// Type alias for custom runner (e.g., isolate execution)
 ///
@@ -16,8 +21,8 @@ typedef ExecutorMethod<R extends ViaResult> =
 /// // Run in isolate
 /// final runner = (method, payload) => Isolate.run(() => method(payload));
 /// ```
-typedef Runner<R extends ViaResult> =
-    Future<ViaResult> Function(ExecutorMethod<R> method, ViaRequest request);
+typedef Runner = Future<ViaResult> Function(
+    ExecutorMethod method, ViaRequest request);
 
 /// Request executor that orchestrates pipelines, execution, and retry logic.
 ///
@@ -34,7 +39,7 @@ typedef Runner<R extends ViaResult> =
 ///   errorIf: (result) => result.response.statusCode >= 400,
 /// );
 /// ```
-class ViaExecutor<R extends ViaResult> {
+class ViaExecutor {
   /// Creates a new Executor.
   ///
   /// [pipelines] - List of pipelines to run on each request
@@ -42,7 +47,7 @@ class ViaExecutor<R extends ViaResult> {
   const ViaExecutor({
     this.retry = const ViaRetry(),
     this.pipelines = const [],
-    this.runner,
+    this.runner = _defaultRunner,
     this.errorIf = _defaultErrorIf,
   });
 
@@ -53,13 +58,13 @@ class ViaExecutor<R extends ViaResult> {
 
   /// Custom runner for execution (e.g., for isolate-based execution)
   /// If null, the method is called directly
-  final Runner<R>? runner;
+  final Runner runner;
 
   /// Optional validation logic to treat a successful network response as an error.
   /// Should return true if the result should be treated as an error,
   /// or false if the result is valid.
   /// Defaults to checking [ViaResult.isSuccess] (non-2xx status codes).
-  final FutureOr<bool> Function(R result) errorIf;
+  final FutureOr<bool> Function(ViaResult result) errorIf;
 
   static bool _defaultErrorIf(ViaResult result) => !result.isSuccess;
 
@@ -70,15 +75,15 @@ class ViaExecutor<R extends ViaResult> {
   /// [pipelines] - Additional pipelines for this specific request
   ///
   /// Returns the processed response after all pipelines have run.
-  Future<R> execute(
+  Future<ViaResult> execute(
     ViaRequest request, {
-    required ExecutorMethod<R> method,
+    required ExecutorMethod method,
     List<ViaPipeline> pipelines = const [],
   }) async {
     final pipes = [...this.pipelines, ...pipelines];
 
     try {
-      return retry.retry<R>(() => _executeOnce(request, method, pipes));
+      return retry.retry(() => _executeOnce(request, method, pipes));
     } on ViaException catch (error) {
       for (final pipeline in pipes) {
         pipeline.onError(error);
@@ -101,9 +106,9 @@ class ViaExecutor<R extends ViaResult> {
   }
 
   /// Executes a single attempt through pipelines and runner.
-  Future<R> _executeOnce(
+  Future<ViaResult> _executeOnce(
     ViaRequest request,
-    ExecutorMethod<R> method,
+    ExecutorMethod method,
     List<ViaPipeline> pipelines,
   ) async {
     var currentRequest = request;
@@ -125,11 +130,10 @@ class ViaExecutor<R extends ViaResult> {
     if (skipResponse != null) {
       response = skipResponse;
     }
+
     /// real request execution
-    else if (runner != null) {
-      response = await runner!(method, currentRequest);
-    } else {
-      response = await method(currentRequest);
+    else {
+      response = await runner(method, currentRequest);
     }
 
     response.elapsed = stopWatch.elapsed;
@@ -141,15 +145,14 @@ class ViaExecutor<R extends ViaResult> {
     }
 
     // 4. Custom validation
-    final finalResult = processedResponse as R;
-    if (await errorIf(finalResult)) {
+    if (await errorIf(processedResponse)) {
       throw ViaException.http(
         request: currentRequest,
-        response: finalResult.response,
-        message: finalResult.response.reasonPhrase ?? 'ErrorIfValidation',
+        response: processedResponse.response,
+        message: processedResponse.response.reasonPhrase ?? 'ErrorIfValidation',
       );
     }
 
-    return finalResult;
+    return processedResponse;
   }
 }

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2025-12-20
+
+### Changed
+- Internal cleanup: Removed redundant generic type parameters from `ViaExecutor` and `ViaRetry`.
+- Simplified internal execution flow by centralizing type casting in the `Via` class.
+- Improved code maintainability by reducing generic boilerplate in core feature classes.
+
 ## [1.2.2] - 2025-12-20
 
 ### Fixed
