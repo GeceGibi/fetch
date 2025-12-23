@@ -1,6 +1,6 @@
 # 🛣️ Via
 
-**A modern, type-safe HTTP client for Dart & Flutter.**
+**A modern, type-safe HTTP & WebSocket client for Dart & Flutter.**
 
 Via is a lightweight networking engine built for simplicity and performance. It features a pipeline architecture, built-in resilience, and type-safe response handling.
 
@@ -14,7 +14,7 @@ Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.0.0
+  via: ^1.3.0
 ```
 
 ### Simple GET Request
@@ -31,14 +31,35 @@ void main() async {
 }
 ```
 
+### Multipart File Upload
+
+```dart
+final result = await via.post(
+  '/upload',
+  {'type': 'avatar'},
+  files: {
+    'image': ViaFile.fromBytes(myBytes, filename: 'avatar.png'),
+  },
+);
+```
+
+### WebSocket Support
+
+```dart
+final socket = await via.socket('/ws');
+
+socket.stream.listen((message) => print('Received: $message'));
+socket.send('Hello!');
+```
+
 ---
 
 ## 🔥 Key Features
 
 ### 🛠️ Pipeline Architecture
 Use pipelines for logging, authentication, and more. 
-- **`ViaLoggerPipeline`**: Silent by default. Records history in `logs` list with `maxEntries` limit. Override `onLog` for custom printing.
-- **`ViaCachePipeline`**: In-memory caching with `maxEntries` (FIFO) to prevent memory leaks.
+- **`ViaLoggerPipeline`**: Records history in `logs` list. Override `onLog` for custom printing.
+- **`ViaCachePipeline`**: In-memory caching with `maxEntries` (FIFO) limit.
 
 ```dart
 final via = Via(
@@ -52,12 +73,11 @@ final via = Via(
 ```
 
 ### 🛡️ Retry Logic
-Automatic retry on failures. By default, any status code outside 200-299 triggers the retry mechanism. Customize this with `errorIf`.
+Automatic retry on failures. Customize what constitutes an error with `errorIf`.
 
 ```dart
 final via = Via(
   executor: ViaExecutor(
-    // Default errorIf treats non-2xx as errors
     errorIf: (result) => !result.isSuccess, 
     retry: ViaRetry(maxAttempts: 3),
   ),
@@ -68,16 +88,16 @@ final via = Via(
 Easily cancel requests or convert them to cURL commands for debugging.
 
 ```dart
-final request = ViaRequest(uri: Uri.parse('...'), method: 'GET');
-print(request.toCurl()); // Returns: curl -X GET "..."
-
 final cancelToken = CancelToken();
 via.get('/data', cancelToken: cancelToken);
 cancelToken.cancel();
+
+// cURL debugging
+print(result.request.toCurl());
 ```
 
 ### 💎 Custom Result Types
-Extend `ViaResult` and use a transformation pipeline to create your own type-safe response models.
+Extend `ViaResult` and use a pipeline to create your own type-safe response models.
 
 ```dart
 class MyResponse extends ViaResult {
@@ -85,23 +105,11 @@ class MyResponse extends ViaResult {
   bool get hasError => response.body.contains('error');
 }
 
-class MyResponsePipeline extends ViaPipeline<MyResponse> {
-  @override
-  MyResponse onResult(ViaResult result) => MyResponse(
-    request: result.request, 
-    response: result.response,
-  );
-}
-
-// Initialize with your custom type and its transformation pipeline
 final via = Via<MyResponse>(
   executor: ViaExecutor(
-    pipelines: [MyResponsePipeline()],
+    pipelines: [MyResponsePipeline()], // Transforms ViaResult -> MyResponse
   ),
 );
-
-final result = await via.get('/data');
-print('Has Error: ${result.hasError}');
 ```
 
 ---

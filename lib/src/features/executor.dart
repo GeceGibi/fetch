@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
-import 'package:via/src/features/pipeline.dart';
+import 'package:via/src/features/pipelines/http_pipeline.dart';
 import 'package:via/src/features/retry.dart';
 
 Future<ViaResult> _defaultRunner(
@@ -80,12 +80,12 @@ class ViaExecutor {
     required ExecutorMethod method,
     List<ViaPipeline> pipelines = const [],
   }) async {
-    final pipes = [...this.pipelines, ...pipelines];
+    final allPipelines = [...this.pipelines, ...pipelines];
 
     try {
-      return retry.retry(() => _executeOnce(request, method, pipes));
+      return retry.retry(() => _executeOnce(request, method, allPipelines));
     } on ViaException catch (error) {
-      for (final pipeline in pipes) {
+      for (final pipeline in allPipelines) {
         pipeline.onError(error);
       }
 
@@ -97,7 +97,7 @@ class ViaExecutor {
         message: error.toString(),
       );
 
-      for (final pipeline in pipes) {
+      for (final pipeline in allPipelines) {
         pipeline.onError(viaException);
       }
 

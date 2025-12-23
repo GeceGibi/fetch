@@ -51,7 +51,7 @@ class ViaLoggerPipeline extends ViaPipeline {
   final int maxEntries;
 
   /// History of captured events.
-  /// 
+  ///
   /// Each entry can be one of the following types:
   /// - [ViaRequest]: Recorded when a request is about to be sent.
   /// - [ViaResult]: Recorded when a successful response is received.
@@ -60,11 +60,11 @@ class ViaLoggerPipeline extends ViaPipeline {
 
   void _addLog(Object event) {
     if (!enabled) return;
-    
+
     if (logs.length >= maxEntries && maxEntries > 0) {
       logs.removeAt(0);
     }
-    
+
     logs.add(event);
     onLog(event);
   }
@@ -99,9 +99,13 @@ class ViaAuthPipeline extends ViaPipeline {
   @override
   FutureOr<ViaRequest> onRequest(ViaRequest request) async {
     final token = await getToken();
+
     if (token != null) {
       return request.copyWith(
-        headers: {...?request.headers, 'Authorization': 'Bearer $token'},
+        headers: {
+          ...?request.headers,
+          'Authorization': 'Bearer $token',
+        },
       );
     }
     return request;
@@ -232,24 +236,6 @@ typedef ResponseValidator = FutureOr<String?> Function(ViaResult result);
 /// Use this pipeline to validate responses for business logic errors.
 /// Even if HTTP status is 2xx, your API might return success: false
 /// or similar patterns in the body.
-///
-/// Example:
-/// ```dart
-/// final via = Via(
-///   executor: ViaExecutor(
-///     pipelines: [
-///       ViaResponseValidatorPipeline(
-///         validator: (result) {
-///           if (result.response.body.contains('error')) {
-///             return 'Business Error';
-///           }
-///           return null;
-///         },
-///       ),
-///     ],
-///   ),
-/// );
-/// ```
 class ViaResponseValidatorPipeline extends ViaPipeline {
   ViaResponseValidatorPipeline({required this.validator});
 
@@ -271,3 +257,4 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
     return result;
   }
 }
+

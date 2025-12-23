@@ -2,14 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.4] - 2025-12-20
+## [1.3.0]
+
+### Added
+- **Multipart Upload Support**: Dedicated `via.multipart()` method for form-data and file uploads.
+- **WebSocket Support**: Introduced `ViaSocket` for lightweight and flexible WebSocket connections.
+- **WebSocket Pipelines**: Added `ViaSocketPipeline` for intercepting lifecycle events.
+- **WebSocket Auto-Reconnect**: Support for `autoReconnect` and `reconnectDelay`.
+- **Smart URI Conversion**: Automatic `http`/`https` to `ws`/`wss` conversion.
+- **Examples**: Added `multipart_example.dart`, `socket_example.dart`, and `socket_reconnect_test.dart`.
+
+### Changed
+- **API Simplification**: Shorthand methods (`post`, `put`, `patch`, `delete`) now only handle standard bodies. All file uploads must use `via.multipart()`.
+- **Internal Refactoring**: Moved HTTP methods to `ViaMethods` mixin and organized pipelines into `src/features/pipelines/`.
+- Removed `part`/`part of` structure in favor of standard imports.
+
+## [1.2.4]
 
 ### Changed
 - Refactored HTTP methods to use the `ViaMethod` enum for better type safety and consistency.
 - Updated `ViaRequest.toCurl()` and `ViaRequest.toString()` to correctly use enum values.
 - Internal cleanup of method parameter types across the library.
 
-## [1.2.3] - 2025-12-20
+## [1.2.3]
 
 ### Changed
 - Internal cleanup: Removed redundant generic type parameters from `ViaExecutor` and `ViaRetry`.
@@ -19,14 +34,14 @@ All notable changes to this project will be documented in this file.
 - Improved `example/main.dart` to act as a comprehensive test runner for all features.
 - Enhanced `example/pipeline.dart` with a custom logger for better visibility.
 
-## [1.2.2] - 2025-12-20
+## [1.2.2]
 
 ### Fixed
 - Further improved `toCurl` character escaping by using single quotes for headers and URL to prevent shell interpretation issues.
 - Fixed `toJson` in `ViaResult` to correctly handle null-aware response properties.
 - Added `response` object to `ViaException` in `ViaResponseValidatorPipeline` for better debugging.
 
-## [1.2.1] - 2025-12-20
+## [1.2.1]
 
 ### Fixed
 - Fixed `toJson` and `toCurl` implementations in `ViaRequest`.
@@ -34,16 +49,16 @@ All notable changes to this project will be documented in this file.
 - Fixed `ViaException` JSON serialization by correcting null-aware syntax.
 - Adopted modern Dart null-aware map entries syntax (`?variable`) for cleaner metadata.
 
-## [1.2.0] - 2025-12-20
+## [1.2.0]
 
 ### Changed
 - Refactored `ViaPipeline` to be non-generic for better flexibility and simplicity.
 - Removed generic requirements from all built-in pipelines (`ViaLoggerPipeline`, `ViaCachePipeline`, etc.).
 - Simplified custom result transformation by removing `covariant` complexity in favor of standard inheritance.
 
-## [1.1.0] - 2025-12-20
+## [1.1.0]
 
-## [1.0.0] - 2025-12-20
+## [1.0.0]
 
 ### Added
 - Initial release of the Via HTTP engine.

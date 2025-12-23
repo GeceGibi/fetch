@@ -16,6 +16,16 @@ enum ViaMethod {
   final String value;
 }
 
+/// Represents a file for multipart requests.
+class ViaFile {
+  const ViaFile.fromBytes(this.bytes, {required this.filename}) : value = null;
+  const ViaFile.fromString(this.value, {required this.filename}) : bytes = null;
+
+  final List<int>? bytes;
+  final String? value;
+  final String filename;
+}
+
 /// Represents the payload for an HTTP request.
 ///
 /// This class encapsulates all the necessary information for making an HTTP request
@@ -27,12 +37,14 @@ class ViaRequest {
   /// [method] - The HTTP method (GET, POST, PUT, DELETE, etc.)
   /// [headers] - Optional HTTP headers
   /// [body] - Optional request body
+  /// [files] - Optional files for multipart requests
   /// [cancelToken] - Optional token for cancelling the request
   ViaRequest({
     required this.uri,
     required this.method,
     this.headers,
     this.body,
+    this.files,
     this.cancelToken,
   });
 
@@ -44,6 +56,9 @@ class ViaRequest {
 
   /// Optional request body
   final Object? body;
+
+  /// Optional files for multipart requests
+  final Map<String, ViaFile>? files;
 
   /// Optional HTTP headers
   final ViaHeaders? headers;
@@ -58,12 +73,14 @@ class ViaRequest {
     Uri? uri,
     ViaMethod? method,
     Object? body,
+    Map<String, ViaFile>? files,
     ViaHeaders? headers,
     CancelToken? cancelToken,
   }) {
     return ViaRequest(
       uri: uri ?? this.uri,
       body: body ?? this.body,
+      files: files ?? this.files,
       method: method ?? this.method,
       headers: headers ?? this.headers,
       cancelToken: cancelToken ?? this.cancelToken,
@@ -82,6 +99,10 @@ class ViaRequest {
       buffer.writeln('Body: $body');
     }
 
+    if (files != null) {
+      buffer.writeln('Files: ${files!.keys.join(', ')}');
+    }
+
     return buffer.toString().trimRight();
   }
 
@@ -90,7 +111,8 @@ class ViaRequest {
       'uri': uri.toString(),
       'method': method.value,
       'headers': headers,
-      'body': ?body,
+      'body': body,
+      'files': files?.keys.toList(),
     };
   }
 

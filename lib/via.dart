@@ -1,5 +1,3 @@
-// ignore_for_file: constant_identifier_names
-
 /// A comprehensive HTTP client library for Dart/Flutter applications.
 ///
 /// This library provides a modern, type-safe HTTP client with built-in caching,
@@ -15,7 +13,8 @@ import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
 import 'package:via/src/features/cancel.dart';
 import 'package:via/src/features/executor.dart';
-import 'package:via/src/features/pipeline.dart';
+import 'package:via/src/features/pipelines/http_pipeline.dart';
+import 'package:via/src/methods.dart';
 
 export 'src/core/helpers.dart';
 export 'src/core/request.dart';
@@ -23,8 +22,11 @@ export 'src/core/result.dart';
 export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
 export 'src/features/executor.dart';
-export 'src/features/pipeline.dart';
+export 'src/features/pipelines/http_pipeline.dart';
+export 'src/features/pipelines/socket_pipeline.dart';
 export 'src/features/retry.dart';
+export 'src/features/socket.dart';
+export 'src/methods.dart';
 
 /// A comprehensive HTTP client with caching, logging, and request capabilities.
 ///
@@ -53,7 +55,7 @@ export 'src/features/retry.dart';
 ///
 /// final response = await via.get('/users');
 /// ```
-class Via<R extends ViaResult> {
+class Via<R extends ViaResult> with ViaMethods<R> {
   /// Creates a new Via instance.
   ///
   /// [base] - Base URI for all requests (optional)
@@ -94,175 +96,14 @@ class Via<R extends ViaResult> {
   /// Global error handler
   final void Function(ViaException error)? onError;
 
-  /// Performs a GET request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> get(
-    String endpoint, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) async {
-    return _worker(
-      .get,
-      endpoint: endpoint,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
-  /// Performs a HEAD request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> head(
-    String endpoint, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) {
-    return _worker(
-      .head,
-      endpoint: endpoint,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
-  /// Performs a POST request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [body] - The request body
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> post(
-    String endpoint,
-    Object? body, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) {
-    return _worker(
-      .post,
-      endpoint: endpoint,
-      body: body,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
-  /// Performs a PUT request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [body] - The request body
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> put(
-    String endpoint,
-    Object? body, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) {
-    return _worker(
-      .put,
-      endpoint: endpoint,
-      body: body,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
-  /// Performs a DELETE request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [body] - The request body
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> delete(
-    String endpoint,
-    Object? body, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) {
-    return _worker(
-      .delete,
-      endpoint: endpoint,
-      body: body,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
-  /// Performs a PATCH request.
-  ///
-  /// [endpoint] - The endpoint to request (can be full URL or relative path)
-  /// [body] - The request body
-  /// [queryParams] - Optional query parameters
-  /// [headers] - Optional HTTP headers
-  /// [cancelToken] - Optional token to cancel the request
-  ///
-  /// Returns a Future that completes with the transformed response.
-  Future<R> patch(
-    String endpoint,
-    Object? body, {
-    Map<String, dynamic>? queryParams,
-    ViaHeaders headers = const {},
-    CancelToken? cancelToken,
-    List<ViaPipeline> pipelines = const [],
-  }) {
-    return _worker(
-      .patch,
-      endpoint: endpoint,
-      body: body,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-    );
-  }
-
   /// Executes the HTTP request using the http package.
   ///
   /// [request] - The request payload containing all necessary information
   ///
   /// Returns a Future that completes with the HTTP response.
   Future<ViaResult> _runMethod(ViaRequest request) async {
-    final ViaRequest(:uri, :method, :body, :headers, :cancelToken) = request;
+    final ViaRequest(:uri, :method, :body, :files, :headers, :cancelToken) =
+        request;
 
     // Check if cancelled before starting
     if (cancelToken?.isCancelled ?? false) {
@@ -272,7 +113,56 @@ class Via<R extends ViaResult> {
     // For requests with cancellation, we use a fresh client to allow closing it.
     // For standard requests, we reuse the shared client for connection pooling.
     final httpClient = cancelToken != null ? http.Client() : _client;
-    final httpRequest = http.Request(method.name, uri);
+
+    final http.BaseRequest httpRequest;
+
+    if (files != null && files.isNotEmpty) {
+      final multipartRequest = http.MultipartRequest(method.name, uri);
+
+      if (body is Map) {
+        multipartRequest.fields.addAll(
+          body.map((key, value) => MapEntry(key.toString(), value.toString())),
+        );
+      }
+
+      for (final entry in files.entries) {
+        final file = entry.value;
+
+        if (file.bytes != null) {
+          multipartRequest.files.add(
+            http.MultipartFile.fromBytes(
+              entry.key,
+              file.bytes!,
+              filename: file.filename,
+            ),
+          );
+        } else if (file.value != null) {
+          multipartRequest.files.add(
+            http.MultipartFile.fromString(
+              entry.key,
+              file.value!,
+              filename: file.filename,
+            ),
+          );
+        }
+      }
+      
+      httpRequest = multipartRequest;
+    } else {
+      final standardRequest = http.Request(method.name, uri);
+      if (body != null) {
+        if (body is String) {
+          standardRequest.body = body;
+        } else if (body is List) {
+          standardRequest.bodyBytes = body.cast<int>();
+        } else if (body is Map) {
+          standardRequest.bodyFields = body.cast<String, String>();
+        } else {
+          throw ArgumentError('Invalid request body "$body".');
+        }
+      }
+      httpRequest = standardRequest;
+    }
 
     if (headers != null) {
       httpRequest.headers.addAll(headers);
@@ -282,31 +172,17 @@ class Via<R extends ViaResult> {
     void onCancel() => httpClient.close();
     cancelToken?.addCallback(onCancel);
 
-    if (body != null) {
-      if (body is String) {
-        httpRequest.body = body;
-      } else if (body is List) {
-        httpRequest.bodyBytes = body.cast<int>();
-      } else if (body is Map) {
-        httpRequest.bodyFields = body.cast<String, String>();
-      } else {
-        throw ArgumentError('Invalid request body "$body".');
-      }
-    }
-
     try {
       // Start the request
-      final streamedResponse = await httpClient
-          .send(httpRequest)
-          .timeout(
-            timeout,
-            onTimeout: () {
-              throw ViaException.network(
-                request: request,
-                message: 'Request timeout',
-              );
-            },
+      final streamedResponse = await httpClient.send(httpRequest).timeout(
+        timeout,
+        onTimeout: () {
+          throw ViaException.network(
+            request: request,
+            message: 'Request timeout',
           );
+        },
+      );
 
       // Check if cancelled during request
       if (cancelToken?.isCancelled ?? false) {
@@ -362,11 +238,12 @@ class Via<R extends ViaResult> {
   /// [pipelines] - Additional pipelines for this request
   ///
   /// Returns a Future that completes with the transformed response.
-  Future<R> _worker(
+  Future<R> worker(
     ViaMethod method, {
     required String endpoint,
     required ViaHeaders headers,
     Object? body,
+    Map<String, ViaFile>? files,
     Map<String, dynamic>? queryParams,
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
@@ -396,6 +273,7 @@ class Via<R extends ViaResult> {
     final request = ViaRequest(
       uri: uri,
       body: body,
+      files: files,
       method: method,
       headers: headers,
       cancelToken: cancelToken,
