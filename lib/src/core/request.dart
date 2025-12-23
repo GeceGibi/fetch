@@ -3,6 +3,19 @@ import 'dart:convert';
 import 'package:via/src/core/helpers.dart';
 import 'package:via/src/features/cancel.dart';
 
+enum ViaMethod {
+  get('GET'),
+  post('POST'),
+  put('PUT'),
+  delete('DELETE'),
+  patch('PATCH'),
+  head('HEAD'),
+  options('OPTIONS');
+
+  const ViaMethod(this.value);
+  final String value;
+}
+
 /// Represents the payload for an HTTP request.
 ///
 /// This class encapsulates all the necessary information for making an HTTP request
@@ -27,7 +40,7 @@ class ViaRequest {
   final Uri uri;
 
   /// The HTTP method (GET, POST, PUT, DELETE, etc.)
-  final String method;
+  final ViaMethod method;
 
   /// Optional request body
   final Object? body;
@@ -43,7 +56,7 @@ class ViaRequest {
   /// Returns a new ViaRequest instance with updated values.
   ViaRequest copyWith({
     Uri? uri,
-    String? method,
+    ViaMethod? method,
     Object? body,
     ViaHeaders? headers,
     CancelToken? cancelToken,
@@ -59,7 +72,7 @@ class ViaRequest {
 
   @override
   String toString() {
-    final buffer = StringBuffer()..writeln('$method $uri');
+    final buffer = StringBuffer()..writeln('${method.value} $uri');
 
     if (headers?.isNotEmpty ?? false) {
       buffer.writeln('Headers: $headers');
@@ -75,7 +88,7 @@ class ViaRequest {
   Map<String, dynamic> toJson() {
     return {
       'uri': uri.toString(),
-      'method': method,
+      'method': method.value,
       'headers': headers,
       'body': ?body,
     };
@@ -83,7 +96,7 @@ class ViaRequest {
 
   /// Generates a cURL command representation of the request.
   String toCurl() {
-    final buffer = StringBuffer('curl -X $method');
+    final buffer = StringBuffer('curl -X ${method.value}');
 
     headers?.forEach((key, value) {
       final header = '$key: $value';

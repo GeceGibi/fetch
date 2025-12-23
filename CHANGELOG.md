@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.4] - 2025-12-20
+
+### Changed
+- Refactored HTTP methods to use the `ViaMethod` enum for better type safety and consistency.
+- Updated `ViaRequest.toCurl()` and `ViaRequest.toString()` to correctly use enum values.
+- Internal cleanup of method parameter types across the library.
+
 ## [1.2.3] - 2025-12-20
 
 ### Changed

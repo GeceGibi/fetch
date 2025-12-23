@@ -110,7 +110,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) async {
     return _worker(
-      'GET',
+      .get,
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
@@ -135,7 +135,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
-      'HEAD',
+      .head,
       endpoint: endpoint,
       queryParams: queryParams,
       headers: headers,
@@ -162,7 +162,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
-      'POST',
+      .post,
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -190,7 +190,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
-      'PUT',
+      .put,
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -218,7 +218,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
-      'DELETE',
+      .delete,
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -246,7 +246,7 @@ class Via<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) {
     return _worker(
-      'PATCH',
+      .patch,
       endpoint: endpoint,
       body: body,
       queryParams: queryParams,
@@ -272,7 +272,7 @@ class Via<R extends ViaResult> {
     // For requests with cancellation, we use a fresh client to allow closing it.
     // For standard requests, we reuse the shared client for connection pooling.
     final httpClient = cancelToken != null ? http.Client() : _client;
-    final httpRequest = http.Request(method, uri);
+    final httpRequest = http.Request(method.name, uri);
 
     if (headers != null) {
       httpRequest.headers.addAll(headers);
@@ -363,7 +363,7 @@ class Via<R extends ViaResult> {
   ///
   /// Returns a Future that completes with the transformed response.
   Future<R> _worker(
-    String method, {
+    ViaMethod method, {
     required String endpoint,
     required ViaHeaders headers,
     Object? body,
