@@ -6,10 +6,10 @@ class MyApiResponse extends ViaResult {
   MyApiResponse({required super.request, required super.response});
 
   /// Custom property to check for a specific field in your API
-  bool get hasError => response.body.contains('error');
+  Future<bool> get hasError async => (await body).contains('error');
 
   /// Custom helper to get a specific value from the response
-  String? get message => response.headers['x-message'];
+  String? get message => headers['x-message'];
 }
 
 /// 2. Create a Pipeline that works with your Custom Result
@@ -40,6 +40,6 @@ Future<void> main() async {
   final result = await via.get('/get');
 
   print('Is Success: ${result.isSuccess}');
-  print('Has Error: ${result.hasError}');
-  print('Original Status: ${result.response.statusCode}');
+  print('Has Error: ${await result.hasError}');
+  print('Original Status: ${result.statusCode}');
 }

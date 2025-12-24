@@ -7,12 +7,12 @@ Future<void> main() async {
   print('--- Basic GET Request ---');
   final getResult = await via.get('/get', queryParams: {'id': '123'});
   final getData = await getResult.asMap<String, dynamic>();
-  print('Status: ${getResult.response.statusCode}');
+  print('Status: ${getResult.statusCode}');
   print('Args: ${getData['args']}');
 
   print('\n--- Basic POST Request ---');
   final postResult = await via.post('/post', {'name': 'Via'});
   final postData = await postResult.asMap<String, dynamic>();
-  print('Status: ${postResult.response.statusCode}');
+  print('Status: ${postResult.statusCode}');
   print('Data Sent: ${postData['json']}');
 }

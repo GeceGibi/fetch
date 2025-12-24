@@ -24,9 +24,9 @@ Future<void> main() async {
     // httpbin.org/status/500 returns a 500 status code.
     // Via automatically treats this as an error and retries 3 times.
     await via.get('/status/500');
-  } on ViaException catch (e) {
+  } on ViaException catch (error) {
     print('\n❌ Request failed after 3 attempts.');
-    print('Final Status Code: ${e.response?.statusCode}');
-    print('Error Message: ${e.message}');
+    print('Final Status Code: ${error.response?.statusCode}');
+    print('Error Message: ${error.message}');
   }
 }

@@ -31,7 +31,7 @@ void main() async {
       '/post',
       {'name': 'John Doe', 'email': 'john@example.com'},
     );
-    print('Response status: ${response.response.statusCode}');
+    print('Response status: ${response.statusCode}');
   } catch (e) {
     print('Error: $e');
   }
@@ -39,24 +39,25 @@ void main() async {
   // 3. Multipart Request (The ONLY way to send files)
   try {
     print('\n[2] Sending Multipart request (Fields + Files)...');
-    final response = await via.multipart(
-      '/post',
-      fields: {
-        'description': 'Profile update',
-      },
-      files: {
-        'image': ViaFile.fromBytes(
-          imageFile.readAsBytesSync(),
-          filename: 'avatar.jpg',
-        ),
-        'notes': ViaFile.fromString(
-          textFile.readAsStringSync(),
-          filename: 'notes.txt',
-        ),
-      },
-    );
-    print('Multipart status: ${response.response.statusCode}');
-    print('Server received files: ${response.response.body}');
+    final response = await via
+        .multipart(
+          '/post',
+          fields: {
+            'description': 'Profile update',
+          },
+          files: {
+            'image': ViaFile.fromBytes(
+              imageFile.readAsBytesSync(),
+              filename: 'avatar.jpg',
+            ),
+            'notes': ViaFile.fromString(
+              textFile.readAsStringSync(),
+              filename: 'notes.txt',
+            ),
+          },
+        );
+    print('Multipart status: ${response.statusCode}');
+    print('Server received files: ${await response.body}');
   } catch (e) {
     print('Error: $e');
   }

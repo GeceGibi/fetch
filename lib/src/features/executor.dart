@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
 import 'package:via/src/features/pipelines/http_pipeline.dart';
@@ -73,17 +74,25 @@ class ViaExecutor {
   /// [request] - Initial request payload
   /// [method] - The method to run the actual HTTP request
   /// [pipelines] - Additional pipelines for this specific request
+  /// [runner] - Optional runner override for this specific execution.
   ///
   /// Returns the processed response after all pipelines have run.
   Future<ViaResult> execute(
     ViaRequest request, {
     required ExecutorMethod method,
     List<ViaPipeline> pipelines = const [],
+    Runner? runner,
   }) async {
     final allPipelines = [...this.pipelines, ...pipelines];
+    final activeRunner = request.isStream
+        ? (ExecutorMethod executorMethod, ViaRequest viaRequest) =>
+            executorMethod(viaRequest)
+        : (runner ?? this.runner);
 
     try {
-      return retry.retry(() => _executeOnce(request, method, allPipelines));
+      return retry.retry(
+        () => _executeOnce(request, method, allPipelines, activeRunner),
+      );
     } on ViaException catch (error) {
       for (final pipeline in allPipelines) {
         pipeline.onError(error);
@@ -110,6 +119,7 @@ class ViaExecutor {
     ViaRequest request,
     ExecutorMethod method,
     List<ViaPipeline> pipelines,
+    Runner activeRunner,
   ) async {
     var currentRequest = request;
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest
@@ -133,7 +143,35 @@ class ViaExecutor {
 
     /// real request execution
     else {
-      response = await runner(method, currentRequest);
+      var result = await activeRunner(method, currentRequest);
+
+      // Handle streaming pipelines
+      if (result.response is http.StreamedResponse) {
+        var dataStream = (result.response as http.StreamedResponse).stream;
+
+        for (final pipeline in pipelines) {
+          dataStream = http.ByteStream(
+            pipeline.onStream(currentRequest, dataStream),
+          );
+        }
+
+        final streamedResponse = result.response as http.StreamedResponse;
+
+        result = ViaResult(
+          request: currentRequest,
+          response: http.StreamedResponse(
+            dataStream,
+            streamedResponse.statusCode,
+            contentLength: streamedResponse.contentLength,
+            request: streamedResponse.request,
+            headers: streamedResponse.headers,
+            isRedirect: streamedResponse.isRedirect,
+            persistentConnection: streamedResponse.persistentConnection,
+            reasonPhrase: streamedResponse.reasonPhrase,
+          ),
+        );
+      }
+      response = result;
     }
 
     response.elapsed = stopWatch.elapsed;

@@ -5,7 +5,7 @@ import 'package:via/via.dart';
 /// A mixin that provides shorthand methods for common HTTP operations.
 mixin ViaMethods<R extends ViaResult> {
   /// Internal helper to reduce code duplication in the mixin.
-  Future<R> _request(
+  ViaCall<R> _request(
     ViaMethod method,
     String endpoint, {
     Object? body,
@@ -14,6 +14,7 @@ mixin ViaMethods<R extends ViaResult> {
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
+    Runner? runner,
   }) {
     return (this as Via<R>).worker(
       method,
@@ -24,17 +25,18 @@ mixin ViaMethods<R extends ViaResult> {
       headers: headers,
       cancelToken: cancelToken,
       pipelines: pipelines,
+      runner: runner,
     );
   }
 
   /// Performs a multipart request.
   ///
   /// This is the dedicated method for sending form-data and files.
-  Future<R> multipart(
+  ViaCall<R> multipart(
     String endpoint, {
     Map<String, dynamic>? fields,
     Map<String, ViaFile>? files,
-    ViaMethod method = ViaMethod.post,
+    ViaMethod method = .post,
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
@@ -52,7 +54,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a GET request.
-  Future<R> get(
+  ViaCall<R> get(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
@@ -60,7 +62,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.get,
+        .get,
         endpoint,
         queryParams: queryParams,
         headers: headers,
@@ -69,7 +71,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a HEAD request.
-  Future<R> head(
+  ViaCall<R> head(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
@@ -77,7 +79,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.head,
+        .head,
         endpoint,
         queryParams: queryParams,
         headers: headers,
@@ -86,7 +88,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a POST request.
-  Future<R> post(
+  ViaCall<R> post(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
@@ -95,7 +97,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.post,
+        .post,
         endpoint,
         body: body,
         queryParams: queryParams,
@@ -105,7 +107,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a PUT request.
-  Future<R> put(
+  ViaCall<R> put(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
@@ -114,7 +116,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.put,
+        .put,
         endpoint,
         body: body,
         queryParams: queryParams,
@@ -124,7 +126,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a DELETE request.
-  Future<R> delete(
+  ViaCall<R> delete(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
@@ -133,7 +135,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.delete,
+        .delete,
         endpoint,
         body: body,
         queryParams: queryParams,
@@ -143,7 +145,7 @@ mixin ViaMethods<R extends ViaResult> {
       );
 
   /// Performs a PATCH request.
-  Future<R> patch(
+  ViaCall<R> patch(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
@@ -152,7 +154,7 @@ mixin ViaMethods<R extends ViaResult> {
     List<ViaPipeline> pipelines = const [],
   }) =>
       _request(
-        ViaMethod.patch,
+        .patch,
         endpoint,
         body: body,
         queryParams: queryParams,

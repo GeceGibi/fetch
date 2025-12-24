@@ -64,7 +64,7 @@ class ViaCachePipeline extends ViaPipeline {
   }
 
   @override
-  ViaResult onResult(ViaResult result) {
+  Future<ViaResult> onResult(ViaResult result) async {
     if (duration == Duration.zero) {
       return result;
     }
@@ -82,7 +82,9 @@ class ViaCachePipeline extends ViaPipeline {
       _cache.remove(_cache.keys.first);
     }
 
-    _cache[key] = _CacheEntry(result, duration);
+    // We must buffer the result before caching to ensure the stream can be read multiple times from cache
+    final bufferedResult = await result.buffered;
+    _cache[key] = _CacheEntry(bufferedResult, duration);
 
     return result;
   }

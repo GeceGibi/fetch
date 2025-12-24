@@ -6,13 +6,17 @@ Future<void> main() async {
     base: Uri.parse('https://httpbin.org'),
     executor: ViaExecutor(
       // Run the network request in a background isolate
-      // This is perfect for complex apps to keep the UI 100% smooth
-      runner: (method, request) => Isolate.run(() => method(request)),
+      // Note: When using isolates, we must buffer the response before sending it back
+      // because streams cannot be transferred between isolates directly.
+      runner: (executorMethod, viaRequest) => Isolate.run(() async {
+        final result = await executorMethod(viaRequest);
+        return result.buffered;
+      }),
     ),
   );
 
   print('--- Isolate Execution Test ---');
   final result = await via.get('/get');
   print('Request completed in background isolate.');
-  print('Status: ${result.response.statusCode}');
+  print('Status: ${result.statusCode}');
 }

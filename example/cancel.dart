@@ -7,12 +7,12 @@ Future<void> main() async {
   print('--- Cancellation Test ---');
 
   // Start a long-running request
-  final request = via.get('/delay/5', cancelToken: cancelToken);
+  final call = via.get('/delay/5', cancelToken: cancelToken);
 
-  request.then((_) {
+  call.then((_) {
     print('Request finished (Should not happen)');
-  }).catchError((Object e) {
-    if (e is ViaException && e.type == ViaError.cancelled) {
+  }).catchError((Object error) {
+    if (error is ViaException && error.type == .cancelled) {
       print('✅ Request successfully cancelled!');
     }
   });

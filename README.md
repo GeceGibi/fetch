@@ -96,13 +96,23 @@ cancelToken.cancel();
 print(result.request.toCurl());
 ```
 
+### 🌊 Streaming Responses
+Simply access the `.stream` getter on any request to process large responses in real-time. This automatically bypasses any global isolate runners.
+
+```dart
+// .stream returns Stream<List<int>>
+via.get('/large-video.mp4').stream.listen((chunk) {
+  print('Received ${chunk.length} bytes');
+});
+```
+
 ### 💎 Custom Result Types
 Extend `ViaResult` and use a pipeline to create your own type-safe response models.
 
 ```dart
 class MyResponse extends ViaResult {
   MyResponse({required super.request, required super.response});
-  bool get hasError => response.body.contains('error');
+  Future<bool> get hasError async => (await body).contains('error');
 }
 
 final via = Via<MyResponse>(

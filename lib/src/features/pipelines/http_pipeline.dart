@@ -20,6 +20,11 @@ abstract class ViaPipeline {
   /// Return modified request or throw [SkipRequest] to skip execution.
   FutureOr<ViaRequest> onRequest(ViaRequest request) => request;
 
+  /// Called when a streaming response is received.
+  /// Use this to intercept, log, or transform the stream data chunks.
+  Stream<List<int>> onStream(ViaRequest request, Stream<List<int>> stream) =>
+      stream;
+
   /// Called after response is received.
   FutureOr<ViaResult> onResult(ViaResult result) => result;
 

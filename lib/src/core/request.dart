@@ -46,6 +46,7 @@ class ViaRequest {
     this.body,
     this.files,
     this.cancelToken,
+    this.isStream = false,
   });
 
   /// The target URI for the request
@@ -66,6 +67,11 @@ class ViaRequest {
   /// Optional cancel token
   final CancelToken? cancelToken;
 
+  /// Whether this request should be handled as a stream.
+  /// If true, the executor will bypass global runners (like Isolates)
+  /// to allow real-time stream processing.
+  final bool isStream;
+
   /// Creates a copy of this ViaRequest with the given fields replaced by new values.
   ///
   /// Returns a new ViaRequest instance with updated values.
@@ -76,6 +82,7 @@ class ViaRequest {
     Map<String, ViaFile>? files,
     ViaHeaders? headers,
     CancelToken? cancelToken,
+    bool? isStream,
   }) {
     return ViaRequest(
       uri: uri ?? this.uri,
@@ -84,6 +91,7 @@ class ViaRequest {
       method: method ?? this.method,
       headers: headers ?? this.headers,
       cancelToken: cancelToken ?? this.cancelToken,
+      isStream: isStream ?? this.isStream,
     );
   }
 

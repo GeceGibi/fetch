@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0]
+
+### Added
+- **Fluent API with ViaCall**: Introduced `ViaCall` which implements `Future`, allowing direct `await via.get()` while providing a `.stream` getter for byte streaming.
+- **Streaming Response Support**: Added real-time byte streaming with `.stream` getter on any request.
+- **Improved Result Buffering**: `ViaResult` now handles lazy buffering, allowing both streaming and future-based body access on the same result.
+- **Pipeline onStream Support**: Added `onStream` hook to `ViaPipeline` for intercepting or transforming data chunks in real-time without blocking the stream.
+- **New Example**: Added `example/stream_response.dart` to demonstrate the new streaming capabilities.
+
+### Changed
+- **Modern Dart Syntax**: Adopted modern Dart enum member access (e.g., `.get` instead of `ViaMethod.get`).
+- **Isolate Safety**: Refactored `ViaResult` to be isolate-friendly by lazily initializing non-sendable fields like `Completer`.
+- **API Cleanup**: Removed redundant `isStream` flags and explicit `via.stream()` methods in favor of the more intuitive `.stream` getter on any call.
+
 ## [1.3.0]
 
 ### Added
