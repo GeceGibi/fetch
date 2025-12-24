@@ -147,6 +147,19 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       }
       
       httpRequest = multipartRequest;
+    } else if (body is Stream<List<int>>) {
+      final streamedRequest = http.StreamedRequest(method.name, uri);
+
+      body.listen(
+        streamedRequest.sink.add,
+        onError: (Object error, StackTrace stackTrace) {
+          streamedRequest.sink.addError(error, stackTrace);
+        },
+        onDone: streamedRequest.sink.close,
+        cancelOnError: true,
+      );
+
+      httpRequest = streamedRequest;
     } else {
       final standardRequest = http.Request(method.name, uri);
       if (body != null) {

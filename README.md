@@ -1,65 +1,97 @@
 # 🛣️ Via
 
-**A modern, type-safe HTTP & WebSocket client for Dart & Flutter.**
+**A modern, platform-agnostic, type-safe HTTP & WebSocket client for Dart & Flutter.**
 
-Via is a lightweight networking engine built for simplicity and performance. It features a pipeline architecture, built-in resilience, and type-safe response handling.
+Via is a lightweight yet powerful networking engine designed for simplicity, performance, and flexibility. It is built to be completely independent of Flutter or specific platforms, making it ideal for mobile, web, desktop, and server-side Dart applications.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Key Highlights
 
-### Installation
+- **Pure Dart:** Zero Flutter dependency (works in CLI, Server-side, and Flutter).
+- **Pipeline Architecture:** Highly extensible request/response lifecycle.
+- **Auto-Mapping:** Built-in support for mapping JSON directly to your models.
+- **Memory Efficient:** Native support for streaming both requests and responses.
+- **Isolate Ready:** Built-in support for running heavy parsing/networking in background isolates.
+- **Resilient:** Automated retry logic with customizable conditions.
+- **Debugging:** Integrated cURL command generation and detailed logging.
+
+---
+
+## 📦 Installation
 
 Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.3.0
-```
-
-### Simple GET Request
-
-```dart
-import 'package:via/via.dart';
-
-void main() async {
-  final via = Via(base: Uri.parse('https://api.example.com'));
-  final result = await via.get('/users/1');
-  
-  final user = await result.asMap<String, dynamic>();
-  print('User Name: ${user['name']}');
-}
-```
-
-### Multipart File Upload
-
-```dart
-final result = await via.post(
-  '/upload',
-  {'type': 'avatar'},
-  files: {
-    'image': ViaFile.fromBytes(myBytes, filename: 'avatar.png'),
-  },
-);
-```
-
-### WebSocket Support
-
-```dart
-final socket = await via.socket('/ws');
-
-socket.stream.listen((message) => print('Received: $message'));
-socket.send('Hello!');
+  via: ^1.4.1
 ```
 
 ---
 
-## 🔥 Key Features
+## 🛠️ Usage Examples
+
+### 1. Simple JSON GET & Auto-Mapping
+Forget manual `jsonDecode` and casting. Use `to<T>` for objects or `toListOf<T>` for lists.
+
+```dart
+final via = Via(base: Uri.parse('https://api.example.com'));
+
+// Map to a single model
+final result = await via.get('/users/1');
+final user = await result.to(User.fromJson);
+
+// Map to a list of models
+final listResult = await via.get('/users');
+final users = await listResult.toListOf(User.fromJson);
+```
+
+### 2. Memory-Efficient File Upload (Streaming)
+Instead of loading a 1GB file into RAM, stream it directly from the disk.
+
+```dart
+final file = File('large_movie.mp4');
+
+final result = await via.post(
+  '/upload',
+  body: file.openRead(), // Stream<List<int>>
+);
+```
+
+### 3. Real-time Response Streaming
+Process large downloads or event streams as they arrive.
+
+```dart
+// .stream returns Stream<List<int>>
+via.get('/large-video.mp4').stream.listen((chunk) {
+  print('Received ${chunk.length} bytes');
+});
+```
+
+### 4. WebSocket with Auto-Reconnect
+Lightweight WebSocket wrapper with pipeline support and automatic reconnection.
+
+```dart
+final socket = await via.socket(
+  '/ws', 
+  autoReconnect: true,
+  reconnectDelay: Duration(seconds: 5),
+);
+
+socket.stream.listen((message) => print('Received: $message'));
+socket.send({'type': 'ping'});
+```
+
+---
+
+## 🔥 Advanced Features
 
 ### 🛠️ Pipeline Architecture
-Use pipelines for logging, authentication, and more. 
-- **`ViaLoggerPipeline`**: Records history in `logs` list. Override `onLog` for custom printing.
-- **`ViaCachePipeline`**: In-memory caching with `maxEntries` (FIFO) limit.
+Pipelines are the core of Via. They allow you to intercept, modify, or even skip requests and responses.
+
+- **`ViaLoggerPipeline`**: Automatically tracks request history and prints cURL commands.
+- **`ViaCachePipeline`**: Smart in-memory caching with FIFO management.
+- **`ViaAuthPipeline`**: (Custom) Inject tokens or handle 401 Unauthorized globally.
 
 ```dart
 final via = Via(
@@ -72,57 +104,44 @@ final via = Via(
 );
 ```
 
-### 🛡️ Retry Logic
-Automatic retry on failures. Customize what constitutes an error with `errorIf`.
+### 🛡️ Resilience & Retries
+Configure how your application handles failures. Use `errorIf` to treat specific status codes or response patterns as errors that trigger a retry.
 
 ```dart
 final via = Via(
   executor: ViaExecutor(
-    errorIf: (result) => !result.isSuccess, 
-    retry: ViaRetry(maxAttempts: 3),
+    retry: ViaRetry(
+      maxAttempts: 3,
+      delay: Duration(seconds: 2),
+    ),
+    errorIf: (result) => result.statusCode == 503, // Retry only on Service Unavailable
   ),
 );
 ```
 
-### 🛑 Request Cancellation & cURL
-Easily cancel requests or convert them to cURL commands for debugging.
+### 🛑 Request Cancellation
+Stop ongoing requests instantly using a `CancelToken`.
 
 ```dart
 final cancelToken = CancelToken();
-via.get('/data', cancelToken: cancelToken);
+via.get('/huge-data', cancelToken: cancelToken);
+
+// Later...
 cancelToken.cancel();
-
-// cURL debugging
-print(result.request.toCurl());
-```
-
-### 🌊 Streaming Responses
-Simply access the `.stream` getter on any request to process large responses in real-time. This automatically bypasses any global isolate runners.
-
-```dart
-// .stream returns Stream<List<int>>
-via.get('/large-video.mp4').stream.listen((chunk) {
-  print('Received ${chunk.length} bytes');
-});
-```
-
-### 💎 Custom Result Types
-Extend `ViaResult` and use a pipeline to create your own type-safe response models.
-
-```dart
-class MyResponse extends ViaResult {
-  MyResponse({required super.request, required super.response});
-  Future<bool> get hasError async => (await body).contains('error');
-}
-
-final via = Via<MyResponse>(
-  executor: ViaExecutor(
-    pipelines: [MyResponsePipeline()], // Transforms ViaResult -> MyResponse
-  ),
-);
 ```
 
 ---
 
+## 🏗️ Design Philosophy
+
+Via is designed to be **lightweight** and **transparent**. It doesn't hide the underlying `http` package but enhances it with a structured execution flow. 
+
+1. **Request Phase:** Pipelines can modify headers, base URL, or even return a cached response to skip the network call.
+2. **Execution Phase:** The request is executed, optionally in a background Isolate to keep your UI smooth.
+3. **Response Phase:** Pipelines can validate the response, log it, or transform it before it reaches your business logic.
+
+---
+
 ## ⚖️ License
-This project is licensed under the MIT License.
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

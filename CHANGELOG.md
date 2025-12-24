@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1]
+
+### Added
+- **Auto-mapping Support**: Added `to<T>` and `toListOf<T>` methods to `ViaResult` for seamless JSON-to-Model conversion.
+- **Stream Body Support**: Enhanced `Via` to support `Stream<List<int>>` as a request body, enabling memory-efficient large file uploads.
+
 ## [1.4.0]
 
 ### Added

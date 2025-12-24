@@ -206,6 +206,20 @@ class ViaResult {
     return jsonBody.cast<K, V>();
   }
 
+  /// Converts the JSON response to a strongly-typed Map and maps it to a model.
+  ///
+  /// [T] - The type of the model
+  /// [mapper] - Function to map the JSON Map to the model
+  ///
+  /// Example:
+  /// ```dart
+  /// final user = await result.to(User.fromJson);
+  /// ```
+  Future<T> to<T>(T Function(Map<String, dynamic> json) mapper) async {
+    final map = await asMap<String, dynamic>();
+    return mapper(map);
+  }
+
   /// Converts the JSON response to a strongly-typed List.
   ///
   /// [E] - The type of list elements
@@ -227,6 +241,22 @@ class ViaResult {
     }
 
     return jsonBody.cast<E>();
+  }
+
+  /// Converts the JSON response to a strongly-typed List and maps each item to a model.
+  ///
+  /// [T] - The type of the model
+  /// [mapper] - Function to map each JSON Map item to the model
+  ///
+  /// Example:
+  /// ```dart
+  /// final users = await result.toListOf(User.fromJson);
+  /// ```
+  Future<List<T>> toListOf<T>(
+    T Function(Map<String, dynamic> json) mapper,
+  ) async {
+    final list = await asList<Map<String, dynamic>>();
+    return list.map(mapper).toList();
   }
 
   Map<String, dynamic> toJson() {
