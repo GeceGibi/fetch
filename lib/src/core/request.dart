@@ -120,7 +120,7 @@ class ViaRequest {
       'method': method.value,
       'headers': headers,
       'body': body,
-      'files': files?.keys.toList(),
+      'files': ?files?.keys.toList(),
     };
   }
 
