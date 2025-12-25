@@ -262,8 +262,8 @@ class Via<R extends ViaResult> with ViaMethods<R> {
   /// [runner] - Optional runner override for this request
   /// [isStream] - Whether this request should be handled as a stream
   ///
-  /// Returns a [Future] that completes with the requested result type [T].
-  Future<T> worker<T extends ViaBaseResult>(
+  /// Returns a [Future] that completes with the [ViaBaseResult].
+  Future<ViaBaseResult> worker(
     ViaMethod method, {
     required String endpoint,
     required ViaHeaders headers,
@@ -275,7 +275,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     Runner? runner,
     bool isStream = false,
   }) async {
-    // Create URI
+    // ... existing URI logic ...
     final Uri uri;
 
     if (endpoint.startsWith('http')) {
@@ -296,12 +296,8 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       );
     }
 
-    // If the body is a stream or there's a cancel token, we must bypass 
-    // isolates (Runner) because streams and callbacks cannot be sent 
-    // between isolates.
     final effectiveIsStream = isStream || body is Stream || cancelToken != null;
 
-    // Create request
     final request = ViaRequest(
       uri: uri,
       body: body,
@@ -313,18 +309,15 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     );
 
     try {
-      // Execute through executor logic (pipelines, runner, retry)
       final allPipelines = [...this.pipelines, ...pipelines];
       final activeRunner = effectiveIsStream
           ? (ExecutorMethod executorMethod, ViaRequest viaRequest) =>
               executorMethod(viaRequest)
           : (runner ?? this.runner);
 
-      final response = await retry.retry(
+      return await retry.retry(
         () => _executeOnce(request, _runMethod, allPipelines, activeRunner),
       );
-
-      return response as T;
     } on ViaException catch (error) {
       onError?.call(error);
       rethrow;

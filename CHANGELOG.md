@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2]
+
+### Changed
+- **Architecture Refinement**: Simplified internal request handling by returning `ViaBaseResult` from `worker` and handling type casting in `ViaMethods`. This provides better flexibility for custom result types (like `SotyResult`) used with pipelines.
+
 ## [1.5.1]
 
 ### Fixed
