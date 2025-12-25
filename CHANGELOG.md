@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2]
+
+### Changed
+- **API Simplification**: Removed `ViaCall` wrapper. Standard HTTP methods now return `Future<ViaResult>` directly.
+- **Dedicated Streaming API**: Introduced `via.stream()` method which returns `Future<ViaResultStream>`. This allows accessing status codes and headers before consuming the response stream.
+
 ## [1.4.1]
-
-### Added
-- **Auto-mapping Support**: Added `to<T>` and `toListOf<T>` methods to `ViaResult` for seamless JSON-to-Model conversion.
-- **Stream Body Support**: Enhanced `Via` to support `Stream<List<int>>` as a request body, enabling memory-efficient large file uploads.
-
-## [1.4.0]
 
 ### Added
 - **Fluent API with ViaCall**: Introduced `ViaCall` which implements `Future`, allowing direct `await via.get()` while providing a `.stream` getter for byte streaming.

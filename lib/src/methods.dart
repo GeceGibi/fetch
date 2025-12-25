@@ -5,7 +5,7 @@ import 'package:via/via.dart';
 /// A mixin that provides shorthand methods for common HTTP operations.
 mixin ViaMethods<R extends ViaResult> {
   /// Internal helper to reduce code duplication in the mixin.
-  ViaCall<R> _request(
+  Future<ViaBaseResult> _request(
     ViaMethod method,
     String endpoint, {
     Object? body,
@@ -15,6 +15,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
     Runner? runner,
+    bool isStream = false,
   }) {
     return (this as Via<R>).worker(
       method,
@@ -26,13 +27,14 @@ mixin ViaMethods<R extends ViaResult> {
       cancelToken: cancelToken,
       pipelines: pipelines,
       runner: runner,
+      isStream: isStream,
     );
   }
 
   /// Performs a multipart request.
   ///
   /// This is the dedicated method for sending form-data and files.
-  ViaCall<R> multipart(
+  Future<R> multipart(
     String endpoint, {
     Map<String, dynamic>? fields,
     Map<String, ViaFile>? files,
@@ -41,8 +43,8 @@ mixin ViaMethods<R extends ViaResult> {
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         method,
         endpoint,
         body: fields,
@@ -51,52 +53,52 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a GET request.
-  ViaCall<R> get(
+  Future<R> get(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .get,
         endpoint,
         queryParams: queryParams,
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a HEAD request.
-  ViaCall<R> head(
+  Future<R> head(
     String endpoint, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .head,
         endpoint,
         queryParams: queryParams,
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a POST request.
-  ViaCall<R> post(
+  Future<R> post(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .post,
         endpoint,
         body: body,
@@ -104,18 +106,18 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a PUT request.
-  ViaCall<R> put(
+  Future<R> put(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .put,
         endpoint,
         body: body,
@@ -123,18 +125,18 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a DELETE request.
-  ViaCall<R> delete(
+  Future<R> delete(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .delete,
         endpoint,
         body: body,
@@ -142,18 +144,18 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
 
   /// Performs a PATCH request.
-  ViaCall<R> patch(
+  Future<R> patch(
     String endpoint,
     Object? body, {
     Map<String, dynamic>? queryParams,
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) =>
-      _request(
+  }) async =>
+      (await _request(
         .patch,
         endpoint,
         body: body,
@@ -161,7 +163,32 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      );
+      )) as R;
+
+  /// Performs a request and returns the response as a stream of bytes.
+  ///
+  /// This automatically bypasses global runners (like Isolates) for real-time processing.
+  Future<ViaResultStream> stream(
+    String endpoint, {
+    ViaMethod method = .get,
+    Object? body,
+    Map<String, dynamic>? queryParams,
+    ViaHeaders headers = const {},
+    CancelToken? cancelToken,
+    List<ViaPipeline> pipelines = const [],
+  }) async {
+    final result = await _request(
+      method,
+      endpoint,
+      body: body,
+      queryParams: queryParams,
+      headers: headers,
+      cancelToken: cancelToken,
+      pipelines: pipelines,
+      isStream: true,
+    );
+    return result as ViaResultStream;
+  }
 
   /// Creates a new WebSocket connection.
   ///

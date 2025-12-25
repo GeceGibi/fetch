@@ -4,32 +4,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:via/src/core/request.dart';
 
-/// Represents the result of an HTTP request, including metadata and status.
+/// Base class for all HTTP result types in the Via library.
 ///
-/// This is the base class for all HTTP result types in the Via library.
-/// It contains the original request, success status, and optional timing info.
-class ViaResult {
-  /// Creates a new ViaResult.
-  ///
-  /// [request] - The original HTTP request object.
-  /// [response] - The raw HTTP response (can be streamed or buffered).
-  ViaResult({required this.request, required this.response});
+/// Contains common metadata like request, response, status code, and headers.
+abstract class ViaBaseResult {
+  /// Creates a new ViaBaseResult.
+  ViaBaseResult({required this.request, required this.response});
 
   /// The original HTTP request that produced this result.
   final ViaRequest request;
 
   /// Raw HTTP response associated with this result.
-  ///
-  /// Can be either [http.Response] (buffered) or [http.StreamedResponse] (streaming).
   final http.BaseResponse response;
-
-  /// True if the HTTP response status code is in the 2xx range.
-  ///
-  /// Indicates whether the request was considered successful by HTTP standards.
-  bool get isSuccess {
-    final http.BaseResponse(:statusCode) = response;
-    return statusCode >= 200 && statusCode <= 299;
-  }
 
   /// The HTTP status code of the response.
   int get statusCode => response.statusCode;
@@ -37,221 +23,73 @@ class ViaResult {
   /// The HTTP headers of the response.
   Map<String, String> get headers => response.headers;
 
+  /// True if the HTTP response status code is in the 2xx range.
+  bool get isSuccess => statusCode >= 200 && statusCode <= 299;
+
   /// The duration of the HTTP request, if available.
-  ///
-  /// This is the time taken from request start to response completion.
   Duration? elapsed;
 
-  /// Internal completer for the buffered response.
-  /// This is handled lazily to remain isolate-friendly (Completers cannot be sent between isolates).
-  Completer<http.Response>? _bufferedCompleter;
-
-  Completer<http.Response> get _getBufferedCompleter {
-    if (_bufferedCompleter != null) return _bufferedCompleter!;
-    _bufferedCompleter = Completer<http.Response>();
-    if (response is http.Response) {
-      _bufferedCompleter!.complete(response as http.Response);
-    }
-    return _bufferedCompleter!;
+  /// Converts the result metadata to a JSON-compatible Map.
+  Map<String, dynamic> toJson() {
+    return {
+      'isSuccess': isSuccess,
+      'elapsed': elapsed?.inMilliseconds,
+      'request': request.toJson(),
+      'statusCode': statusCode,
+      'headers': headers,
+    };
   }
+}
 
-  /// Track if the stream has already been started.
-  bool _streamStarted = false;
+/// Represents a buffered HTTP response where the entire body is in memory.
+///
+/// This is the default result type for standard HTTP requests.
+/// It provides methods for parsing the body as JSON (Map or List).
+class ViaResult extends ViaBaseResult {
+  /// Creates a new buffered ViaResult.
+  ViaResult({required super.request, required http.Response response})
+      : super(response: response);
 
-  /// Internal flag to track if we're currently buffering to avoid multiple fromStream calls
-  bool _isBuffering = false;
+  @override
+  http.Response get response => super.response as http.Response;
 
-  /// Internal method to buffer the stream if not already buffered.
-  Future<http.Response> _buffer() async {
-    final completer = _getBufferedCompleter;
-    if (completer.isCompleted) return completer.future;
+  /// The response body as a String.
+  String get body => response.body;
 
-    if (!_isBuffering) {
-      _isBuffering = true;
-      try {
-        if (response is http.Response) {
-          if (!completer.isCompleted)
-            completer.complete(response as http.Response);
-        } else {
-          final bufferedResponse = await http.Response.fromStream(
-            response as http.StreamedResponse,
-          );
-          if (!completer.isCompleted) completer.complete(bufferedResponse);
-          return bufferedResponse;
-        }
-      } catch (error, stackTrace) {
-        if (!completer.isCompleted) completer.completeError(error, stackTrace);
-        rethrow;
-      } finally {
-        _isBuffering = false;
-      }
-    }
-
-    return completer.future;
-  }
-
-  /// Returns the response body as a String.
-  ///
-  /// This will consume the stream if the response is streaming.
-  Future<String> get body async => (await _buffer()).body;
-
-  /// Returns the response body as bytes.
-  ///
-  /// This will consume the stream if the response is streaming.
-  Future<List<int>> get bodyBytes async => (await _buffer()).bodyBytes;
-
-  /// Provides access to the response stream.
-  ///
-  /// If the response is already buffered ([http.Response]), it returns a single-value stream.
-  /// If the response is streaming ([http.StreamedResponse]), it returns the original stream
-  /// while simultaneously buffering it for later use in [body].
-  /// Note: The stream can only be listened to once.
-  Stream<List<int>> asStream() {
-    // If we already have a buffered response (either from a pipeline or previous call)
-    // return its bytes as a stream.
-    if (_bufferedCompleter?.isCompleted ?? false) {
-      return _bufferedCompleter!.future.asStream().map(
-        (bufferedResponse) => bufferedResponse.bodyBytes,
-      );
-    }
-
-    if (response is http.Response) {
-      return Stream.value((response as http.Response).bodyBytes);
-    }
-
-    if (response is http.StreamedResponse) {
-      if (_streamStarted) {
-        throw StateError('Stream has already been listened to.');
-      }
-      _streamStarted = true;
-
-      final collectedBytes = <int>[];
-      final controller = StreamController<List<int>>();
-
-      (response as http.StreamedResponse).stream.listen(
-        (dataChunk) {
-          collectedBytes.addAll(dataChunk);
-          controller.add(dataChunk);
-        },
-        onDone: () {
-          final completer = _getBufferedCompleter;
-          if (!completer.isCompleted) {
-            completer.complete(
-              http.Response.bytes(
-                collectedBytes,
-                response.statusCode,
-                headers: response.headers,
-                request: response.request,
-                isRedirect: response.isRedirect,
-                persistentConnection: response.persistentConnection,
-                reasonPhrase: response.reasonPhrase,
-              ),
-            );
-          }
-
-          unawaited(controller.close());
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          final completer = _getBufferedCompleter;
-          if (!completer.isCompleted) {
-            completer.completeError(error, stackTrace);
-          }
-
-          controller
-            ..addError(error, stackTrace)
-            ..close();
-        },
-        cancelOnError: true,
-      );
-
-      return controller.stream;
-    }
-
-    throw StateError('Response is neither StreamedResponse nor Response');
-  }
-
-  /// Returns a new [ViaResult] with a buffered [http.Response].
-  ///
-  /// If the response is already buffered, returns this instance.
-  /// If the response is streaming, it consumes the stream and creates a new buffered result.
-  Future<ViaResult> get buffered async {
-    if (response is http.Response) return this;
-    final bufferedResponse = await _buffer();
-    final result = ViaResult(request: request, response: bufferedResponse)
-      ..elapsed = elapsed;
-    return result;
-  }
+  /// The response body as bytes.
+  List<int> get bodyBytes => response.bodyBytes;
 
   /// Converts the JSON response to a strongly-typed Map.
-  ///
-  /// [K] - The type of map keys
-  /// [V] - The type of map values
-  ///
-  /// Returns a Map<K, V> if the JSON body is a map, throws ArgumentError otherwise.
-  ///
-  /// Example:
-  /// ```dart
-  /// final Map<String, dynamic> data = await result.asMap<String, dynamic>();
-  /// ```
   Future<Map<K, V>> asMap<K, V>() async {
-    final jsonBody = jsonDecode(await body);
-
+    final jsonBody = jsonDecode(body);
     if (jsonBody is! Map) {
       throw ArgumentError(
         '${jsonBody.runtimeType} is not subtype of Map<$K, $V>',
         'asMap<$K, $V>',
       );
     }
-
     return jsonBody.cast<K, V>();
   }
 
   /// Converts the JSON response to a strongly-typed Map and maps it to a model.
-  ///
-  /// [T] - The type of the model
-  /// [mapper] - Function to map the JSON Map to the model
-  ///
-  /// Example:
-  /// ```dart
-  /// final user = await result.to(User.fromJson);
-  /// ```
   Future<T> to<T>(T Function(Map<String, dynamic> json) mapper) async {
     final map = await asMap<String, dynamic>();
     return mapper(map);
   }
 
   /// Converts the JSON response to a strongly-typed List.
-  ///
-  /// [E] - The type of list elements
-  ///
-  /// Returns a List<E> if the JSON body is a list, throws ArgumentError otherwise.
-  ///
-  /// Example:
-  /// ```dart
-  /// final List<String> items = await result.asList<String>();
-  /// ```
   Future<List<E>> asList<E>() async {
-    final jsonBody = jsonDecode(await body);
-
+    final jsonBody = jsonDecode(body);
     if (jsonBody is! List) {
       throw ArgumentError(
         '${jsonBody.runtimeType} is not subtype of List<$E>',
         'asList<$E>',
       );
     }
-
     return jsonBody.cast<E>();
   }
 
   /// Converts the JSON response to a strongly-typed List and maps each item to a model.
-  ///
-  /// [T] - The type of the model
-  /// [mapper] - Function to map each JSON Map item to the model
-  ///
-  /// Example:
-  /// ```dart
-  /// final users = await result.toListOf(User.fromJson);
-  /// ```
   Future<List<T>> toListOf<T>(
     T Function(Map<String, dynamic> json) mapper,
   ) async {
@@ -259,89 +97,42 @@ class ViaResult {
     return list.map(mapper).toList();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return {
-      'isSuccess': isSuccess,
-      'elapsed': elapsed?.inMilliseconds,
-      'request': request.toJson(),
-      'statusCode': response.statusCode,
-      'headers': response.headers,
-      'body': response is http.Response
-          ? (response as http.Response).body
-          : null,
+      ...super.toJson(),
+      'body': body,
     };
   }
 
   @override
   String toString() {
-    return 'ViaResult(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, response: $response)';
+    return 'ViaResult(isSuccess: $isSuccess, request: $request, elapsed: $elapsed, statusCode: $statusCode)';
   }
 }
 
-/// A handle for an ongoing HTTP call that can be used as a Future or a Stream.
+/// Represents a streaming HTTP response.
 ///
-/// This class implements [Future], allowing it to be awaited directly to get a [ViaResult].
-/// It also provides a [stream] getter to access the response as a stream of bytes.
-class ViaCall<R extends ViaResult> implements Future<R> {
-  ViaCall(this._executeCallback);
-  final Future<R> Function({required bool isStream}) _executeCallback;
-
-  /// Executes the request and returns the response as a stream of bytes.
-  ///
-  /// This automatically bypasses global runners (like Isolates) for real-time processing.
-  Stream<List<int>> get stream {
-    final streamController = StreamController<List<int>>();
-
-    _executeCallback(isStream: true)
-        .then((viaResult) {
-          streamController.addStream(viaResult.asStream()).then((_) {
-            unawaited(streamController.close());
-          });
-        })
-        .catchError((Object error, StackTrace stackTrace) {
-          streamController
-            ..addError(error, stackTrace)
-            ..close();
-        });
-
-    return streamController.stream;
-  }
+/// This is used when the response body should be processed as a stream of bytes
+/// rather than being buffered into memory.
+class ViaResultStream extends ViaBaseResult {
+  /// Creates a new streaming ViaResult.
+  ViaResultStream({
+    required super.request,
+    required http.StreamedResponse response,
+  }) : super(response: response);
 
   @override
-  Future<R> timeout(Duration timeLimit, {FutureOr<R> Function()? onTimeout}) {
-    return _executeCallback(isStream: false).timeout(
-      timeLimit,
-      onTimeout: onTimeout,
-    );
-  }
+  http.StreamedResponse get response => super.response as http.StreamedResponse;
+
+  /// The response body as a stream of bytes.
+  /// Note: The stream can only be listened to once.
+  Stream<List<int>> get stream => response.stream;
 
   @override
-  Future<R> catchError(Function onError, {bool Function(Object error)? test}) {
-    return _executeCallback(isStream: false).catchError(
-      onError,
-      test: test,
-    );
+  String toString() {
+    return 'ViaResultStream(isSuccess: $isSuccess, request: $request, statusCode: $statusCode)';
   }
-
-  @override
-  Future<S> then<S>(
-    FutureOr<S> Function(R value) onValue, {
-    Function? onError,
-  }) {
-    return _executeCallback(isStream: false).then(
-      onValue,
-      onError: onError,
-    );
-  }
-
-  @override
-  Future<R> whenComplete(FutureOr<void> Function() action) {
-    return _executeCallback(isStream: false).whenComplete(action);
-  }
-
-  @override
-  @Deprecated('Use the ".stream" getter for byte streaming instead.')
-  Stream<R> asStream() => _executeCallback(isStream: false).asStream();
 }
 
 /// Via exception types
@@ -362,17 +153,16 @@ enum ViaError {
   http,
 
   /// Custom error (extracted from response body, business logic errors)
-  custom
-  ;
+  custom;
 
   String get name {
     return switch (this) {
-      .cancelled => 'Request Cancelled',
-      .debounced => 'Request Debounced',
-      .throttled => 'Request Throttled',
-      .network => 'Network Error',
-      .http => 'HTTP Error',
-      .custom => 'Custom Error',
+      ViaError.cancelled => 'Request Cancelled',
+      ViaError.debounced => 'Request Debounced',
+      ViaError.throttled => 'Request Throttled',
+      ViaError.network => 'Network Error',
+      ViaError.http => 'HTTP Error',
+      ViaError.custom => 'Custom Error',
     };
   }
 }
@@ -384,7 +174,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     this.message = 'Via Error',
-    this.type = .custom,
+    this.type = ViaError.custom,
   });
 
   /// Request was explicitly cancelled by the user.
@@ -393,7 +183,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .cancelled,
+  }) : type = ViaError.cancelled,
        message = message ?? ViaError.cancelled.name;
 
   /// Request was skipped due to debouncing.
@@ -402,7 +192,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .debounced,
+  }) : type = ViaError.debounced,
        message = message ?? ViaError.debounced.name;
 
   /// Request was rejected due to throttling.
@@ -411,7 +201,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .throttled,
+  }) : type = ViaError.throttled,
        message = message ?? ViaError.throttled.name;
 
   /// Error occurred at the network layer (e.g., timeout, connection lost).
@@ -420,7 +210,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .network,
+  }) : type = ViaError.network,
        message = message ?? ViaError.network.name;
 
   /// HTTP error response (e.g., 4xx or 5xx status codes).
@@ -429,7 +219,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .http,
+  }) : type = ViaError.http,
        message = message ?? ViaError.http.name;
 
   /// Custom error defined by pipelines or [ViaExecutor.errorIf].
@@ -438,7 +228,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = .custom,
+  }) : type = ViaError.custom,
        message = message ?? ViaError.custom.name;
 
   final ViaRequest request;

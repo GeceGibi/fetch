@@ -6,7 +6,7 @@ import 'package:via/src/core/result.dart';
 /// Thrown to skip the HTTP request and return a cached/mock response
 class SkipRequest implements Exception {
   SkipRequest(this.result);
-  final ViaResult result;
+  final ViaBaseResult result;
 }
 
 /// Abstract ViaPipeline class for request/response processing
@@ -26,7 +26,7 @@ abstract class ViaPipeline {
       stream;
 
   /// Called after response is received.
-  FutureOr<ViaResult> onResult(ViaResult result) => result;
+  FutureOr<ViaBaseResult> onResult(ViaBaseResult result) => result;
 
   /// Called when an error occurs during processing.
   void onError(ViaException error) {}
@@ -59,7 +59,7 @@ class ViaLoggerPipeline extends ViaPipeline {
   ///
   /// Each entry can be one of the following types:
   /// - [ViaRequest]: Recorded when a request is about to be sent.
-  /// - [ViaResult]: Recorded when a successful response is received.
+  /// - [ViaBaseResult]: Recorded when a successful response is received.
   /// - [ViaException]: Recorded when a request fails or is rejected by a pipeline.
   final List<Object> logs = [];
 
@@ -81,7 +81,7 @@ class ViaLoggerPipeline extends ViaPipeline {
   }
 
   @override
-  ViaResult onResult(ViaResult result) {
+  ViaBaseResult onResult(ViaBaseResult result) {
     _addLog(result);
     return result;
   }
@@ -234,7 +234,7 @@ class _DebounceState {
 ///
 /// Returns error message if validation fails, null if valid.
 /// Receives the response and can inspect status code, body, etc.
-typedef ResponseValidator = FutureOr<String?> Function(ViaResult result);
+typedef ResponseValidator = FutureOr<String?> Function(ViaBaseResult result);
 
 /// Response validation pipeline for business logic errors
 ///
@@ -248,7 +248,7 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
   final ResponseValidator validator;
 
   @override
-  FutureOr<ViaResult> onResult(ViaResult result) async {
+  FutureOr<ViaBaseResult> onResult(ViaBaseResult result) async {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {

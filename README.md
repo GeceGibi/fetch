@@ -59,11 +59,15 @@ final result = await via.post(
 ```
 
 ### 3. Real-time Response Streaming
-Process large downloads or event streams as they arrive.
+Process large downloads or event streams as they arrive using the dedicated `stream()` method, which returns a `Future<ViaResultStream>`.
 
 ```dart
-// .stream returns Stream<List<int>>
-via.get('/large-video.mp4').stream.listen((chunk) {
+// .stream() returns Future<ViaResultStream>
+final result = await via.stream('/large-video.mp4');
+
+print('Status: ${result.statusCode}');
+
+result.stream.listen((chunk) {
   print('Received ${chunk.length} bytes');
 });
 ```

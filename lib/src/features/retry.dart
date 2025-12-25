@@ -29,7 +29,7 @@ class ViaRetry {
   }
 
   /// Executes the [action] and retries it if it fails according to [retryIf].
-  Future<ViaResult> retry(Future<ViaResult> Function() action) async {
+  Future<T> retry<T extends ViaBaseResult>(Future<T> Function() action) async {
     var attempt = 0;
 
     while (true) {

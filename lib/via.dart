@@ -101,7 +101,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
   /// [request] - The request payload containing all necessary information
   ///
   /// Returns a Future that completes with the HTTP response.
-  Future<ViaResult> _runMethod(ViaRequest request) async {
+  Future<ViaBaseResult> _runMethod(ViaRequest request) async {
     final ViaRequest(:uri, :method, :body, :files, :headers, :cancelToken) =
         request;
 
@@ -201,7 +201,12 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         throw ViaException.cancelled(request: request);
       }
 
-      return ViaResult(response: streamedResponse, request: request);
+      if (request.isStream) {
+        return ViaResultStream(response: streamedResponse, request: request);
+      } else {
+        final bufferedResponse = await http.Response.fromStream(streamedResponse);
+        return ViaResult(response: bufferedResponse, request: request);
+      }
     } on ViaException {
       rethrow;
     } catch (e, stackTrace) {
@@ -242,9 +247,10 @@ class Via<R extends ViaResult> with ViaMethods<R> {
   /// [cancelToken] - Optional token to cancel the request
   /// [pipelines] - Additional pipelines for this request
   /// [runner] - Optional runner override for this request
+  /// [isStream] - Whether this request should be handled as a stream
   ///
-  /// Returns a [ViaCall] that can be awaited or used as a stream.
-  ViaCall<R> worker(
+  /// Returns a [Future] that completes with the [ViaBaseResult].
+  Future<ViaBaseResult> worker(
     ViaMethod method, {
     required String endpoint,
     required ViaHeaders headers,
@@ -254,64 +260,62 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
     Runner? runner,
-  }) {
-    return ViaCall<R>(({required bool isStream}) async {
-      // Create URI
-      final Uri uri;
+    bool isStream = false,
+  }) async {
+    // Create URI
+    final Uri uri;
 
-      if (endpoint.startsWith('http')) {
-        final parseUri = Uri.parse(endpoint);
-        uri = parseUri.replace(
-          queryParameters: ViaHelpers.mapStringy({
-            ...parseUri.queryParameters,
-            ...?queryParams,
-          }),
-        );
-      } else {
-        uri = base.replace(
-          path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
-          queryParameters: ViaHelpers.mapStringy({
-            ...base.queryParameters,
-            ...?queryParams,
-          }),
-        );
-      }
+    if (endpoint.startsWith('http')) {
+      final parseUri = Uri.parse(endpoint);
+      uri = parseUri.replace(
+        queryParameters: ViaHelpers.mapStringy({
+          ...parseUri.queryParameters,
+          ...?queryParams,
+        }),
+      );
+    } else {
+      uri = base.replace(
+        path: (base.path + endpoint).replaceAll(RegExp('//+'), '/'),
+        queryParameters: ViaHelpers.mapStringy({
+          ...base.queryParameters,
+          ...?queryParams,
+        }),
+      );
+    }
 
-      // Create request
-      final request = ViaRequest(
-        uri: uri,
-        body: body,
-        files: files,
-        method: method,
-        headers: headers,
-        cancelToken: cancelToken,
-        isStream: isStream,
+    // Create request
+    final request = ViaRequest(
+      uri: uri,
+      body: body,
+      files: files,
+      method: method,
+      headers: headers,
+      cancelToken: cancelToken,
+      isStream: isStream,
+    );
+
+    try {
+      // Execute through executor (pipelines handle validation)
+      final response = await executor.execute(
+        request,
+        method: _runMethod,
+        pipelines: pipelines,
+        runner: runner,
       );
 
-      try {
-        // Execute through executor (pipelines handle validation)
-        final response = await executor.execute(
-          request,
-          method: _runMethod,
-          pipelines: pipelines,
-          runner: runner,
-        );
+      return response;
+    } on ViaException catch (error) {
+      onError?.call(error);
+      rethrow;
+    } catch (error, stackTrace) {
+      final viaError = ViaException.network(
+        request: request,
+        message: error.toString(),
+        stackTrace: stackTrace,
+      );
 
-        // Transform
-        return response as R;
-      } on ViaException catch (error) {
-        onError?.call(error);
-        rethrow;
-      } catch (error, stackTrace) {
-        final viaError = ViaException.network(
-          request: request,
-          message: error.toString(),
-          stackTrace: stackTrace,
-        );
-
-        onError?.call(viaError);
-        throw viaError;
-      }
-    });
+      onError?.call(viaError);
+      throw viaError;
+    }
   }
 }

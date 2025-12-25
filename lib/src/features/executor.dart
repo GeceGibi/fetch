@@ -6,14 +6,14 @@ import 'package:via/src/core/result.dart';
 import 'package:via/src/features/pipelines/http_pipeline.dart';
 import 'package:via/src/features/retry.dart';
 
-Future<ViaResult> _defaultRunner(
+Future<ViaBaseResult> _defaultRunner(
   ExecutorMethod method,
   ViaRequest request,
 ) =>
     method(request);
 
 /// Type alias for the method function that executes HTTP requests
-typedef ExecutorMethod = Future<ViaResult> Function(ViaRequest request);
+typedef ExecutorMethod = Future<ViaBaseResult> Function(ViaRequest request);
 
 /// Type alias for custom runner (e.g., isolate execution)
 ///
@@ -22,7 +22,7 @@ typedef ExecutorMethod = Future<ViaResult> Function(ViaRequest request);
 /// // Run in isolate
 /// final runner = (method, payload) => Isolate.run(() => method(payload));
 /// ```
-typedef Runner = Future<ViaResult> Function(
+typedef Runner = Future<ViaBaseResult> Function(
     ExecutorMethod method, ViaRequest request);
 
 /// Request executor that orchestrates pipelines, execution, and retry logic.
@@ -64,10 +64,10 @@ class ViaExecutor {
   /// Optional validation logic to treat a successful network response as an error.
   /// Should return true if the result should be treated as an error,
   /// or false if the result is valid.
-  /// Defaults to checking [ViaResult.isSuccess] (non-2xx status codes).
-  final FutureOr<bool> Function(ViaResult result) errorIf;
+  /// Defaults to checking [ViaBaseResult.isSuccess] (non-2xx status codes).
+  final FutureOr<bool> Function(ViaBaseResult result) errorIf;
 
-  static bool _defaultErrorIf(ViaResult result) => !result.isSuccess;
+  static bool _defaultErrorIf(ViaBaseResult result) => !result.isSuccess;
 
   /// Executes the request through pipelines.
   ///
@@ -77,7 +77,7 @@ class ViaExecutor {
   /// [runner] - Optional runner override for this specific execution.
   ///
   /// Returns the processed response after all pipelines have run.
-  Future<ViaResult> execute(
+  Future<ViaBaseResult> execute(
     ViaRequest request, {
     required ExecutorMethod method,
     List<ViaPipeline> pipelines = const [],
@@ -115,7 +115,7 @@ class ViaExecutor {
   }
 
   /// Executes a single attempt through pipelines and runner.
-  Future<ViaResult> _executeOnce(
+  Future<ViaBaseResult> _executeOnce(
     ViaRequest request,
     ExecutorMethod method,
     List<ViaPipeline> pipelines,
@@ -123,7 +123,7 @@ class ViaExecutor {
   ) async {
     var currentRequest = request;
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest
-    ViaResult? skipResponse;
+    ViaBaseResult? skipResponse;
     try {
       for (final pipeline in pipelines) {
         currentRequest = await pipeline.onRequest(currentRequest);
@@ -133,7 +133,7 @@ class ViaExecutor {
     }
 
     // 2. Execute request (or use skip response from cache/etc)
-    final ViaResult response;
+    ViaBaseResult response;
     final stopWatch = Stopwatch()..start();
 
     /// skip request execution and use cached response
@@ -146,32 +146,29 @@ class ViaExecutor {
       var result = await activeRunner(method, currentRequest);
 
       // Handle streaming pipelines
-      if (result.response is http.StreamedResponse) {
-        var dataStream = (result.response as http.StreamedResponse).stream;
+      if (result is ViaResultStream) {
+        var dataStream = result.stream;
 
         for (final pipeline in pipelines) {
-          dataStream = http.ByteStream(
-            pipeline.onStream(currentRequest, dataStream),
-          );
+          dataStream = pipeline.onStream(currentRequest, dataStream);
         }
 
-        final streamedResponse = result.response as http.StreamedResponse;
-
-        result = ViaResult(
+        response = ViaResultStream(
           request: currentRequest,
           response: http.StreamedResponse(
             dataStream,
-            streamedResponse.statusCode,
-            contentLength: streamedResponse.contentLength,
-            request: streamedResponse.request,
-            headers: streamedResponse.headers,
-            isRedirect: streamedResponse.isRedirect,
-            persistentConnection: streamedResponse.persistentConnection,
-            reasonPhrase: streamedResponse.reasonPhrase,
+            result.statusCode,
+            contentLength: result.response.contentLength,
+            request: result.response.request,
+            headers: result.headers,
+            isRedirect: result.response.isRedirect,
+            persistentConnection: result.response.persistentConnection,
+            reasonPhrase: result.response.reasonPhrase,
           ),
         );
+      } else {
+        response = result;
       }
-      response = result;
     }
 
     response.elapsed = stopWatch.elapsed;

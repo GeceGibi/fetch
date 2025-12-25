@@ -7,7 +7,7 @@ class AppLogger extends ViaLoggerPipeline {
     if (event is ViaRequest) {
       print('🚀 Request: ${event.method} ${event.uri}');
       print('💻 cURL: ${event.toCurl()}');
-    } else if (event is ViaResult) {
+    } else if (event is ViaBaseResult) {
       print('✅ Result: ${event.statusCode} (${event.elapsed?.inMilliseconds}ms)');
     }
   }

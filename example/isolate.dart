@@ -10,7 +10,12 @@ Future<void> main() async {
       // because streams cannot be transferred between isolates directly.
       runner: (executorMethod, viaRequest) => Isolate.run(() async {
         final result = await executorMethod(viaRequest);
-        return result.buffered;
+
+        if (viaRequest.isStream) {
+          return result as ViaResultStream;
+        } else {
+          return result as ViaResult;
+        }
       }),
     ),
   );

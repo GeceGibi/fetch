@@ -33,7 +33,7 @@ class ViaCachePipeline extends ViaPipeline {
   final int maxEntries;
 
   /// Optional callback to decide if a specific result should be cached.
-  final bool Function(ViaResult result)? canCache;
+  final bool Function(ViaBaseResult result)? canCache;
   
   final Map<String, _CacheEntry> _cache;
 
@@ -64,8 +64,13 @@ class ViaCachePipeline extends ViaPipeline {
   }
 
   @override
-  Future<ViaResult> onResult(ViaResult result) async {
+  Future<ViaBaseResult> onResult(ViaBaseResult result) async {
     if (duration == Duration.zero) {
+      return result;
+    }
+
+    // Only cache buffered results
+    if (result is! ViaResult) {
       return result;
     }
 
@@ -82,9 +87,7 @@ class ViaCachePipeline extends ViaPipeline {
       _cache.remove(_cache.keys.first);
     }
 
-    // We must buffer the result before caching to ensure the stream can be read multiple times from cache
-    final bufferedResult = await result.buffered;
-    _cache[key] = _CacheEntry(bufferedResult, duration);
+    _cache[key] = _CacheEntry(result, duration);
 
     return result;
   }

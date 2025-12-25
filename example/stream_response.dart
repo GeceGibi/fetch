@@ -9,17 +9,18 @@ void main() async {
 
   try {
     print('\n[1] Requesting a large response stream...');
-    // The call is now a ViaCall, which can be used as a Future or a Stream.
-    final call = via.get(
+    // Use the dedicated .stream() method which returns Future<ViaResultStream>
+    final result = await via.stream(
       '/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_5MB.mp4',
     );
 
-    print('Request started! Using asByteStream() to listen to chunks.');
+    print('Response received! Status: ${result.statusCode}');
+    print('Headers: ${result.headers}');
 
     print('\nListening to response stream:');
     var totalBytes = 0;
 
-    await for (final dataChunk in call.stream) {
+    await for (final dataChunk in result.stream) {
       totalBytes += dataChunk.length;
       print('Received chunk: ${dataChunk.length} bytes (Total: $totalBytes)');
     }
