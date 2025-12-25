@@ -8,9 +8,9 @@ class MyPrettyLogger extends ViaLoggerPipeline {
       case final ViaRequest r:
         print('🚀 Request: ${r.method} ${r.uri}');
         print('💻 cURL: ${r.toCurl()}');
-      case final ViaResult result:
+      case final ViaBaseResult result:
         print(
-          '✅ Response: ${result.statusCode} (${result.elapsed?.inMilliseconds}ms)',
+          '✅ Response: ${result.statusCode} (${result.elapsed?.inMilliseconds}ms)${result is ViaResultStream ? ' [STREAM]' : ''}',
         );
       case final ViaException error:
         print('❌ Error: ${error.message}');

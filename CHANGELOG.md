@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3]
+
+### Fixed
+- **Pipeline Error Handling**: Fixed an issue where `onError` was not being called on pipelines when a request failed.
+- **Logger Stream Support**: Added stream error tracking to `ViaLoggerPipeline` via `onStream` interception.
+
 ## [1.5.2]
 
 ### Changed

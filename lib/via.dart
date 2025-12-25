@@ -308,8 +308,9 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       isStream: effectiveIsStream,
     );
 
+    final allPipelines = [...this.pipelines, ...pipelines];
+
     try {
-      final allPipelines = [...this.pipelines, ...pipelines];
       final activeRunner = effectiveIsStream
           ? (ExecutorMethod executorMethod, ViaRequest viaRequest) =>
               executorMethod(viaRequest)
@@ -319,6 +320,9 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         () => _executeOnce(request, _runMethod, allPipelines, activeRunner),
       );
     } on ViaException catch (error) {
+      for (final pipeline in allPipelines) {
+        pipeline.onError(error);
+      }
       onError?.call(error);
       rethrow;
     } catch (error, stackTrace) {
@@ -328,6 +332,9 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         stackTrace: stackTrace,
       );
 
+      for (final pipeline in allPipelines) {
+        pipeline.onError(viaError);
+      }
       onError?.call(viaError);
       throw viaError;
     }
@@ -341,8 +348,11 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     Runner activeRunner,
   ) async {
     var currentRequest = request;
+    
     // 1. Pre-request pipelines - can modify payload or throw SkipRequest
     ViaBaseResult? skipResponse;
+
+    /// pre-request pipelines
     try {
       for (final pipeline in pipelines) {
         currentRequest = await pipeline.onRequest(currentRequest);
@@ -362,7 +372,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
 
     /// real request execution
     else {
-      var result = await activeRunner(method, currentRequest);
+      final result = await activeRunner(method, currentRequest);
 
       // Handle streaming pipelines
       if (result is ViaResultStream) {

@@ -87,6 +87,25 @@ class ViaLoggerPipeline extends ViaPipeline {
   }
 
   @override
+  Stream<List<int>> onStream(ViaRequest request, Stream<List<int>> stream) {
+    if (!enabled) return stream;
+
+    return stream.transform(StreamTransformer.fromHandlers(
+      handleError: (error, stackTrace, sink) {
+        final viaError = error is ViaException
+            ? error
+            : ViaException.network(
+                request: request,
+                message: error.toString(),
+                stackTrace: stackTrace,
+              );
+        onError(viaError);
+        sink.addError(viaError, stackTrace);
+      },
+    ));
+  }
+
+  @override
   void onError(ViaException error) {
     _addLog(error);
   }
