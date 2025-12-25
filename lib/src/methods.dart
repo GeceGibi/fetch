@@ -5,7 +5,7 @@ import 'package:via/via.dart';
 /// A mixin that provides shorthand methods for common HTTP operations.
 mixin ViaMethods<R extends ViaResult> {
   /// Internal helper to reduce code duplication in the mixin.
-  Future<ViaBaseResult> _request(
+  Future<T> _request<T extends ViaBaseResult>(
     ViaMethod method,
     String endpoint, {
     Object? body,
@@ -17,7 +17,7 @@ mixin ViaMethods<R extends ViaResult> {
     Runner? runner,
     bool isStream = false,
   }) {
-    return (this as Via<R>).worker(
+    return (this as Via<R>).worker<T>(
       method,
       endpoint: endpoint,
       body: body,
@@ -44,7 +44,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         method,
         endpoint,
         body: fields,
@@ -53,7 +53,7 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a GET request.
   Future<R> get(
@@ -63,14 +63,14 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .get,
         endpoint,
         queryParams: queryParams,
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a HEAD request.
   Future<R> head(
@@ -80,14 +80,14 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .head,
         endpoint,
         queryParams: queryParams,
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a POST request.
   Future<R> post(
@@ -98,7 +98,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .post,
         endpoint,
         body: body,
@@ -106,7 +106,7 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a PUT request.
   Future<R> put(
@@ -117,7 +117,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .put,
         endpoint,
         body: body,
@@ -125,7 +125,7 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a DELETE request.
   Future<R> delete(
@@ -136,7 +136,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .delete,
         endpoint,
         body: body,
@@ -144,7 +144,7 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a PATCH request.
   Future<R> patch(
@@ -155,7 +155,7 @@ mixin ViaMethods<R extends ViaResult> {
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
   }) async =>
-      (await _request(
+      _request<R>(
         .patch,
         endpoint,
         body: body,
@@ -163,7 +163,7 @@ mixin ViaMethods<R extends ViaResult> {
         headers: headers,
         cancelToken: cancelToken,
         pipelines: pipelines,
-      )) as R;
+      );
 
   /// Performs a request and returns the response as a stream of bytes.
   ///
@@ -176,17 +176,15 @@ mixin ViaMethods<R extends ViaResult> {
     ViaHeaders headers = const {},
     CancelToken? cancelToken,
     List<ViaPipeline> pipelines = const [],
-  }) async {
-    final result = await _request(
-      method,
-      endpoint,
-      body: body,
-      queryParams: queryParams,
-      headers: headers,
-      cancelToken: cancelToken,
-      pipelines: pipelines,
-      isStream: true,
-    );
-    return result as ViaResultStream;
-  }
+  }) async =>
+      _request<ViaResultStream>(
+        method,
+        endpoint,
+        body: body,
+        queryParams: queryParams,
+        headers: headers,
+        cancelToken: cancelToken,
+        pipelines: pipelines,
+        isStream: true,
+      );
 }

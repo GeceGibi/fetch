@@ -262,8 +262,8 @@ class Via<R extends ViaResult> with ViaMethods<R> {
   /// [runner] - Optional runner override for this request
   /// [isStream] - Whether this request should be handled as a stream
   ///
-  /// Returns a [Future] that completes with the [ViaBaseResult].
-  Future<ViaBaseResult> worker(
+  /// Returns a [Future] that completes with the requested result type [T].
+  Future<T> worker<T extends ViaBaseResult>(
     ViaMethod method, {
     required String endpoint,
     required ViaHeaders headers,
@@ -324,7 +324,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         () => _executeOnce(request, _runMethod, allPipelines, activeRunner),
       );
 
-      return response;
+      return response as T;
     } on ViaException catch (error) {
       onError?.call(error);
       rethrow;

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1]
+
+### Fixed
+- **Type Safety**: Fixed a critical `type 'ViaResult' is not a subtype of type 'R' in type cast` error in `ViaMethods`. Both `Via.worker` and `ViaMethods._request` are now generic to correctly handle custom result types.
+
 ## [1.5.0]
 
 ### Changed
