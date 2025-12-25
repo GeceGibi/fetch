@@ -3,18 +3,14 @@ import 'package:via/via.dart';
 Future<void> main() async {
   final via = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(
-      // [Default Behavior]
-      // By default, errorIf treats any status code outside 200-299 as an error.
-      // This automatically triggers the retry mechanism for 500, 404, etc.
-      retry: ViaRetry(
-        maxAttempts: 3,
-        retryDelay: const Duration(seconds: 1),
-        retryIf: (error, attempt) {
-          print('⚠️ Attempt $attempt failed: ${error.message}. Retrying...');
-          return true; // Retry on every error
-        },
-      ),
+    // Configure retry logic directly in the Via constructor
+    retry: ViaRetry(
+      maxAttempts: 3,
+      retryDelay: const Duration(seconds: 1),
+      retryIf: (error, attempt) {
+        print('⚠️ Attempt $attempt failed: ${error.message}. Retrying...');
+        return true; // Retry on every error
+      },
     ),
   );
 

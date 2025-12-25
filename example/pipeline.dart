@@ -16,14 +16,12 @@ class AppLogger extends ViaLoggerPipeline {
 Future<void> main() async {
   final via = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(
-      pipelines: [
-        // Using our project-specific config pipeline
-        AppConfigPipeline(),
-        // Custom logger
-        AppLogger(),
-      ],
-    ),
+    pipelines: [
+      // Using our project-specific config pipeline
+      AppConfigPipeline(),
+      // Custom logger
+      AppLogger(),
+    ],
   );
 
   print('--- Pipeline Test (Check logs for cURL and headers) ---');

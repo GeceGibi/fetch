@@ -1,6 +1,6 @@
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
-import 'package:via/src/features/pipelines/http_pipeline.dart';
+import 'package:via/src/features/pipeline.dart';
 
 /// Caching strategy for HTTP requests.
 enum CacheStrategy {

@@ -29,6 +29,21 @@ abstract class ViaBaseResult {
   /// The duration of the HTTP request, if available.
   Duration? elapsed;
 
+  /// Creates a [ViaException] from this result.
+  ViaException toException({
+    String? message,
+    ViaError type = ViaError.custom,
+    StackTrace? stackTrace,
+  }) {
+    return ViaException(
+      request: request,
+      response: response,
+      message: message ?? response.reasonPhrase ?? type.name,
+      type: type,
+      stackTrace: stackTrace,
+    );
+  }
+
   /// Converts the result metadata to a JSON-compatible Map.
   Map<String, dynamic> toJson() {
     return {
@@ -222,7 +237,7 @@ class ViaException implements Exception {
   }) : type = ViaError.http,
        message = message ?? ViaError.http.name;
 
-  /// Custom error defined by pipelines or [ViaExecutor.errorIf].
+  /// Custom error defined by pipelines.
   ViaException.custom({
     required this.request,
     this.response,

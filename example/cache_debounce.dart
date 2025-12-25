@@ -3,14 +3,12 @@ import 'package:via/via.dart';
 Future<void> main() async {
   final via = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(
-      pipelines: [
-        // Cache GET requests for 5 seconds
-        ViaCachePipeline(duration: Duration(seconds: 5)),
-        // Prevent rapid duplicate requests (last one wins)
-        ViaDebouncePipeline(duration: Duration(milliseconds: 500)),
-      ],
-    ),
+    pipelines: [
+      // Cache GET requests for 5 seconds
+      ViaCachePipeline(duration: Duration(seconds: 5)),
+      // Prevent rapid duplicate requests (last one wins)
+      ViaDebouncePipeline(duration: Duration(milliseconds: 500)),
+    ],
   );
 
   print('--- Cache & Debounce Test ---');

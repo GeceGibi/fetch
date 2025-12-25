@@ -57,7 +57,7 @@ void main() async {
           },
         );
     print('Multipart status: ${response.statusCode}');
-    print('Server received files: ${await response.body}');
+    print('Server received files: ${response.body}');
   } catch (e) {
     print('Error: $e');
   }

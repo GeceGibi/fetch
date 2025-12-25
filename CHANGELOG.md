@@ -2,12 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.3]
+## [1.5.0]
+
+### Changed
+- **Simplified API**: Removed `ViaExecutor` class. All execution logic (pipelines, retry, runner) has been moved directly into the `Via` class for a cleaner and more intuitive API.
+- **Truly Pure Dart**: Removed the `flutter` SDK dependency. The library is now a pure Dart package, compatible with CLI, Server-side, and Flutter.
+- **HTTP Focus**: Removed internal WebSocket support to keep the library lightweight and focused on HTTP.
+- **Auto-mapping Support**: Added `to<T>` and `toListOf<T>` methods to `ViaResult` for seamless JSON-to-Model conversion.
+- **Stream Body Support**: Enhanced `Via` to support `Stream<List<int>>` as a request body.
+- **Dedicated Streaming API**: Introduced `via.stream()` method which returns `Future<ViaResultStream>`. This allows accessing status codes and headers before consuming the response stream.
+- **Internal Refactoring**: Organized source files into a flatter, more logical structure.
 
 ### Fixed
 - **Isolate Stability**: Explicitly detaching the request object from the response before returning from an isolate. This prevents "Illegal argument in isolate message" errors caused by unsendable `ByteStream` references in `MultipartRequest`.
-- **Improved Isolate Safety**: Replaced the null request detachment with a lightweight `http.Request` dummy to preserve basic metadata (URL, Method).
-- **Auto Isolate Bypass**: Added automatic Isolate bypass for requests containing `Stream` bodies or `CancelToken`s, which are naturally unsendable between isolates.
+- **Auto Isolate Bypass**: Added automatic Isolate bypass for requests containing `Stream` bodies or `CancelToken`s.
 
 ### Changed
 - **API Simplification**: Removed `ViaCall` wrapper. Standard HTTP methods now return `Future<ViaResult>` directly.
@@ -35,7 +43,7 @@ All notable changes to this project will be documented in this file.
 - **WebSocket Pipelines**: Added `ViaSocketPipeline` for intercepting lifecycle events.
 - **WebSocket Auto-Reconnect**: Support for `autoReconnect` and `reconnectDelay`.
 - **Smart URI Conversion**: Automatic `http`/`https` to `ws`/`wss` conversion.
-- **Examples**: Added `multipart_example.dart`, `socket_example.dart`, and `socket_reconnect_test.dart`.
+- **Examples**: Added `multipart_example.dart`.
 
 ### Changed
 - **API Simplification**: Shorthand methods (`post`, `put`, `patch`, `delete`) now only handle standard bodies. All file uploads must use `via.multipart()`.

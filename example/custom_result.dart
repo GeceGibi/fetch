@@ -33,9 +33,7 @@ Future<void> main() async {
   // 3. Initialize Via with your Custom Result type
   final via = Via<MyApiResponse>(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(
-      pipelines: [MyResponsePipeline()],
-    ),
+    pipelines: [MyResponsePipeline()],
   );
 
   print('--- Custom Result & Pipeline Example ---');

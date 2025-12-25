@@ -1,6 +1,6 @@
 # 🛣️ Via
 
-**A modern, platform-agnostic, type-safe HTTP & WebSocket client for Dart & Flutter.**
+**A modern, platform-agnostic, type-safe HTTP client for Dart & Flutter.**
 
 Via is a lightweight yet powerful networking engine designed for simplicity, performance, and flexibility. It is built to be completely independent of Flutter or specific platforms, making it ideal for mobile, web, desktop, and server-side Dart applications.
 
@@ -24,7 +24,7 @@ Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.4.3
+  via: ^1.5.0
 ```
 
 ---
@@ -72,20 +72,6 @@ result.stream.listen((chunk) {
 });
 ```
 
-### 4. WebSocket with Auto-Reconnect
-Lightweight WebSocket wrapper with pipeline support and automatic reconnection.
-
-```dart
-final socket = await via.socket(
-  '/ws', 
-  autoReconnect: true,
-  reconnectDelay: Duration(seconds: 5),
-);
-
-socket.stream.listen((message) => print('Received: $message'));
-socket.send({'type': 'ping'});
-```
-
 ---
 
 ## 🔥 Advanced Features
@@ -99,26 +85,22 @@ Pipelines are the core of Via. They allow you to intercept, modify, or even skip
 
 ```dart
 final via = Via(
-  executor: ViaExecutor(
-    pipelines: [
-      ViaLoggerPipeline(),
-      ViaCachePipeline(duration: Duration(minutes: 5), maxEntries: 100),
-    ],
-  ),
+  pipelines: [
+    ViaLoggerPipeline(),
+    ViaCachePipeline(duration: Duration(minutes: 5), maxEntries: 100),
+  ],
 );
 ```
 
 ### 🛡️ Resilience & Retries
-Configure how your application handles failures. Use `errorIf` to treat specific status codes or response patterns as errors that trigger a retry.
+Configure how your application handles failures. Custom retry logic can be defined in the `ViaRetry` object.
 
 ```dart
 final via = Via(
-  executor: ViaExecutor(
-    retry: ViaRetry(
-      maxAttempts: 3,
-      delay: Duration(seconds: 2),
-    ),
-    errorIf: (result) => result.statusCode == 503, // Retry only on Service Unavailable
+  retry: ViaRetry(
+    maxAttempts: 3,
+    delay: Duration(seconds: 2),
+    retryIf: (error, attempt) => error.type == ViaError.network,
   ),
 );
 ```

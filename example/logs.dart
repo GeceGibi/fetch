@@ -23,7 +23,7 @@ Future<void> main() async {
   final silentLogger = ViaLoggerPipeline();
   final viaSilent = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(pipelines: [silentLogger]),
+    pipelines: [silentLogger],
   );
 
   await viaSilent.get('/get');
@@ -32,7 +32,7 @@ Future<void> main() async {
   print('\n--- [2] Pretty Logging (Override onLog) ---');
   final viaPretty = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(pipelines: [MyPrettyLogger()]),
+    pipelines: [MyPrettyLogger()],
   );
   await viaPretty.get('/status/200');
 
@@ -41,7 +41,7 @@ Future<void> main() async {
 
   final viaToggle = Via(
     base: Uri.parse('https://httpbin.org'),
-    executor: ViaExecutor(pipelines: [logger]),
+    pipelines: [logger],
   );
 
   print('Logger disabled, no output expected below:');

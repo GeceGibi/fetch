@@ -12,8 +12,8 @@ import 'package:via/src/core/helpers.dart';
 import 'package:via/src/core/request.dart';
 import 'package:via/src/core/result.dart';
 import 'package:via/src/features/cancel.dart';
-import 'package:via/src/features/executor.dart';
-import 'package:via/src/features/pipelines/http_pipeline.dart';
+import 'package:via/src/features/pipeline.dart';
+import 'package:via/src/features/retry.dart';
 import 'package:via/src/methods.dart';
 
 export 'src/core/helpers.dart';
@@ -21,52 +21,40 @@ export 'src/core/request.dart';
 export 'src/core/result.dart';
 export 'src/features/cache.dart';
 export 'src/features/cancel.dart';
-export 'src/features/executor.dart';
-export 'src/features/pipelines/http_pipeline.dart';
-export 'src/features/pipelines/socket_pipeline.dart';
+export 'src/features/pipeline.dart';
 export 'src/features/retry.dart';
-export 'src/features/socket.dart';
 export 'src/methods.dart';
 
+/// Type alias for the method function that executes HTTP requests
+typedef ExecutorMethod = Future<ViaBaseResult> Function(ViaRequest request);
+
+/// Type alias for custom runner (e.g., isolate execution)
+typedef Runner = Future<ViaBaseResult> Function(
+    ExecutorMethod method, ViaRequest request);
+
+Future<ViaBaseResult> _defaultRunner(
+  ExecutorMethod method,
+  ViaRequest request,
+) =>
+    method(request);
+
 /// A comprehensive HTTP client with caching, logging, and request capabilities.
-///
-/// This class provides a modern HTTP client that supports:
-/// - Built-in caching with configurable strategies
-/// - Request/response logging
-/// - Custom executors for platform-specific strategies
-/// - Timeout handling
-/// - Header building
-/// - Response validation via pipelines (for business logic errors)
-///
-/// Example usage:
-/// ```dart
-/// final via = Via<ViaResult>(
-///   base: Uri.parse('https://api.example.com'),
-///   executor: ViaExecutor(
-///     pipelines: [
-///       ViaLoggerPipeline(),
-///       ViaAuthPipeline(getToken: () => token),
-///       ViaResponseValidatorPipeline(
-///         validator: (result) => result.isSuccess ? null : 'Error',
-///       ),
-///     ],
-///   ),
-/// );
-///
-/// final response = await via.get('/users');
-/// ```
 class Via<R extends ViaResult> with ViaMethods<R> {
   /// Creates a new Via instance.
   ///
   /// [base] - Base URI for all requests (optional)
   /// [timeout] - Request timeout duration (default: 30 seconds)
-  /// [executor] - Request executor with pipelines and retry logic
+  /// [retry] - Retry logic configuration
+  /// [pipelines] - Global pipelines for all requests
+  /// [runner] - Custom runner for execution (e.g., isolate)
   /// [onError] - Global error handler for all errors
   /// [client] - Optional custom HTTP client to reuse
   Via({
     Uri? base,
     this.timeout = const Duration(seconds: 30),
-    this.executor = const ViaExecutor(),
+    this.retry = const ViaRetry(),
+    this.pipelines = const [],
+    this.runner = _defaultRunner,
     this.onError,
     http.Client? client,
   }) : _customClient = client {
@@ -90,8 +78,14 @@ class Via<R extends ViaResult> with ViaMethods<R> {
   /// Request timeout duration
   final Duration timeout;
 
-  /// Request executor (pipelines, runner, retry)
-  final ViaExecutor executor;
+  /// Global pipelines for all requests
+  final List<ViaPipeline> pipelines;
+
+  /// Retry logic configuration
+  final ViaRetry retry;
+
+  /// Custom runner for execution (e.g., for isolate-based execution)
+  final Runner runner;
 
   /// Global error handler
   final void Function(ViaException error)? onError;
@@ -319,12 +313,15 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     );
 
     try {
-      // Execute through executor (pipelines handle validation)
-      final response = await executor.execute(
-        request,
-        method: _runMethod,
-        pipelines: pipelines,
-        runner: runner,
+      // Execute through executor logic (pipelines, runner, retry)
+      final allPipelines = [...this.pipelines, ...pipelines];
+      final activeRunner = effectiveIsStream
+          ? (ExecutorMethod executorMethod, ViaRequest viaRequest) =>
+              executorMethod(viaRequest)
+          : (runner ?? this.runner);
+
+      final response = await retry.retry(
+        () => _executeOnce(request, _runMethod, allPipelines, activeRunner),
       );
 
       return response;
@@ -341,5 +338,73 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       onError?.call(viaError);
       throw viaError;
     }
+  }
+
+  /// Executes a single attempt through pipelines and runner.
+  Future<ViaBaseResult> _executeOnce(
+    ViaRequest request,
+    ExecutorMethod method,
+    List<ViaPipeline> pipelines,
+    Runner activeRunner,
+  ) async {
+    var currentRequest = request;
+    // 1. Pre-request pipelines - can modify payload or throw SkipRequest
+    ViaBaseResult? skipResponse;
+    try {
+      for (final pipeline in pipelines) {
+        currentRequest = await pipeline.onRequest(currentRequest);
+      }
+    } on SkipRequest catch (skip) {
+      skipResponse = skip.result;
+    }
+
+    // 2. Execute request (or use skip response from cache/etc)
+    ViaBaseResult response;
+    final stopWatch = Stopwatch()..start();
+
+    /// skip request execution and use cached response
+    if (skipResponse != null) {
+      response = skipResponse;
+    }
+
+    /// real request execution
+    else {
+      var result = await activeRunner(method, currentRequest);
+
+      // Handle streaming pipelines
+      if (result is ViaResultStream) {
+        var dataStream = result.stream;
+
+        for (final pipeline in pipelines) {
+          dataStream = pipeline.onStream(currentRequest, dataStream);
+        }
+
+        response = ViaResultStream(
+          request: currentRequest,
+          response: http.StreamedResponse(
+            dataStream,
+            result.statusCode,
+            contentLength: result.response.contentLength,
+            request: result.response.request,
+            headers: result.headers,
+            isRedirect: result.response.isRedirect,
+            persistentConnection: result.response.persistentConnection,
+            reasonPhrase: result.response.reasonPhrase,
+          ),
+        );
+      } else {
+        response = result;
+      }
+    }
+
+    response.elapsed = stopWatch.elapsed;
+
+    // 3. Post-response pipelines (same order)
+    var processedResponse = response;
+    for (final pipeline in pipelines) {
+      processedResponse = await pipeline.onResult(processedResponse);
+    }
+
+    return processedResponse;
   }
 }
