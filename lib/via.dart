@@ -145,7 +145,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
           );
         }
       }
-      
+
       httpRequest = multipartRequest;
     } else if (body is Stream<List<int>>) {
       final streamedRequest = http.StreamedRequest(method.name, uri);
@@ -186,15 +186,17 @@ class Via<R extends ViaResult> with ViaMethods<R> {
 
     try {
       // Start the request
-      final streamedResponse = await httpClient.send(httpRequest).timeout(
-        timeout,
-        onTimeout: () {
-          throw ViaException.network(
-            request: request,
-            message: 'Request timeout',
+      final streamedResponse = await httpClient
+          .send(httpRequest)
+          .timeout(
+            timeout,
+            onTimeout: () {
+              throw ViaException.network(
+                request: request,
+                message: 'Request timeout',
+              );
+            },
           );
-        },
-      );
 
       // Check if cancelled after receiving response
       if (cancelToken?.isCancelled ?? false) {
@@ -204,8 +206,25 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       if (request.isStream) {
         return ViaResultStream(response: streamedResponse, request: request);
       } else {
-        final bufferedResponse = await http.Response.fromStream(streamedResponse);
-        return ViaResult(response: bufferedResponse, request: request);
+        final bufferedResponse = await http.Response.fromStream(
+          streamedResponse,
+        );
+
+        // Create a "clean" response. We detach the original request object
+        // because it often contains unsendable streams (like ByteStream).
+        // Instead, we attach a lightweight dummy request to keep basic metadata.
+        final cleanResponse = http.Response.bytes(
+          bufferedResponse.bodyBytes,
+          bufferedResponse.statusCode,
+          headers: bufferedResponse.headers,
+          persistentConnection: bufferedResponse.persistentConnection,
+          isRedirect: bufferedResponse.isRedirect,
+          reasonPhrase: bufferedResponse.reasonPhrase,
+          request: http.Request(request.method.value, request.uri)
+            ..headers.addAll(request.headers ?? {}),
+        );
+
+        return ViaResult(response: cleanResponse, request: request);
       }
     } on ViaException {
       rethrow;
@@ -283,6 +302,11 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       );
     }
 
+    // If the body is a stream or there's a cancel token, we must bypass 
+    // isolates (Runner) because streams and callbacks cannot be sent 
+    // between isolates.
+    final effectiveIsStream = isStream || body is Stream || cancelToken != null;
+
     // Create request
     final request = ViaRequest(
       uri: uri,
@@ -291,7 +315,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       method: method,
       headers: headers,
       cancelToken: cancelToken,
-      isStream: isStream,
+      isStream: effectiveIsStream,
     );
 
     try {

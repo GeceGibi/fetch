@@ -24,7 +24,7 @@ Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.4.1
+  via: ^1.4.3
 ```
 
 ---

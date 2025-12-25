@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.2]
+## [1.4.3]
+
+### Fixed
+- **Isolate Stability**: Explicitly detaching the request object from the response before returning from an isolate. This prevents "Illegal argument in isolate message" errors caused by unsendable `ByteStream` references in `MultipartRequest`.
+- **Improved Isolate Safety**: Replaced the null request detachment with a lightweight `http.Request` dummy to preserve basic metadata (URL, Method).
+- **Auto Isolate Bypass**: Added automatic Isolate bypass for requests containing `Stream` bodies or `CancelToken`s, which are naturally unsendable between isolates.
 
 ### Changed
 - **API Simplification**: Removed `ViaCall` wrapper. Standard HTTP methods now return `Future<ViaResult>` directly.
