@@ -23,7 +23,7 @@ class ViaRetry {
   final Duration retryDelay;
 
   static bool _defaultRetryIf(ViaException error, int attempt) {
-    return error.type == ViaError.network ||
+    return error.type == .network ||
         (error.response?.statusCode != null &&
             error.response!.statusCode >= 500);
   }

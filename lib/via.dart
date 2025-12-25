@@ -162,7 +162,9 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         } else if (body is List) {
           standardRequest.bodyBytes = body.cast<int>();
         } else if (body is Map) {
-          standardRequest.bodyFields = body.cast<String, String>();
+          standardRequest.bodyFields = body.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          );
         } else {
           throw ArgumentError('Invalid request body "$body".');
         }

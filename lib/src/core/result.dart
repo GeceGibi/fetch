@@ -32,7 +32,7 @@ abstract class ViaBaseResult {
   /// Creates a [ViaException] from this result.
   ViaException toException({
     String? message,
-    ViaError type = ViaError.custom,
+    ViaError type = .custom,
     StackTrace? stackTrace,
   }) {
     return ViaException(
@@ -172,12 +172,12 @@ enum ViaError {
 
   String get name {
     return switch (this) {
-      ViaError.cancelled => 'Request Cancelled',
-      ViaError.debounced => 'Request Debounced',
-      ViaError.throttled => 'Request Throttled',
-      ViaError.network => 'Network Error',
-      ViaError.http => 'HTTP Error',
-      ViaError.custom => 'Custom Error',
+      .cancelled => 'Request Cancelled',
+      .debounced => 'Request Debounced',
+      .throttled => 'Request Throttled',
+      .network => 'Network Error',
+      .http => 'HTTP Error',
+      .custom => 'Custom Error',
     };
   }
 }
@@ -189,7 +189,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     this.message = 'Via Error',
-    this.type = ViaError.custom,
+    this.type = .custom,
   });
 
   /// Request was explicitly cancelled by the user.
@@ -198,7 +198,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.cancelled,
+  }) : type = .cancelled,
        message = message ?? ViaError.cancelled.name;
 
   /// Request was skipped due to debouncing.
@@ -207,7 +207,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.debounced,
+  }) : type = .debounced,
        message = message ?? ViaError.debounced.name;
 
   /// Request was rejected due to throttling.
@@ -216,7 +216,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.throttled,
+  }) : type = .throttled,
        message = message ?? ViaError.throttled.name;
 
   /// Error occurred at the network layer (e.g., timeout, connection lost).
@@ -225,7 +225,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.network,
+  }) : type = .network,
        message = message ?? ViaError.network.name;
 
   /// HTTP error response (e.g., 4xx or 5xx status codes).
@@ -234,7 +234,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.http,
+  }) : type = .http,
        message = message ?? ViaError.http.name;
 
   /// Custom error defined by pipelines.
@@ -243,7 +243,7 @@ class ViaException implements Exception {
     this.response,
     this.stackTrace,
     String? message,
-  }) : type = ViaError.custom,
+  }) : type = .custom,
        message = message ?? ViaError.custom.name;
 
   final ViaRequest request;
@@ -252,6 +252,9 @@ class ViaException implements Exception {
 
   final http.BaseResponse? response;
   final StackTrace? stackTrace;
+
+  /// The HTTP status code from the response, if available.
+  int? get statusCode => response?.statusCode;
 
   @override
   String toString() {
@@ -266,7 +269,7 @@ class ViaException implements Exception {
       'statusCode': response?.statusCode,
       'headers': response?.headers,
       'body': response is http.Response
-          ? (response as http.Response).body
+          ? (response! as http.Response).body
           : null,
     };
   }

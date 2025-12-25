@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.4]
+
+### Fixed
+- **Map Body Casting**: Fixed an issue where `Map` payloads with non-string values (like `int` or `bool`) would cause a type cast error. They are now automatically converted to strings for form-data requests.
+
+### Changed
+- **Modernized Syntax**: Fully adopted Modern Dart enum member access (e.g., `.network` instead of `ViaError.network`).
+- **Simplified Examples**: Consolidated multiple example files into a single, clean `example/main.dart`.
+- **Unit Tests**: Added a comprehensive suite of unit tests with real network request validation.
+
 ## [1.5.3]
 
 ### Fixed

@@ -100,7 +100,7 @@ final via = Via(
   retry: ViaRetry(
     maxAttempts: 3,
     delay: Duration(seconds: 2),
-    retryIf: (error, attempt) => error.type == ViaError.network,
+    retryIf: (error, attempt) => error.type == .network,
   ),
 );
 ```

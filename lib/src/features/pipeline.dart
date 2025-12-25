@@ -90,19 +90,21 @@ class ViaLoggerPipeline extends ViaPipeline {
   Stream<List<int>> onStream(ViaRequest request, Stream<List<int>> stream) {
     if (!enabled) return stream;
 
-    return stream.transform(StreamTransformer.fromHandlers(
-      handleError: (error, stackTrace, sink) {
-        final viaError = error is ViaException
-            ? error
-            : ViaException.network(
-                request: request,
-                message: error.toString(),
-                stackTrace: stackTrace,
-              );
-        onError(viaError);
-        sink.addError(viaError, stackTrace);
-      },
-    ));
+    return stream.transform(
+      StreamTransformer.fromHandlers(
+        handleError: (error, stackTrace, sink) {
+          final viaError = error is ViaException
+              ? error
+              : ViaException.network(
+                  request: request,
+                  message: error.toString(),
+                  stackTrace: stackTrace,
+                );
+          onError(viaError);
+          sink.addError(viaError, stackTrace);
+        },
+      ),
+    );
   }
 
   @override
@@ -271,14 +273,9 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {
-      throw ViaException.custom(
-        request: result.request,
-        response: result.response,
-        message: errorMessage,
-      );
+      throw result.toException(message: errorMessage);
     }
 
     return result;
   }
 }
-
