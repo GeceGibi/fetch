@@ -41,4 +41,45 @@ void main() {
     await file.delete();
     expect(file.existsSync(), isFalse);
   });
+
+  test('should listen to stream using a pipeline', () async {
+    var chunkCountFromPipeline = 0;
+    var totalBytesFromPipeline = 0;
+
+    final pipeline = _StreamListenerPipeline(
+      onChunk: (chunk) {
+        chunkCountFromPipeline++;
+        totalBytesFromPipeline += chunk.length;
+      },
+    );
+
+    final result = await via.stream(videoUrl, pipelines: [pipeline]);
+
+    expect(result.isSuccess, isTrue);
+
+    // We must consume the stream for the pipeline to see all chunks
+    int consumedBytes = 0;
+    await for (final chunk in result.stream) {
+      consumedBytes += chunk.length;
+    }
+
+    expect(consumedBytes, equals(totalBytesFromPipeline));
+    expect(chunkCountFromPipeline, greaterThan(0));
+    print(
+        'Pipeline tracked $chunkCountFromPipeline chunks and $totalBytesFromPipeline bytes');
+  });
+}
+
+class _StreamListenerPipeline extends ViaPipeline {
+  _StreamListenerPipeline({required this.onChunk});
+
+  final void Function(List<int> chunk) onChunk;
+
+  @override
+  Stream<List<int>> onStream(ViaResultStream result) async* {
+    await for (final chunk in result.stream) {
+      onChunk(chunk);
+      yield chunk;
+    }
+  }
 }
