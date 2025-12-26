@@ -144,6 +144,25 @@ class ViaResultStream extends ViaBaseResult {
   /// Note: The stream can only be listened to once.
   Stream<List<int>> get stream => response.stream;
 
+  /// Creates a copy of this result with a new stream.
+  ViaResultStream copyWith({Stream<List<int>>? stream}) {
+    if (stream == null) return this;
+
+    return ViaResultStream(
+      request: request,
+      response: http.StreamedResponse(
+        stream,
+        statusCode,
+        contentLength: response.contentLength,
+        request: response.request,
+        headers: headers,
+        isRedirect: response.isRedirect,
+        persistentConnection: response.persistentConnection,
+        reasonPhrase: response.reasonPhrase,
+      ),
+    )..elapsed = elapsed;
+  }
+
   @override
   String toString() {
     return 'ViaResultStream(isSuccess: $isSuccess, request: $request, statusCode: $statusCode)';

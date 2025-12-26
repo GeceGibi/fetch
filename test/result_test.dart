@@ -43,7 +43,7 @@ void main() {
         fail(
           'Should have thrown an exception if a validator was present, but Via doesn\'t throw on 404 by default unless asked. Let\'s use a validator.',
         );
-      } catch (e) {
+      } catch (error) {
         // Default Via doesn't throw on 4xx unless a pipeline/validator is used.
       }
 
@@ -52,7 +52,7 @@ void main() {
         base: Uri.parse('https://httpbin.org'),
         pipelines: [
           ViaResponseValidatorPipeline(
-            validator: (res) => res.statusCode == 404 ? 'Not Found' : null,
+            validator: (result) => result.statusCode == 404 ? 'Not Found' : null,
           ),
         ],
       );
@@ -60,7 +60,7 @@ void main() {
       expect(
         () => viaWithValidator.get('/status/404'),
         throwsA(
-          isA<ViaException>().having((e) => e.statusCode, 'statusCode', 404),
+          isA<ViaException>().having((error) => error.statusCode, 'statusCode', 404),
         ),
       );
     });

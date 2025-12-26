@@ -54,8 +54,8 @@ Future<void> runErrorHandlingExample() async {
       AppLogger(),
       // Custom validator to throw on 4xx/5xx
       ViaResponseValidatorPipeline(
-        validator: (res) =>
-            res.statusCode >= 400 ? 'HTTP Error ${res.statusCode}' : null,
+        validator: (result) =>
+            result.statusCode >= 400 ? 'HTTP Error ${result.statusCode}' : null,
       ),
     ],
   );
@@ -71,16 +71,16 @@ Future<void> runErrorHandlingExample() async {
 Future<void> runCancellationExample() async {
   print('\n[4] Request Cancellation');
   final via = Via(base: Uri.parse('https://httpbin.org'), pipelines: [AppLogger()]);
-  final cts = CancelToken();
+  final cancelToken = CancelToken();
 
   // Start a delayed request and cancel it immediately
-  final future = via.get('/delay/2', cancelToken: cts);
-  cts.cancel();
+  final future = via.get('/delay/2', cancelToken: cancelToken);
+  cancelToken.cancel();
 
   try {
     await future;
-  } on ViaException catch (e) {
-    print('Caught expected cancellation: ${e.message}');
+  } on ViaException catch (error) {
+    print('Caught expected cancellation: ${error.message}');
   }
 }
 
@@ -89,16 +89,16 @@ class AppLogger extends ViaLoggerPipeline {
   @override
   void onLog(Object event) {
     switch (event) {
-      case final ViaRequest r:
-        print('🚀 Request: ${r.method.value} ${r.uri}');
+      case final ViaRequest request:
+        print('🚀 Request: ${request.method.value} ${request.uri}');
 
-      case final ViaBaseResult res:
+      case final ViaBaseResult result:
         print(
-          '✅ Response: ${res.statusCode} (${res.elapsed?.inMilliseconds}ms)',
+          '✅ Response: ${result.statusCode} (${result.elapsed?.inMilliseconds}ms)',
         );
         
-      case final ViaException e:
-        print('❌ Error: ${e.message}');
+      case final ViaException error:
+        print('❌ Error: ${error.message}');
     }
   }
 }

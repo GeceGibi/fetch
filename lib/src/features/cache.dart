@@ -64,13 +64,8 @@ class ViaCachePipeline extends ViaPipeline {
   }
 
   @override
-  Future<ViaBaseResult> onResult(ViaBaseResult result) async {
+  Future<ViaResult> onResult(ViaResult result) async {
     if (duration == Duration.zero) {
-      return result;
-    }
-
-    // Only cache buffered results
-    if (result is! ViaResult) {
       return result;
     }
 

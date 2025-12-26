@@ -224,7 +224,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       }
     } on ViaException {
       rethrow;
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       // If client was closed due to cancellation
       if (cancelToken?.isCancelled ?? false) {
         throw ViaException.cancelled(request: request);
@@ -233,7 +233,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
       // Connection error
       throw ViaException.network(
         request: request,
-        message: e.toString(),
+        message: error.toString(),
         stackTrace: stackTrace,
       );
     } finally {
@@ -378,25 +378,14 @@ class Via<R extends ViaResult> with ViaMethods<R> {
 
       // Handle streaming pipelines
       if (result is ViaResultStream) {
-        var dataStream = result.stream;
 
+        var currentResult = result;
+        
         for (final pipeline in pipelines) {
-          dataStream = pipeline.onStream(currentRequest, dataStream);
+          final newStream = pipeline.onStream(currentResult);
+          currentResult = currentResult.copyWith(stream: newStream);
         }
-
-        response = ViaResultStream(
-          request: currentRequest,
-          response: http.StreamedResponse(
-            dataStream,
-            result.statusCode,
-            contentLength: result.response.contentLength,
-            request: result.response.request,
-            headers: result.headers,
-            isRedirect: result.response.isRedirect,
-            persistentConnection: result.response.persistentConnection,
-            reasonPhrase: result.response.reasonPhrase,
-          ),
-        );
+        response = currentResult;
       } else {
         response = result;
       }
@@ -407,7 +396,9 @@ class Via<R extends ViaResult> with ViaMethods<R> {
     // 3. Post-response pipelines (same order)
     var processedResponse = response;
     for (final pipeline in pipelines) {
-      processedResponse = await pipeline.onResult(processedResponse);
+      if (processedResponse is ViaResult) {
+        processedResponse = await pipeline.onResult(processedResponse);
+      }
     }
 
     return processedResponse;

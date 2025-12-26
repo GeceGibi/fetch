@@ -13,7 +13,7 @@ class TestPipeline extends ViaPipeline {
   }
 
   @override
-  Future<ViaBaseResult> onResult(ViaBaseResult result) async {
+  Future<ViaResult> onResult(ViaResult result) async {
     onResultCalled = true;
     return result;
   }
@@ -83,7 +83,7 @@ void main() {
       expect(
         () => viaBad.get('/test'),
         throwsA(
-          isA<ViaException>().having((e) => e.type, 'type', ViaError.network),
+          isA<ViaException>().having((error) => error.type, 'type', ViaError.network),
         ),
       );
     });

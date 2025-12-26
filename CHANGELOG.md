@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.5]
+
+### Changed
+- **Pipeline Architecture**: Refactored `ViaPipeline` for better type safety and clarity.
+    - `onResult` now specifically handles `ViaResult` (buffered responses).
+    - `onStream` now receives the full `ViaResultStream` object instead of raw stream chunks, allowing access to response metadata (headers, status code) during streaming.
+- **Enhanced Streaming**: Added `ViaResultStream.copyWith` to allow pipelines to transform response streams while preserving metadata.
+- **Improved Validation**: `ViaResponseValidatorPipeline` now supports validation of both buffered and streaming responses.
+
 ## [1.5.4]
 
 ### Fixed

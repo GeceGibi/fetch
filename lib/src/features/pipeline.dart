@@ -22,11 +22,10 @@ abstract class ViaPipeline {
 
   /// Called when a streaming response is received.
   /// Use this to intercept, log, or transform the stream data chunks.
-  Stream<List<int>> onStream(ViaRequest request, Stream<List<int>> stream) =>
-      stream;
+  Stream<List<int>> onStream(ViaResultStream result) => result.stream;
 
-  /// Called after response is received.
-  FutureOr<ViaBaseResult> onResult(ViaBaseResult result) => result;
+  /// Called after buffered response is received.
+  FutureOr<ViaResult> onResult(ViaResult result) => result;
 
   /// Called when an error occurs during processing.
   void onError(ViaException error) {}
@@ -81,22 +80,23 @@ class ViaLoggerPipeline extends ViaPipeline {
   }
 
   @override
-  ViaBaseResult onResult(ViaBaseResult result) {
+  ViaResult onResult(ViaResult result) {
     _addLog(result);
     return result;
   }
 
   @override
-  Stream<List<int>> onStream(ViaRequest request, Stream<List<int>> stream) {
-    if (!enabled) return stream;
+  Stream<List<int>> onStream(ViaResultStream result) {
+    _addLog(result);
+    if (!enabled) return result.stream;
 
-    return stream.transform(
+    return result.stream.transform(
       StreamTransformer.fromHandlers(
         handleError: (error, stackTrace, sink) {
           final viaError = error is ViaException
               ? error
               : ViaException.network(
-                  request: request,
+                  request: result.request,
                   message: error.toString(),
                   stackTrace: stackTrace,
                 );
@@ -269,7 +269,18 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
   final ResponseValidator validator;
 
   @override
-  FutureOr<ViaBaseResult> onResult(ViaBaseResult result) async {
+  Stream<List<int>> onStream(ViaResultStream result) async* {
+    final errorMessage = await validator(result);
+
+    if (errorMessage != null) {
+      throw result.toException(message: errorMessage);
+    }
+
+    yield* result.stream;
+  }
+
+  @override
+  FutureOr<ViaResult> onResult(ViaResult result) async {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {
