@@ -24,7 +24,7 @@ Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.5.0
+  via: ^1.6.0
 ```
 
 ---
@@ -98,12 +98,14 @@ Configure how your application handles failures. Custom retry logic can be defin
 ```dart
 final via = Via(
   retry: ViaRetry(
-    maxAttempts: 3,
-    delay: Duration(seconds: 2),
+    maxRetries: 3,
+    retryDelay: Duration(seconds: 2),
     retryIf: (error, attempt) => error.type == .network,
   ),
 );
 ```
+
+> ⚠️ **Note:** Retry does not work with streaming request bodies (`Stream<List<int>>`). Since streams can only be consumed once, failed requests with stream bodies cannot be retried.
 
 ### 🛑 Request Cancellation
 Stop ongoing requests instantly using a `CancelToken`.

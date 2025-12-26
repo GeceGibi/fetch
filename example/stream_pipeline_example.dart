@@ -3,7 +3,7 @@ import 'package:via/via.dart';
 /// A custom pipeline that listens to the stream and prints progress.
 class ProgressPipeline extends ViaPipeline {
   @override
-  Stream<List<int>> onStream(ViaResultStream result) async* {
+  Stream<List<int>> onResultStream(ViaResultStream result) async* {
     final total = result.response.contentLength;
     var received = 0;
 

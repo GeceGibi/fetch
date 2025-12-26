@@ -76,7 +76,7 @@ class _StreamListenerPipeline extends ViaPipeline {
   final void Function(List<int> chunk) onChunk;
 
   @override
-  Stream<List<int>> onStream(ViaResultStream result) async* {
+  Stream<List<int>> onResultStream(ViaResultStream result) async* {
     await for (final chunk in result.stream) {
       onChunk(chunk);
       yield chunk;

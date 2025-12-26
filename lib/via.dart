@@ -382,7 +382,7 @@ class Via<R extends ViaResult> with ViaMethods<R> {
         var currentResult = result;
         
         for (final pipeline in pipelines) {
-          final newStream = pipeline.onStream(currentResult);
+          final newStream = pipeline.onResultStream(currentResult);
           currentResult = currentResult.copyWith(stream: newStream);
         }
         response = currentResult;

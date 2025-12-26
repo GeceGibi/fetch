@@ -22,7 +22,7 @@ abstract class ViaPipeline {
 
   /// Called when a streaming response is received.
   /// Use this to intercept, log, or transform the stream data chunks.
-  Stream<List<int>> onStream(ViaResultStream result) => result.stream;
+  Stream<List<int>> onResultStream(ViaResultStream result) => result.stream;
 
   /// Called after buffered response is received.
   FutureOr<ViaResult> onResult(ViaResult result) => result;
@@ -86,7 +86,7 @@ class ViaLoggerPipeline extends ViaPipeline {
   }
 
   @override
-  Stream<List<int>> onStream(ViaResultStream result) {
+  Stream<List<int>> onResultStream(ViaResultStream result) {
     _addLog(result);
     if (!enabled) return result.stream;
 
@@ -178,8 +178,13 @@ class ViaDebouncePipeline extends ViaPipeline {
     });
     _states[key] = _DebounceState(timer, completer);
 
-    await completer.future;
-    return request;
+    try {
+      await completer.future;
+      return request;
+    } catch (_) {
+      _states.remove(key);
+      rethrow;
+    }
   }
 
   /// Clear all debounce state
@@ -269,7 +274,7 @@ class ViaResponseValidatorPipeline extends ViaPipeline {
   final ResponseValidator validator;
 
   @override
-  Stream<List<int>> onStream(ViaResultStream result) async* {
+  Stream<List<int>> onResultStream(ViaResultStream result) async* {
     final errorMessage = await validator(result);
 
     if (errorMessage != null) {

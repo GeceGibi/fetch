@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0]
+
+### Changed
+- **BREAKING**: Renamed `maxAttempts` to `maxRetries` in `ViaRetry`. Now `0` means no retries (clearer semantics).
+- **BREAKING**: Renamed `onStream` to `onResultStream` in `ViaPipeline` for consistency with `onResult`.
+
+### Fixed
+- **Debounce Cleanup**: Fixed potential memory leak in `ViaDebouncePipeline` when requests fail or throw exceptions.
+
+### Docs
+- Added warning about retry not working with streaming request bodies (`Stream<List<int>>`).
+
 ## [1.5.5]
 
 ### Changed

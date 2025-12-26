@@ -94,7 +94,7 @@ void main() {
         via = Via(
           base: Uri.parse('https://httpbin.org'),
           retry: const ViaRetry(
-            maxAttempts: 2,
+            maxRetries: 2,
             retryDelay: Duration(milliseconds: 100),
           ),
         );
