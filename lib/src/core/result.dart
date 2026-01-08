@@ -54,6 +54,10 @@ abstract class ViaBaseResult {
       'headers': headers,
     };
   }
+
+  /// Returns a version of this result that is safe to send through Isolates.
+  /// This typically means removing any active Streams.
+  ViaBaseResult toSafeVersion();
 }
 
 /// Represents a buffered HTTP response where the entire body is in memory.
@@ -63,7 +67,10 @@ abstract class ViaBaseResult {
 class ViaResult extends ViaBaseResult {
   /// Creates a new buffered ViaResult.
   ViaResult({required super.request, required http.Response response})
-      : super(response: response);
+    : super(response: response);
+
+  @override
+  ViaResult toSafeVersion() => this;
 
   @override
   http.Response get response => super.response as http.Response;
@@ -164,6 +171,22 @@ class ViaResultStream extends ViaBaseResult {
   }
 
   @override
+  ViaResult toSafeVersion() {
+    return ViaResult(
+      request: request.toSafeVersion(),
+      response: http.Response.bytes(
+        [], // Stream body cannot be buffered here, we just want metadata
+        statusCode,
+        headers: headers,
+        persistentConnection: response.persistentConnection,
+        isRedirect: response.isRedirect,
+        reasonPhrase: response.reasonPhrase,
+        request: response.request,
+      ),
+    )..elapsed = elapsed;
+  }
+
+  @override
   String toString() {
     return 'ViaResultStream(isSuccess: $isSuccess, request: $request, statusCode: $statusCode)';
   }
@@ -187,7 +210,8 @@ enum ViaError {
   http,
 
   /// Custom error (extracted from response body, business logic errors)
-  custom;
+  custom
+  ;
 
   String get name {
     return switch (this) {

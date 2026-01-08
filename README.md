@@ -1,4 +1,4 @@
-# 🛣️ Via
+# Via
 
 **A modern, platform-agnostic, type-safe HTTP client for Dart & Flutter.**
 
@@ -6,7 +6,7 @@ Via is a lightweight yet powerful networking engine designed for simplicity, per
 
 ---
 
-## 🚀 Key Highlights
+## Key Highlights
 
 - **Pure Dart:** Zero Flutter dependency (works in CLI, Server-side, and Flutter).
 - **Pipeline Architecture:** Highly extensible request/response lifecycle.
@@ -18,18 +18,18 @@ Via is a lightweight yet powerful networking engine designed for simplicity, per
 
 ---
 
-## 📦 Installation
+## Installation
 
 Add `via` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  via: ^1.6.0
+  via: ^1.6.1
 ```
 
 ---
 
-## 🛠️ Usage Examples
+## Usage Examples
 
 ### 1. Simple JSON GET & Auto-Mapping
 Forget manual `jsonDecode` and casting. Use `to<T>` for objects or `toListOf<T>` for lists.
@@ -74,9 +74,9 @@ result.stream.listen((chunk) {
 
 ---
 
-## 🔥 Advanced Features
+## Advanced Features
 
-### 🛠️ Pipeline Architecture
+### Pipeline Architecture
 Pipelines are the core of Via. They allow you to intercept, modify, or even skip requests and responses.
 
 - **`ViaLoggerPipeline`**: Automatically tracks request history and prints cURL commands.
@@ -92,7 +92,7 @@ final via = Via(
 );
 ```
 
-### 🛡️ Resilience & Retries
+### Resilience & Retries
 Configure how your application handles failures. Custom retry logic can be defined in the `ViaRetry` object.
 
 ```dart
@@ -105,9 +105,9 @@ final via = Via(
 );
 ```
 
-> ⚠️ **Note:** Retry does not work with streaming request bodies (`Stream<List<int>>`). Since streams can only be consumed once, failed requests with stream bodies cannot be retried.
+> **Note:** Retry does not work with streaming request bodies (`Stream<List<int>>`). Since streams can only be consumed once, failed requests with stream bodies cannot be retried.
 
-### 🛑 Request Cancellation
+### Request Cancellation
 Stop ongoing requests instantly using a `CancelToken`.
 
 ```dart
@@ -118,9 +118,15 @@ via.get('/huge-data', cancelToken: cancelToken);
 cancelToken.cancel();
 ```
 
+### Isolate Compliance
+Via is designed to be fully compatible with Dart Isolates. Since some objects like `StreamedResponse` or `ByteStream` cannot be sent between isolates, all core classes (`ViaRequest`, `ViaResult`, `ViaResultStream`) provide a `.toSafeVersion()` method.
+
+- **`ViaLoggerPipeline`** automatically uses this to ensure that even streaming results stored in the `logs` history do not cause "illegal argument in isolate message" errors when the client is used across isolate boundaries.
+- This ensures metadata (status codes, headers, cURL commands) is preserved while stripping unsendable active streams.
+
 ---
 
-## 🏗️ Design Philosophy
+## Design Philosophy
 
 Via is designed to be **lightweight** and **transparent**. It doesn't hide the underlying `http` package but enhances it with a structured execution flow. 
 
@@ -130,6 +136,6 @@ Via is designed to be **lightweight** and **transparent**. It doesn't hide the u
 
 ---
 
-## ⚖️ License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

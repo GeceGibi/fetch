@@ -39,6 +39,10 @@ class ViaLoggerPipeline extends ViaPipeline {
   ViaLoggerPipeline({
     bool enabled = true,
     this.maxEntries = 100,
+    this.includeRequest = true,
+    this.includeResult = true,
+    this.includeError = true,
+    this.includeStream = true,
   }) : _enabled = enabled;
 
   bool _enabled;
@@ -53,6 +57,18 @@ class ViaLoggerPipeline extends ViaPipeline {
 
   /// Maximum number of events to keep in the [logs] list.
   final int maxEntries;
+
+  /// Whether to include request events in the [logs] list.
+  final bool includeRequest;
+
+  /// Whether to include result events in the [logs] list.
+  final bool includeResult;
+
+  /// Whether to include error events in the [logs] list.
+  final bool includeError;
+
+  /// Whether to include stream events in the [logs] list.
+  final bool includeStream;
 
   /// History of captured events.
   ///
@@ -69,25 +85,34 @@ class ViaLoggerPipeline extends ViaPipeline {
       logs.removeAt(0);
     }
 
-    logs.add(event);
+    // Convert to isolate-safe version if possible
+    var safeEvent = event;
+
+    if (event is ViaRequest) {
+      safeEvent = event.toSafeVersion();
+    } else if (event is ViaBaseResult) {
+      safeEvent = event.toSafeVersion();
+    }
+
+    logs.add(safeEvent);
     onLog(event);
   }
 
   @override
   ViaRequest onRequest(ViaRequest request) {
-    _addLog(request);
+    if (includeRequest) _addLog(request);
     return request;
   }
 
   @override
   ViaResult onResult(ViaResult result) {
-    _addLog(result);
+    if (includeResult) _addLog(result);
     return result;
   }
 
   @override
   Stream<List<int>> onResultStream(ViaResultStream result) {
-    _addLog(result);
+    if (includeStream) _addLog(result);
     if (!enabled) return result.stream;
 
     return result.stream.transform(
@@ -109,7 +134,7 @@ class ViaLoggerPipeline extends ViaPipeline {
 
   @override
   void onError(ViaException error) {
-    _addLog(error);
+    if (includeError) _addLog(error);
   }
 
   /// Hook for real-time logging. Override this to handle events as they occur.

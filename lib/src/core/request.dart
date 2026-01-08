@@ -10,7 +10,8 @@ enum ViaMethod {
   delete('DELETE'),
   patch('PATCH'),
   head('HEAD'),
-  options('OPTIONS');
+  options('OPTIONS')
+  ;
 
   const ViaMethod(this.value);
   final String value;
@@ -95,6 +96,11 @@ class ViaRequest {
     );
   }
 
+  /// Returns a version of this request that is safe to send through Isolates.
+  ViaRequest toSafeVersion() {
+    return copyWith(body: body is Stream ? 'Stream<List<int>>' : body);
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer()..writeln('${method.value} $uri');
@@ -119,7 +125,7 @@ class ViaRequest {
       'uri': uri.toString(),
       'method': method.value,
       'headers': headers,
-      'body': body,
+      'body': body is Stream ? 'Stream<List<int>>' : body,
       'files': ?files?.keys.toList(),
     };
   }
